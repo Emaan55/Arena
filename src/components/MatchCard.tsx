@@ -1,14 +1,112 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
 import { ProductAvatar } from "./ProductAvatar";
 import { ShareButtons } from "./ShareButtons";
+import { BattlePitch } from "./BattlePitch";
+import { XHandleLink } from "./XHandleLink";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
+// Kept in sync with BOOST_VOTES / the $5 price in src/lib/arena.ts and
+// src/lib/lemonsqueezy.ts (the server-side source of truth for what's
+// actually charged/granted) — duplicated here for the same reason
+// VOTES_TO_WIN is: this is a client component, and that code is
+// server-only. Presentation only; never changes what Boost actually does.
+const BOOST_VOTES = 2;
+const BOOST_PRICE_LABEL = "$5";
+
+/**
+ * The Boost CTA, framed as a move in the current battle rather than a
+ * generic "buy votes" upsell — copy reflects the *real* live vote gap
+ * (never fake urgency/scarcity), and always states plainly that a boost
+ * changes the count, not the outcome.
+ */
+function BoostMove({
+  productId,
+  matchId,
+  name,
+  votes,
+  opponentVotes,
+  nearLoss,
+  onPaid,
+}: {
+  productId: string;
+  matchId: string;
+  name: string;
+  votes: number;
+  opponentVotes: number;
+  nearLoss: boolean;
+  onPaid?: () => void;
+}) {
+  const gap = opponentVotes - votes;
+
+  let message: ReactNode;
+  if (nearLoss) {
+    message = (
+      <>
+        <strong className="text-danger">One vote from elimination.</strong> Give {name} +
+        {BOOST_VOTES} votes to stay in it.
+      </>
+    );
+  } else if (gap > 0) {
+    message = (
+      <>
+        {name} is behind by {gap}. Give it <strong className="text-ink">+{BOOST_VOTES} votes</strong>{" "}
+        instantly.
+      </>
+    );
+  } else if (gap === 0) {
+    message = (
+      <>
+        It&apos;s tied. Give {name} the edge with{" "}
+        <strong className="text-ink">+{BOOST_VOTES} votes</strong>.
+      </>
+    );
+  } else {
+    message = (
+      <>
+        {name} is ahead. Extend the lead with <strong className="text-ink">+{BOOST_VOTES} votes</strong>.
+      </>
+    );
+  }
+
+  return (
+    <div
+      className={`flex flex-col gap-2 rounded-lg border p-3 ${
+        nearLoss ? "border-danger bg-danger/5" : "border-accent/25 bg-accent-soft/5"
+      }`}
+    >
+      <span
+        className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide ${
+          nearLoss ? "text-danger" : "text-accent"
+        }`}
+      >
+        ⚔️ Turn the Battle
+      </span>
+      <p className="text-xs leading-snug text-muted">{message}</p>
+      <PayButton
+        type="boost"
+        productId={productId}
+        matchId={matchId}
+        onPaid={onPaid}
+        label={`${BOOST_PRICE_LABEL} — Boost ${name}`}
+        className={`w-full rounded-lg px-3 py-2 text-xs font-semibold shadow-none transition-all duration-150 ease-out active:scale-95 ${
+          nearLoss
+            ? "border border-danger bg-danger/10 text-danger hover:bg-danger hover:text-danger-ink"
+            : "border border-accent/30 bg-accent-soft/10 text-accent hover:bg-accent-soft/20"
+        }`}
+      />
+      <p className="text-[10px] leading-snug text-muted">
+        Boost changes the vote count — it doesn&apos;t guarantee the win.
+      </p>
+    </div>
+  );
+}
 
 function SideCard({
   productId,
@@ -19,6 +117,11 @@ function SideCard({
   category,
   winStreak,
   votes,
+  opponentVotes,
+  battlePitch,
+  whyUs,
+  differentiators,
+  xHandle,
   side,
   nearLoss,
   disabled,
@@ -35,6 +138,11 @@ function SideCard({
   category: string;
   winStreak: number;
   votes: number;
+  opponentVotes: number;
+  battlePitch: string | null;
+  whyUs: string | null;
+  differentiators: string[];
+  xHandle: string | null;
   side: VoteSide;
   nearLoss: boolean;
   disabled: boolean;
@@ -61,20 +169,14 @@ function SideCard({
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <ProductAvatar name={name} accent={isMyVote} />
-          <div className="flex min-w-0 flex-col">
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="truncate font-display text-base font-bold text-ink hover:text-accent sm:text-lg"
-            >
-              {name}
-            </a>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate font-display text-base font-bold text-ink sm:text-lg">{name}</span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
               {category}
             </span>
+            <XHandleLink handle={xHandle} />
           </div>
         </div>
         {isMyVote && (
@@ -92,6 +194,17 @@ function SideCard({
           🔥 {winStreak} win streak
         </span>
       )}
+
+      <BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} />
+
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
+      >
+        Visit Product ↗
+      </a>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between">
@@ -122,25 +235,15 @@ function SideCard({
         {label}
       </button>
 
-      {nearLoss && !disabled ? (
-        <PayButton
-          type="boost"
-          productId={productId}
-          matchId={matchId}
-          onPaid={onPaid}
-          label={`Boost ${name} +2 votes ($5) — one from elimination`}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-danger bg-danger/10 px-3 py-2 text-xs font-semibold text-danger shadow-none transition-all duration-150 ease-out hover:bg-danger hover:text-danger-ink active:scale-95"
-        />
-      ) : (
-        <PayButton
-          type="boost"
-          productId={productId}
-          matchId={matchId}
-          onPaid={onPaid}
-          label={`Boost ${name} +2 votes ($5)`}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft/10 px-3 py-2 text-xs font-semibold text-accent shadow-none transition-all duration-150 ease-out hover:bg-accent-soft/20 active:scale-95"
-        />
-      )}
+      <BoostMove
+        productId={productId}
+        matchId={matchId}
+        name={name}
+        votes={votes}
+        opponentVotes={opponentVotes}
+        nearLoss={nearLoss}
+        onPaid={onPaid}
+      />
     </div>
   );
 }
@@ -182,7 +285,9 @@ export function MatchCard({
       </div>
 
       {/* Two equal-weight columns on desktop, stacked with the VS divider
-          preserved on mobile — never just one product's card. */}
+          preserved on mobile — never just one product's card. Both sides
+          render through the same SideCard, so no matchup is ever
+          hardcoded. */}
       <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-[1fr_auto_1fr] sm:divide-y-0 sm:divide-x">
         <SideCard
           productId={match.product_a.id}
@@ -193,6 +298,11 @@ export function MatchCard({
           category={match.category}
           winStreak={match.product_a.wins}
           votes={match.votes_a}
+          opponentVotes={match.votes_b}
+          battlePitch={match.product_a.battle_pitch}
+          whyUs={match.product_a.why_us}
+          differentiators={match.product_a.differentiators}
+          xHandle={match.product_a.x_handle}
           side="a"
           nearLoss={aNearLoss}
           disabled={disabled}
@@ -215,6 +325,11 @@ export function MatchCard({
           category={match.category}
           winStreak={match.product_b.wins}
           votes={match.votes_b}
+          opponentVotes={match.votes_a}
+          battlePitch={match.product_b.battle_pitch}
+          whyUs={match.product_b.why_us}
+          differentiators={match.product_b.differentiators}
+          xHandle={match.product_b.x_handle}
           side="b"
           nearLoss={bNearLoss}
           disabled={disabled}

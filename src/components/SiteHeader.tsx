@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { BrandLogo } from "./BrandLogo";
+import { ProductSearchBar, ProductSearchToggle } from "./ProductSearch";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -37,6 +38,8 @@ export function SiteHeader() {
           ))}
         </nav>
 
+        <ProductSearchBar className="hidden w-full max-w-xs lg:block" />
+
         <div className="flex items-center gap-3">
           <ThemeToggle className="hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90 sm:flex" />
           <Link
@@ -45,6 +48,9 @@ export function SiteHeader() {
           >
             Submit Product
           </Link>
+          <div className="lg:hidden">
+            <ProductSearchToggle />
+          </div>
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle menu"

@@ -32,6 +32,17 @@ export type Product = {
   submitted_at: string;
   pool_entered_at: string;
   uncontested_wins: number;
+  // Battle Pitch — all optional, all fall back to `pitch` in the UI when
+  // absent so pre-existing products keep working unchanged.
+  battle_pitch: string | null;
+  why_us: string | null;
+  differentiators: string[];
+  // Optional founder attribution — normalized, no leading '@', no X API
+  // integration. Null means "not supplied," never inferred.
+  x_handle: string | null;
+  // Hash of a one-time edit token handed to the submitter at creation.
+  // Never sent to the client after that — only compared server-side.
+  edit_token_hash: string | null;
 };
 
 export type Match = {
@@ -61,6 +72,11 @@ export type Champion = {
   crowned_at: string;
   times_defended: number;
 };
+
+export type ProductSearchResult = Pick<
+  Product,
+  "id" | "name" | "category" | "pitch" | "battle_pitch" | "status" | "wins" | "x_handle"
+>;
 
 export type ActivityLogEntry = {
   id: string;

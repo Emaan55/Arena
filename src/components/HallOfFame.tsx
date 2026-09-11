@@ -5,6 +5,7 @@ import type { ChampionWithProduct } from "@/lib/arena-state";
 import { timeAgo } from "@/lib/format";
 import { PayButton } from "./PayButton";
 import { ProductAvatar } from "./ProductAvatar";
+import { XHandleLink } from "./XHandleLink";
 import { CrownIcon } from "./icons";
 
 export function HallOfFame({
@@ -45,6 +46,7 @@ export function HallOfFame({
             </span>
           </div>
           <p className="line-clamp-2 text-sm text-muted">{c.product.pitch}</p>
+          <XHandleLink handle={c.product.x_handle} />
           <div className="mt-1 flex items-center justify-between text-xs text-muted">
             <span>Crowned {timeAgo(c.crowned_at)}</span>
             {c.times_defended > 0 && (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Product } from "@/types/database";
 import { PayButton } from "./PayButton";
 import { ProductAvatar } from "./ProductAvatar";
+import { XHandleLink } from "./XHandleLink";
 
 export function EliminatedList({
   products,
@@ -27,11 +28,15 @@ export function EliminatedList({
             Eliminated
           </div>
           <ProductAvatar name={p.name} />
-          <div className="flex flex-col gap-0.5">
-            <Link href={`/product/${p.id}`} className="max-w-[70%] font-display text-base font-bold text-muted hover:text-ink">
+          <div className="flex min-w-0 flex-col gap-1 pr-8">
+            <Link href={`/product/${p.id}`} className="truncate font-display text-base font-bold text-muted hover:text-ink">
               {p.name}
             </Link>
-            <span className="text-xs text-muted">{p.category}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              {p.category}
+            </span>
+            <p className="line-clamp-2 text-xs leading-snug text-muted">{p.pitch}</p>
+            <XHandleLink handle={p.x_handle} />
           </div>
           <PayButton type="revive" productId={p.id} onPaid={onPaid} />
         </div>

@@ -4,6 +4,8 @@ import { getArenaState } from "@/lib/arena-state";
 import { pairUnmatchedProducts, logActivity, markStaleWaitingProductsUnique } from "@/lib/arena";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
+import { generateEditToken, hashEditToken } from "@/lib/edit-token";
+import { parseBattleFields } from "@/lib/product-fields";
 import { CATEGORIES, type Category } from "@/types/database";
 
 function normalizeUrl(raw: string): string | null {
@@ -38,10 +40,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, url, category, pitch, website, renderedAt } = (body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const record = (body ?? {}) as Record<string, unknown>;
+  const { name, url, category, pitch, website, renderedAt } = record;
 
   // Honeypot: a real user never sees or fills this field.
   if (typeof website === "string" && website.trim() !== "") {
@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please enter a valid URL." }, { status: 400 });
   }
 
+  const battleFields = parseBattleFields(record);
+  if (!battleFields.ok) {
+    return NextResponse.json({ error: battleFields.error }, { status: 400 });
+  }
+
   const admin = createAdminSupabaseClient();
 
   const { data: existing } = await admin
@@ -87,6 +92,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const editToken = generateEditToken();
+
   const { data: product, error } = await admin
     .from("products")
     .insert({
@@ -97,6 +104,8 @@ export async function POST(req: NextRequest) {
       status: "active",
       wins: 0,
       is_defending: false,
+      ...battleFields.fields,
+      edit_token_hash: hashEditToken(editToken),
     })
     .select()
     .single();
@@ -110,5 +119,9 @@ export async function POST(req: NextRequest) {
   await markStaleWaitingProductsUnique(admin);
 
   const state = await getArenaState(admin);
-  return NextResponse.json({ product, state }, { status: 201 });
+  // editToken is returned exactly once, in plaintext, to the submitter's
+  // browser — the DB only ever stores its hash. It's the sole credential
+  // for editing this product later (see PATCH /api/products/[id]); losing
+  // it means losing edit access, same trade-off as an API key.
+  return NextResponse.json({ product, state, editToken }, { status: 201 });
 }

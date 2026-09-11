@@ -10,24 +10,13 @@ import { WaitingCard } from "@/components/WaitingCard";
 import { PayButton } from "@/components/PayButton";
 import { ProductLiveDuel } from "@/components/ProductLiveDuel";
 import { CrownIcon } from "@/components/icons";
+import { XHandleLink } from "@/components/XHandleLink";
+import { BattlePitch } from "@/components/BattlePitch";
+import { ProductEditor } from "@/components/ProductEditor";
 import { timeAgo } from "@/lib/format";
-import type { ProductStatus } from "@/types/database";
+import { STATUS_LABEL, STATUS_CLASS } from "@/lib/product-status";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<ProductStatus, string> = {
-  active: "Active",
-  eliminated: "Eliminated",
-  champion: "Champion",
-  unique: "Unique Product",
-};
-
-const STATUS_CLASS: Record<ProductStatus, string> = {
-  active: "bg-accent-soft/20 text-accent",
-  eliminated: "bg-danger/10 text-danger",
-  champion: "bg-accent text-accent-ink",
-  unique: "bg-surface-2 text-muted",
-};
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +54,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               <span className="text-xs font-semibold uppercase tracking-wide text-muted">
                 {product.category}
               </span>
+              <XHandleLink handle={product.x_handle} />
             </div>
           </div>
           <ShareButtons url={productUrl} text={`Check out ${product.name} on The Arena ⚔️`} />
@@ -78,7 +68,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         >
           {product.url}
         </a>
+        <BattlePitch
+          battlePitch={product.battle_pitch}
+          whyUs={product.why_us}
+          differentiators={product.differentiators}
+        />
       </div>
+
+      <ProductEditor product={product} />
 
       {currentMatch && (
         <div className="flex flex-col gap-3">

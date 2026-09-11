@@ -36,6 +36,11 @@ row and become the category's permanent Champion.
      adds the `unique` product status and corrects any wins/streaks/champion
      crownings that were previously (incorrectly) granted just for going
      uncontested — see "How wins and the leaderboard work" below.
+     `0006_battle_pitch.sql` adds the optional Battle Pitch fields
+     (`battle_pitch`, `why_us`, `differentiators`), an optional founder
+     `x_handle`, and `edit_token_hash` (a hashed one-time token that lets a
+     submitter edit their own product later — see "Battle Pitch, search,
+     and founder X handles" below).
    - Grab your Project URL, `anon` public key, and `service_role` secret key
      from Project Settings → API.
 
@@ -146,6 +151,40 @@ uncontested status, or a live vote lead.
 
 There's no cron for the 7-day check — it's checked lazily on every
 `/api/state` fetch, which the client already polls every 5s.
+
+### Battle Pitch, search, and founder X handles
+
+- **Battle Pitch** — every product can optionally add a Battle Pitch (≤120
+  chars), a "Why Us?" line (≤160 chars), and up to 3 short differentiators
+  (`src/lib/product-fields.ts` validates all of it, shared by both create
+  and edit). `BattlePitch.tsx` renders the block and returns `null` when a
+  product hasn't filled any of it in — the card's existing `pitch`
+  description is the fallback, nothing is invented. It's wired into
+  `MatchCard`'s `SideCard` (so it shows in every live duel, never a
+  hardcoded matchup) and the product page.
+- **Editing** — there's no account system, so ownership is a one-time edit
+  token: `POST /api/products` generates one, returns it in plaintext exactly
+  once, and the client stores it in `localStorage` (same pattern as the
+  anonymous voter fingerprint in `lib/fingerprint.ts`, just for edit access
+  instead of vote-locking). `PATCH /api/products/[id]` re-hashes whatever
+  token is presented and compares it to `edit_token_hash` — no match, no
+  edit. `ProductEditor.tsx` on the product page reads that token from
+  `localStorage` and simply doesn't render an "Edit" affordance if it's
+  absent, which is also why every pre-`0006` product is fixed as originally
+  submitted: it never had a token to begin with.
+- **Search** — `GET /api/search?q=` does a server-side `ilike` search
+  across name/pitch/category/x_handle (never loads the full product list
+  into the browser), sanitizing the query so it can't be read as `.or()`
+  filter syntax or an `ilike` wildcard pattern. `ProductSearchBar` (desktop,
+  inline in the header) and `ProductSearchToggle` (mobile, a full-screen
+  overlay portaled to `document.body` — see the comment in
+  `ProductSearch.tsx` for why it can't just render inline under the
+  backdrop-blurred header) share the same 300ms-debounced hook and
+  loading/no-results/error states.
+- **Founder X handle** — optional, normalized to a bare username (no `@`,
+  validated against X's handle rules) in `lib/x-handle.ts`, never fetched or
+  verified via the X API. `XHandleLink` renders "Built by @handle" linking
+  to the profile, and renders nothing at all when a product has no handle.
 
 ### How payments work (Phase 3)
 

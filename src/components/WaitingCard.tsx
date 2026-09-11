@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Swords } from "lucide-react";
 import type { Product } from "@/types/database";
 import { ProductAvatar } from "./ProductAvatar";
+import { XHandleLink } from "./XHandleLink";
 
 function buildInviteLink(product: Product): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -40,36 +41,38 @@ export function WaitingCard({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-accent/40 bg-accent-soft/5 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <ProductAvatar name={product.name} accent />
-        <div className="flex flex-col gap-0.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
-            <Swords className="h-3.5 w-3.5" />
+            <Swords className="h-3.5 w-3.5 shrink-0" />
             {variant === "unique" ? "Unique Product · Uncontested" : "Waiting for a challenger"}
           </span>
-          <a href={`/product/${product.id}`} className="font-display text-base font-bold text-ink">
+          <a href={`/product/${product.id}`} className="truncate font-display text-base font-bold text-ink hover:text-accent">
             {product.name}
           </a>
-          <p className="text-xs text-muted">
-            {product.category} · {product.pitch}
-          </p>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            {product.category}
+          </span>
+          <p className="text-xs leading-snug text-muted">{product.pitch}</p>
+          <XHandleLink handle={product.x_handle} />
           {variant === "unique" && (
-            <p className="text-xs text-muted">
+            <p className="text-xs leading-snug text-muted">
               No rival showed up within 7 days — still open to a challenge, no win awarded.
             </p>
           )}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
           onClick={copyInvite}
-          className="rounded-lg border border-border bg-bg px-3 py-2 text-xs font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+          className="rounded-lg border border-border bg-bg px-3.5 py-2 text-xs font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
         >
           {copied ? "Copied!" : "Copy link"}
         </button>
         <button
           onClick={() => openTwitterIntent(product)}
-          className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+          className="rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
         >
           {variant === "unique" ? "Challenge This Product" : "Invite a Rival"}
         </button>
