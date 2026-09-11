@@ -6,6 +6,7 @@ import { timeAgo } from "@/lib/format";
 import { PayButton } from "./PayButton";
 import { ProductAvatar } from "./ProductAvatar";
 import { XHandleLink } from "./XHandleLink";
+import { EditProductButton } from "./EditProductButton";
 import { CrownIcon } from "./icons";
 
 export function HallOfFame({
@@ -38,9 +39,12 @@ export function HallOfFame({
             />
           </div>
           <div className="flex flex-col gap-0.5">
-            <Link href={`/product/${c.product_id}`} className="font-display text-lg font-bold text-ink hover:text-accent">
-              {c.product.name}
-            </Link>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Link href={`/product/${c.product_id}`} className="font-display text-lg font-bold text-ink hover:text-accent">
+                {c.product.name}
+              </Link>
+              <EditProductButton productId={c.product_id} submittedAt={c.product.submitted_at} />
+            </div>
             <span className="text-xs font-semibold uppercase tracking-wide text-accent">
               {c.category}
             </span>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types/database";
 import { editTokenStorageKey } from "@/lib/edit-token-storage";
+import { isWithinEditWindow } from "@/lib/edit-window";
 
 const BATTLE_PITCH_MAX = 120;
 const WHY_US_MAX = 160;
@@ -18,10 +19,16 @@ const PITCH_MAX = 140;
  * "Edit" affordance at all unless this exact browser holds that product's
  * token, which is the only credential the PATCH endpoint accepts.
  */
-export function ProductEditor({ product }: { product: Product }) {
+export function ProductEditor({
+  product,
+  defaultOpen = false,
+}: {
+  product: Product;
+  defaultOpen?: boolean;
+}) {
   const router = useRouter();
   const [editToken, setEditToken] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [pitch, setPitch] = useState(product.pitch);
   const [battlePitch, setBattlePitch] = useState(product.battle_pitch ?? "");
   const [whyUs, setWhyUs] = useState(product.why_us ?? "");
@@ -46,6 +53,16 @@ export function ProductEditor({ product }: { product: Product }) {
   }, [product.id]);
 
   if (!editToken) return null;
+
+  const editable = isWithinEditWindow(product.submitted_at);
+  if (!editable) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-surface-2 p-4 text-sm text-muted sm:p-5">
+        The 24-hour editing window for this product has closed — Battle Pitch, Why Us,
+        differentiators, and the X handle are now locked in for the rest of the competition.
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,7 +97,7 @@ export function ProductEditor({ product }: { product: Product }) {
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-accent/40 bg-accent-soft/5 p-4 sm:p-5">
+    <div id="edit-product" className="rounded-xl border border-dashed border-accent/40 bg-accent-soft/5 p-4 sm:p-5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

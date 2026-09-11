@@ -18,8 +18,15 @@ import { STATUS_LABEL, STATUS_CLASS } from "@/lib/product-status";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const { id } = await params;
+  const { edit } = await searchParams;
   const admin = createAdminSupabaseClient();
   const detail = await getProductDetail(admin, id);
   if (!detail) notFound();
@@ -75,7 +82,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         />
       </div>
 
-      <ProductEditor product={product} />
+      <ProductEditor product={product} defaultOpen={edit === "1"} />
 
       {currentMatch && (
         <div className="flex flex-col gap-3">

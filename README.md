@@ -172,6 +172,21 @@ There's no cron for the 7-day check — it's checked lazily on every
   `localStorage` and simply doesn't render an "Edit" affordance if it's
   absent, which is also why every pre-`0006` product is fixed as originally
   submitted: it never had a token to begin with.
+  - **24h edit window** (`lib/edit-window.ts`) — editing closes 24h after
+    submission, enforced in `PATCH /api/products/[id]` itself (not just
+    hinted at client-side), so Battle Pitch/Why Us/differentiators/X handle
+    can't be rewritten mid-duel in reaction to how voting is going. Editing
+    never touches votes, wins, or match state regardless of window, so this
+    is purely about when informational fields can change, not about the
+    battle's outcome.
+  - **`EditProductButton.tsx`** — a small pencil icon shown on every card
+    (duel cards, waiting/eliminated/champion cards) that renders `null`
+    unless *this exact browser* holds that product's edit token AND it's
+    still within the 24h window — everyone else, including every other
+    voter on that same duel, sees nothing there. It links to
+    `/product/[id]?edit=1#edit-product`, which auto-expands the existing
+    `ProductEditor` rather than duplicating the edit form inline in every
+    card variant.
 - **Search** — `GET /api/search?q=` does a server-side `ilike` search
   across name/pitch/category/x_handle (never loads the full product list
   into the browser), sanitizing the query so it can't be read as `.or()`

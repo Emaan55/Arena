@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { hashEditToken } from "@/lib/edit-token";
+import { isWithinEditWindow } from "@/lib/edit-window";
 import { parseBattleFieldsPatch } from "@/lib/product-fields";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
@@ -47,6 +48,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (!product.edit_token_hash || product.edit_token_hash !== hashEditToken(editToken)) {
     return NextResponse.json({ error: "Invalid edit token." }, { status: 403 });
+  }
+
+  // Enforced server-side, not just hinted at client-side: editing closes
+  // 24h after submission so a live duel's Battle Pitch can't be rewritten
+  // mid-battle in reaction to how voting is going.
+  if (!isWithinEditWindow(product.submitted_at)) {
+    return NextResponse.json(
+      { error: "The 24-hour editing window for this product has closed." },
+      { status: 403 },
+    );
   }
 
   const battlePatch = parseBattleFieldsPatch(record);

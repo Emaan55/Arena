@@ -9,6 +9,7 @@ import { ProductAvatar } from "./ProductAvatar";
 import { ShareButtons } from "./ShareButtons";
 import { BattlePitch } from "./BattlePitch";
 import { XHandleLink } from "./XHandleLink";
+import { EditProductButton } from "./EditProductButton";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
@@ -122,6 +123,7 @@ function SideCard({
   whyUs,
   differentiators,
   xHandle,
+  submittedAt,
   side,
   nearLoss,
   disabled,
@@ -143,6 +145,7 @@ function SideCard({
   whyUs: string | null;
   differentiators: string[];
   xHandle: string | null;
+  submittedAt: string;
   side: VoteSide;
   nearLoss: boolean;
   disabled: boolean;
@@ -179,12 +182,15 @@ function SideCard({
             <XHandleLink handle={xHandle} />
           </div>
         </div>
-        {isMyVote && (
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
-            <Check className="h-3 w-3" />
-            Your vote
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isMyVote && (
+            <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
+              <Check className="h-3 w-3" />
+              Your vote
+            </span>
+          )}
+          <EditProductButton productId={productId} submittedAt={submittedAt} />
+        </div>
       </div>
 
       <p className="line-clamp-2 min-h-[2.2em] text-xs text-muted sm:text-sm">{pitch}</p>
@@ -303,6 +309,7 @@ export function MatchCard({
           whyUs={match.product_a.why_us}
           differentiators={match.product_a.differentiators}
           xHandle={match.product_a.x_handle}
+          submittedAt={match.product_a.submitted_at}
           side="a"
           nearLoss={aNearLoss}
           disabled={disabled}
@@ -330,6 +337,7 @@ export function MatchCard({
           whyUs={match.product_b.why_us}
           differentiators={match.product_b.differentiators}
           xHandle={match.product_b.x_handle}
+          submittedAt={match.product_b.submitted_at}
           side="b"
           nearLoss={bNearLoss}
           disabled={disabled}

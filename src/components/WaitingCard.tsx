@@ -5,6 +5,7 @@ import { Swords } from "lucide-react";
 import type { Product } from "@/types/database";
 import { ProductAvatar } from "./ProductAvatar";
 import { XHandleLink } from "./XHandleLink";
+import { EditProductButton } from "./EditProductButton";
 
 function buildInviteLink(product: Product): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -48,9 +49,12 @@ export function WaitingCard({
             <Swords className="h-3.5 w-3.5 shrink-0" />
             {variant === "unique" ? "Unique Product · Uncontested" : "Waiting for a challenger"}
           </span>
-          <a href={`/product/${product.id}`} className="truncate font-display text-base font-bold text-ink hover:text-accent">
-            {product.name}
-          </a>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <a href={`/product/${product.id}`} className="truncate font-display text-base font-bold text-ink hover:text-accent">
+              {product.name}
+            </a>
+            <EditProductButton productId={product.id} submittedAt={product.submitted_at} />
+          </div>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
             {product.category}
           </span>
