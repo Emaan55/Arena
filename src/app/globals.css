@@ -23,6 +23,11 @@
      below so the icon always matches the background it was matted for. */
   --logo-icon: url("/brand/icon-light-theme.png");
   --logo-wordmark: url("/brand/wordmark-light-theme.png");
+  /* Hero backdrop photo — a bright daylight stadium for light mode, swapped
+     for a moody dual-spotlight arena in dark mode below (same cascade as
+     the logo/favicon), each shot specifically for its background. */
+  --backdrop-image: url("/backdrop-light.jpeg");
+  --backdrop-opacity: 0.3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +46,8 @@
     --glow-accent: 0 0 0 1px rgba(0, 180, 216, 0.3), 0 8px 28px rgba(0, 180, 216, 0.18);
     --logo-icon: url("/brand/icon-dark-theme.png");
     --logo-wordmark: url("/brand/wordmark-dark-theme.png");
+    --backdrop-image: url("/backdrop-dark.jpeg");
+    --backdrop-opacity: 0.55;
   }
 }
 
@@ -59,6 +66,8 @@
   --glow-accent: 0 0 0 1px rgba(0, 180, 216, 0.3), 0 8px 28px rgba(0, 180, 216, 0.18);
   --logo-icon: url("/brand/icon-dark-theme.png");
   --logo-wordmark: url("/brand/wordmark-dark-theme.png");
+  --backdrop-image: url("/backdrop-dark.jpeg");
+  --backdrop-opacity: 0.55;
 }
 
 @theme inline {
@@ -121,40 +130,14 @@ body {
   }
 }
 
-/* Hero combat-atmosphere background elements — slow drift + fade, low
-   opacity throughout so they never compete with foreground content. */
-@keyframes drift-slow {
+/* Hero backdrop photo: a barely-there slow zoom/pan so it reads as alive
+   without ever drawing the eye away from the foreground content sitting
+   on top of it. */
+@keyframes backdrop-pan {
   0% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  50% {
-    transform: translate(-12px, 14px) rotate(4deg);
+    transform: scale(1) translate(0, 0);
   }
   100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-}
-
-@keyframes drift-slow-reverse {
-  0% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  50% {
-    transform: translate(14px, -10px) rotate(-5deg);
-  }
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-}
-
-@keyframes spark-pulse {
-  0%,
-  100% {
-    opacity: 0.15;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(1.1);
+    transform: scale(1.06) translate(-1%, -1%);
   }
 }

@@ -1,40 +1,31 @@
-import { Sword, Shield, Crosshair } from "lucide-react";
-
 /**
- * Minimal, slow-moving combat-flavored background elements for the hero.
- * Pure CSS (transform/opacity) animations — no JS, no particle library,
- * kept low-opacity so it never competes with foreground content.
+ * Hero background photo — swapped between a bright daylight stadium (light
+ * mode) and a moody dual-spotlight arena (dark mode) via the
+ * `--backdrop-image`/`--backdrop-opacity` CSS variables in globals.css,
+ * using the exact same light/dark/manual-override cascade as the brand
+ * logo (BrandLogo.tsx) — no JS, so it can never flash the wrong image.
+ *
+ * A gradient overlay fades the photo into the page background at the top
+ * and bottom so it reads as an atmospheric backdrop behind the hero copy,
+ * never a competing, hard-edged rectangle.
  */
 export function ArenaBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <Sword
-        className="absolute left-[8%] top-[18%] h-16 w-16 text-ink opacity-[0.05]"
-        style={{ animation: "drift-slow 14s ease-in-out infinite" }}
-      />
-      <Shield
-        className="absolute right-[10%] top-[12%] h-20 w-20 text-accent opacity-[0.07]"
-        style={{ animation: "drift-slow-reverse 18s ease-in-out infinite" }}
-      />
-      <Crosshair
-        className="absolute left-[20%] bottom-[15%] h-10 w-10 text-ink opacity-[0.06]"
-        style={{ animation: "drift-slow 10s ease-in-out infinite" }}
-      />
-      <Sword
-        className="absolute right-[18%] bottom-[10%] h-12 w-12 -rotate-45 text-accent opacity-[0.05]"
-        style={{ animation: "drift-slow-reverse 16s ease-in-out infinite" }}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "var(--backdrop-image)",
+          opacity: "var(--backdrop-opacity)",
+          animation: "backdrop-pan 24s ease-in-out infinite alternate",
+        }}
       />
       <div
-        className="absolute left-[45%] top-[25%] h-1.5 w-1.5 rounded-full bg-accent"
-        style={{ animation: "spark-pulse 4s ease-in-out infinite" }}
-      />
-      <div
-        className="absolute right-[30%] top-[55%] h-1 w-1 rounded-full bg-accent-soft"
-        style={{ animation: "spark-pulse 5s ease-in-out infinite 1s" }}
-      />
-      <div
-        className="absolute left-[65%] bottom-[30%] h-1 w-1 rounded-full bg-accent"
-        style={{ animation: "spark-pulse 6s ease-in-out infinite 2s" }}
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to bottom, var(--bg) 0%, transparent 22%, transparent 68%, var(--bg) 100%)",
+        }}
       />
     </div>
   );

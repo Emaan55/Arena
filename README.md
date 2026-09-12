@@ -290,9 +290,15 @@ applicable, and kept in sync by `ThemeToggle` on every manual toggle.
 `#duels`, `#hall-of-fame`, `#about`, a submit-product page.
 
 **Game-feel details worth knowing:**
-- Hero has a low-opacity, slow-drifting combat backdrop (`ArenaBackdrop`:
-  CSS-only sword/shield/crosshair silhouettes + a few pulsing sparks) —
-  pure `transform`/`opacity` animation, no particle library.
+- Hero has a low-opacity photographic backdrop (`ArenaBackdrop`):
+  `public/backdrop-light.jpeg` (a bright daylight stadium) and
+  `public/backdrop-dark.jpeg` (a moody dual-spotlight arena, blue vs. red)
+  swapped via the `--backdrop-image`/`--backdrop-opacity` CSS variables in
+  `globals.css` — the exact same light/dark/manual-override cascade as the
+  brand logo, so it can never flash the wrong image. A gradient overlay
+  fades it into the page background at the top and bottom, and a slow
+  CSS-only pan/zoom (`backdrop-pan`) keeps it from feeling static, all
+  without ever competing with the foreground content sitting on top of it.
 - Each duel card (`MatchCard`) shows both competing products as equal-
   weight columns (name, logo-style avatar, category, pitch, win streak,
   vote count + progress bar, its own vote button, its own boost button) —
