@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { verifyWebhookSignature } from "@/lib/lemonsqueezy";
 import { applyBoost, applyDefend, applyRevive } from "@/lib/arena";
+import { createSponsorship } from "@/lib/sponsorship";
+import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import type { PaymentType } from "@/types/database";
 
 interface LemonSqueezyWebhookPayload {
@@ -55,8 +57,13 @@ export async function POST(req: NextRequest) {
   const type = custom.type as PaymentType | undefined;
   const productId = custom.product_id;
   const matchId = custom.match_id;
+  const durationDays = custom.duration_days ? Number(custom.duration_days) : undefined;
 
-  if (!type || !productId || (type !== "boost" && type !== "revive" && type !== "defend")) {
+  const isKnownType = type === "boost" || type === "revive" || type === "defend" || type === "sponsor";
+  if (!type || !productId || !isKnownType) {
+    return NextResponse.json({ received: true });
+  }
+  if (type === "sponsor" && (durationDays === undefined || !isSponsorDuration(durationDays))) {
     return NextResponse.json({ received: true });
   }
 
@@ -90,6 +97,14 @@ export async function POST(req: NextRequest) {
     await applyRevive(admin, product);
   } else if (type === "defend") {
     await applyDefend(admin, product);
+  } else if (type === "sponsor" && durationDays !== undefined && isSponsorDuration(durationDays)) {
+    await createSponsorship(admin, {
+      productId,
+      durationDays,
+      isFree: false,
+      lemonsqueezyOrderId: orderId,
+      amount: payload.data?.attributes?.total ?? undefined,
+    });
   }
 
   return NextResponse.json({ received: true });

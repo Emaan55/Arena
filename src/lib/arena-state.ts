@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Champion, Database, Match, Product } from "@/types/database";
+import { getSponsorshipState, type SponsorshipState } from "./sponsorship";
 
 export type MatchWithProducts = Match & { product_a: Product; product_b: Product };
 export type ChampionWithProduct = Champion & { product: Product };
@@ -21,6 +22,7 @@ export interface ArenaState {
   topProducts: Product[];
   activity: { id: string; text: string; created_at: string }[];
   stats: HomeStats;
+  sponsorship: SponsorshipState;
 }
 
 export async function getArenaState(
@@ -93,6 +95,8 @@ export async function getArenaState(
       .gte("created_at", startOfDayUtc.toISOString()),
   ]);
 
+  const sponsorship = await getSponsorshipState(supabase);
+
   const matches = (matchesRes.data ?? []) as unknown as MatchWithProducts[];
 
   const matchedIds = new Set<string>();
@@ -121,6 +125,7 @@ export async function getArenaState(
       championsCrowned: champions.length,
       votesCastToday: votesTodayCountRes.count ?? 0,
     },
+    sponsorship,
   };
 }
 

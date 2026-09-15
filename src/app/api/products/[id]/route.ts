@@ -11,6 +11,27 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PITCH_MAX = 140;
 
 /**
+ * Plain product lookup — no new data exposure, since `products` already has
+ * a public-read RLS policy the anon client can query directly. This just
+ * gives client components (e.g. SponsoredSection resolving "my products"
+ * from locally-held edit tokens) a same-origin fetch instead of importing
+ * the anon Supabase client for a single row.
+ */
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!UUID_RE.test(id)) {
+    return NextResponse.json({ error: "Invalid product." }, { status: 400 });
+  }
+
+  const admin = createAdminSupabaseClient();
+  const { data: product } = await admin.from("products").select("*").eq("id", id).maybeSingle();
+  if (!product) {
+    return NextResponse.json({ error: "Product not found." }, { status: 404 });
+  }
+  return NextResponse.json({ product });
+}
+
+/**
  * Lets a submitter edit their product's Battle Pitch / Why Us /
  * Differentiators / X handle / one-line pitch after the fact, authenticated
  * by the one-time edit token they were handed at submission (see

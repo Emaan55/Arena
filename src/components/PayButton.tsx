@@ -7,12 +7,15 @@ const LABELS: Record<PaymentType, string> = {
   boost: "Boost +2 votes ($5)",
   revive: "Revive Now ($10)",
   defend: "Defend Now ($20)",
+  sponsor: "Sponsor Your Product",
 };
 
 export function PayButton({
   type,
   productId,
   matchId,
+  endpoint = "/api/checkout",
+  extraBody,
   className,
   label,
   onPaid,
@@ -20,6 +23,11 @@ export function PayButton({
   type: PaymentType;
   productId: string;
   matchId?: string;
+  /** Lets other paid flows (e.g. sponsorship) reuse this same checkout/overlay
+   * plumbing against their own route instead of /api/checkout. */
+  endpoint?: string;
+  /** Extra fields merged into the POST body — e.g. an edit token or duration. */
+  extraBody?: Record<string, string | number>;
   className?: string;
   label?: string;
   onPaid?: () => void;
@@ -31,10 +39,10 @@ export function PayButton({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, productId, matchId }),
+        body: JSON.stringify({ type, productId, matchId, ...extraBody }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {

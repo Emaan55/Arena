@@ -13,8 +13,9 @@ export type Category = (typeof CATEGORIES)[number];
 export type ProductStatus = "active" | "eliminated" | "champion" | "unique";
 export type MatchStatus = "active" | "resolved";
 export type VoteSide = "a" | "b";
-export type PaymentType = "boost" | "revive" | "defend";
+export type PaymentType = "boost" | "revive" | "defend" | "sponsor";
 export type PaymentStatus = "pending" | "completed" | "failed";
+export type SponsorshipStatus = "queued" | "active" | "completed" | "cancelled";
 
 // These are `type` (not `interface`) deliberately: interfaces don't satisfy
 // the `Record<string, unknown>` structural constraint that supabase-js's
@@ -95,6 +96,25 @@ export type Payment = {
   created_at: string;
 };
 
+// One product is ever "active" (the DB enforces this with a partial unique
+// index — see supabase/migrations/0007_sponsorships.sql); everyone else
+// who's paid (or been granted a free slot by the founder) sits `queued`,
+// ordered by `position`, and is promoted automatically the moment the
+// active slot's `ends_at` passes. See src/lib/sponsorship.ts.
+export type Sponsorship = {
+  id: string;
+  product_id: string;
+  status: SponsorshipStatus;
+  duration_days: number;
+  is_free: boolean;
+  amount: number | null;
+  lemonsqueezy_order_id: string | null;
+  position: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+};
+
 type Relationships = [];
 
 export interface Database {
@@ -134,6 +154,12 @@ export interface Database {
         Row: Payment;
         Insert: Partial<Payment>;
         Update: Partial<Payment>;
+        Relationships: Relationships;
+      };
+      sponsorships: {
+        Row: Sponsorship;
+        Insert: Partial<Sponsorship>;
+        Update: Partial<Sponsorship>;
         Relationships: Relationships;
       };
     };

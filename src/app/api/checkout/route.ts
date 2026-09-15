@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   let variantId: string;
   try {
-    variantId = getVariantId(type as PaymentType);
+    variantId = getVariantId(type as Exclude<PaymentType, "sponsor">);
   } catch {
     return NextResponse.json({ error: "Payments aren't configured yet." }, { status: 503 });
   }

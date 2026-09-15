@@ -1,19 +1,35 @@
 import "server-only";
 import crypto from "crypto";
 import type { PaymentType } from "@/types/database";
+import type { SponsorDuration } from "./sponsorship-constants";
 
 const LS_API_BASE = "https://api.lemonsqueezy.com/v1";
 
-const VARIANT_ENV_KEYS: Record<PaymentType, string> = {
+// 'sponsor' has three variants (one per duration), not one — looked up
+// separately below via getSponsorVariantId, so it's excluded here.
+const VARIANT_ENV_KEYS: Record<Exclude<PaymentType, "sponsor">, string> = {
   boost: "LEMONSQUEEZY_BOOST_VARIANT_ID",
   revive: "LEMONSQUEEZY_REVIVE_VARIANT_ID",
   defend: "LEMONSQUEEZY_DEFEND_VARIANT_ID",
 };
 
-export function getVariantId(type: PaymentType): string {
+export function getVariantId(type: Exclude<PaymentType, "sponsor">): string {
   const key = VARIANT_ENV_KEYS[type];
   const value = process.env[key];
   if (!value) throw new Error(`Missing env var ${key} — payments aren't configured yet.`);
+  return value;
+}
+
+const SPONSOR_VARIANT_ENV_KEYS: Record<SponsorDuration, string> = {
+  7: "LEMONSQUEEZY_SPONSOR_7_VARIANT_ID",
+  14: "LEMONSQUEEZY_SPONSOR_14_VARIANT_ID",
+  30: "LEMONSQUEEZY_SPONSOR_30_VARIANT_ID",
+};
+
+export function getSponsorVariantId(days: SponsorDuration): string {
+  const key = SPONSOR_VARIANT_ENV_KEYS[days];
+  const value = process.env[key];
+  if (!value) throw new Error(`Missing env var ${key} — sponsorship payments aren't configured yet.`);
   return value;
 }
 

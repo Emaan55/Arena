@@ -12,6 +12,7 @@ import { ActivityFeed } from "./ActivityFeed";
 import { WaitingCard } from "./WaitingCard";
 import { ArenaBackdrop } from "./ArenaBackdrop";
 import { DuelBackdrop } from "./DuelBackdrop";
+import { SponsoredSection } from "./SponsoredSection";
 import { StatsRow } from "./StatsRow";
 import { HowItWorks } from "./HowItWorks";
 import { Leaderboard } from "./Leaderboard";
@@ -188,6 +189,9 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
           </div>
         </section>
       </ScrollReveal>
+
+      {/* Sponsored */}
+      <SponsoredSection sponsorship={state.sponsorship} onPaid={refreshState} />
 
       {/* Duels */}
       <section id="duels" className="border-t border-border px-6 py-16 md:px-10">
