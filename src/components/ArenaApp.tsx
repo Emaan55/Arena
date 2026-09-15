@@ -11,6 +11,7 @@ import { EliminatedList } from "./EliminatedList";
 import { ActivityFeed } from "./ActivityFeed";
 import { WaitingCard } from "./WaitingCard";
 import { ArenaBackdrop } from "./ArenaBackdrop";
+import { DuelBackdrop } from "./DuelBackdrop";
 import { StatsRow } from "./StatsRow";
 import { HowItWorks } from "./HowItWorks";
 import { Leaderboard } from "./Leaderboard";
@@ -245,7 +246,8 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
                   product to start one.
                 </p>
               ) : (
-                <div className="grid gap-5">
+                <div className="relative grid gap-5 p-3 sm:p-5">
+                  <DuelBackdrop />
                   {filtered.matches.map((m) => (
                     <MatchCard
                       key={m.id}

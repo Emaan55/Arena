@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check } from "lucide-react";
+import { Activity, Check, Swords } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
@@ -20,6 +20,10 @@ const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
 // server-only. Presentation only; never changes what Boost actually does.
 const BOOST_VOTES = 2;
 const BOOST_PRICE_LABEL = "$5";
+
+// A vertically-elongated hexagon, matching the "VS" battle-marker shape
+// between the two duel cards.
+const HEX_CLIP = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
 
 /**
  * The Boost CTA, framed as a move in the current battle rather than a
@@ -87,9 +91,20 @@ function BoostMove({
           nearLoss ? "text-danger" : "text-accent"
         }`}
       >
-        ⚔️ Turn the Battle
+        <Swords className="h-3.5 w-3.5" />
+        Turn the Battle
       </span>
-      <p className="text-xs leading-snug text-muted">{message}</p>
+      <div className="flex items-start gap-2">
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+            nearLoss ? "bg-danger/15 text-danger" : "bg-accent-soft/20 text-accent"
+          }`}
+          aria-hidden="true"
+        >
+          {name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <p className="text-xs leading-snug text-muted">{message}</p>
+      </div>
       <PayButton
         type="boost"
         productId={productId}
@@ -155,21 +170,18 @@ function SideCard({
   onPaid?: () => void;
 }) {
   const isMyVote = votedSide === side;
-  const isOtherSide = disabled && !isMyVote;
   const pct = Math.min(100, (votes / VOTES_TO_WIN) * 100);
 
-  let label = "Vote for this side";
-  if (isMyVote) label = "✓ Voted";
-  else if (voting) label = "Voting…";
-  else if (isOtherSide) label = "Not selected";
+  const borderClass = isMyVote
+    ? "border-accent"
+    : nearLoss && !disabled
+      ? "border-danger/70"
+      : "border-border";
 
   return (
     <div
-      className={`flex flex-1 flex-col gap-3 p-4 transition-all duration-150 sm:p-5 ${
-        isMyVote ? "rounded-xl bg-accent-soft/10 ring-2 ring-accent" : ""
-      } ${nearLoss && !disabled ? "rounded-xl ring-1 ring-danger/60" : ""} ${
-        isOtherSide ? "opacity-50" : ""
-      }`}
+      className={`flex flex-1 flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-md transition-all duration-150 ease-out sm:p-5 ${borderClass}`}
+      style={isMyVote ? { boxShadow: "var(--glow-accent)" } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
@@ -227,19 +239,23 @@ function SideCard({
         </div>
       </div>
 
-      <button
-        onClick={() => onVote(side)}
-        disabled={disabled || voting}
-        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
-          isMyVote
-            ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
-            : isOtherSide
-              ? "border border-border bg-surface-2 text-muted shadow-none"
+      {/* Once you've voted, only your own side keeps a button ("Voted") —
+          the side you didn't pick has nothing left to click, so it goes
+          straight to the Boost move instead of a disabled "Not selected"
+          button. */}
+      {(!disabled || isMyVote) && (
+        <button
+          onClick={() => onVote(side)}
+          disabled={disabled || voting}
+          className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
+            isMyVote
+              ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
               : "bg-accent text-accent-ink hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
-        }`}
-      >
-        {label}
-      </button>
+          }`}
+        >
+          {voting ? "Voting…" : isMyVote ? "✓ Voted" : "Vote for this side"}
+        </button>
+      )}
 
       <BoostMove
         productId={productId}
@@ -250,6 +266,30 @@ function SideCard({
         nearLoss={nearLoss}
         onPaid={onPaid}
       />
+    </div>
+  );
+}
+
+/**
+ * Hexagonal "VS" marker between the two duel cards, with thin gradient
+ * lines running to the top/bottom edges of the row — stacks flush between
+ * the cards on mobile (`min-h`) and stretches to their full height on
+ * desktop (`flex-1` inside an `items-stretch` grid row).
+ */
+function VsDivider() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:py-0">
+      <span className="min-h-6 w-px flex-1 bg-gradient-to-b from-transparent to-accent/60 sm:min-h-10" />
+      <div className="relative h-12 w-11 shrink-0">
+        <div className="absolute inset-0" style={{ clipPath: HEX_CLIP, background: "var(--accent)" }} />
+        <div
+          className="absolute inset-[2px] flex items-center justify-center bg-surface"
+          style={{ clipPath: HEX_CLIP }}
+        >
+          <span className="font-display text-xs font-bold text-accent">VS</span>
+        </div>
+      </div>
+      <span className="min-h-6 w-px flex-1 bg-gradient-to-t from-transparent to-accent/60 sm:min-h-10" />
     </div>
   );
 }
@@ -278,23 +318,23 @@ export function MatchCard({
       : "";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-md transition-shadow duration-150 ease-out hover:shadow-lg">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5 sm:px-5">
-        <span className="flex items-center gap-1 text-xs font-medium text-muted">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between px-1">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
           </span>
           Live duel
+          <Activity className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
         </span>
         <ShareButtons url={shareUrl} text={shareText} />
       </div>
 
-      {/* Two equal-weight columns on desktop, stacked with the VS divider
-          preserved on mobile — never just one product's card. Both sides
-          render through the same SideCard, so no matchup is ever
-          hardcoded. */}
-      <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-[1fr_auto_1fr] sm:divide-y-0 sm:divide-x">
+      {/* Two equal-weight, independently-bordered cards — never just one
+          product's card — connected by a "VS" marker. Both sides render
+          through the same SideCard, so no matchup is ever hardcoded. */}
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch sm:gap-3">
         <SideCard
           productId={match.product_a.id}
           matchId={match.id}
@@ -318,11 +358,7 @@ export function MatchCard({
           onVote={(side) => onVote(match.id, side)}
           onPaid={onPaid}
         />
-        <div className="flex items-center justify-center px-3 py-2 sm:py-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-accent bg-accent-soft/15 font-display text-xs font-bold text-accent shadow-sm">
-            VS
-          </span>
-        </div>
+        <VsDivider />
         <SideCard
           productId={match.product_b.id}
           matchId={match.id}
@@ -348,9 +384,7 @@ export function MatchCard({
         />
       </div>
       {disabled && (
-        <p className="border-t border-border px-4 py-2 text-center text-xs text-muted sm:px-5">
-          You can only vote once per duel
-        </p>
+        <p className="px-1 text-center text-xs text-muted">You can only vote once per duel</p>
       )}
     </div>
   );

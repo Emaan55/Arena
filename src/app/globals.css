@@ -28,6 +28,12 @@
      the logo/favicon), each shot specifically for its background. */
   --backdrop-image: url("/backdrop-light.jpeg");
   --backdrop-opacity: 0.3;
+  /* Duel-grid atmosphere behind the live-duel cards: a faint diagonal line
+     grid plus two soft accent glows, swapped for a stronger dark-mode
+     version below via the same cascade as the hero backdrop. */
+  --duel-grid-line: rgba(0, 0, 0, 0.05);
+  --duel-glow-1: rgba(0, 180, 216, 0.1);
+  --duel-glow-2: rgba(0, 180, 216, 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -48,6 +54,9 @@
     --logo-wordmark: url("/brand/wordmark-dark-theme.png");
     --backdrop-image: url("/backdrop-dark.jpeg");
     --backdrop-opacity: 0.55;
+    --duel-grid-line: rgba(255, 255, 255, 0.07);
+    --duel-glow-1: rgba(0, 180, 216, 0.18);
+    --duel-glow-2: rgba(0, 180, 216, 0.12);
   }
 }
 
@@ -68,6 +77,9 @@
   --logo-wordmark: url("/brand/wordmark-dark-theme.png");
   --backdrop-image: url("/backdrop-dark.jpeg");
   --backdrop-opacity: 0.55;
+  --duel-grid-line: rgba(255, 255, 255, 0.07);
+  --duel-glow-1: rgba(0, 180, 216, 0.18);
+  --duel-glow-2: rgba(0, 180, 216, 0.12);
 }
 
 @theme inline {
