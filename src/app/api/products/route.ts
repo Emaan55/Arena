@@ -7,20 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { generateEditToken, hashEditToken } from "@/lib/edit-token";
 import { parseBattleFields } from "@/lib/product-fields";
 import { CATEGORIES, type Category } from "@/types/database";
-
-function normalizeUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const u = new URL(withScheme);
-    if (!u.hostname.includes(".")) return null;
-    u.protocol = "https:"; // normalize scheme so http/https variants dedupe as the same URL
-    return u.toString();
-  } catch {
-    return null;
-  }
-}
+import { normalizeUrl } from "@/lib/url";
 
 const MIN_FILL_TIME_MS = 1200;
 

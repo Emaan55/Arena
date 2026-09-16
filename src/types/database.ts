@@ -103,7 +103,9 @@ export type Payment = {
 // active slot's `ends_at` passes. See src/lib/sponsorship.ts.
 export type Sponsorship = {
   id: string;
-  product_id: string;
+  // Null for an external sponsorship (is_external = true) — an arbitrary
+  // URL that never gets added to the Arena as a product.
+  product_id: string | null;
   status: SponsorshipStatus;
   duration_days: number;
   is_free: boolean;
@@ -113,6 +115,15 @@ export type Sponsorship = {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
+  is_external: boolean;
+  external_name: string | null;
+  external_url: string | null;
+  external_category: string | null;
+  external_description: string | null;
+  // Favicon resolved once (site's own /favicon.ico, else a public favicon
+  // service) at checkout/creation time and stored here — see
+  // lib/url-metadata.ts — so it's never re-fetched on every page view.
+  logo_url: string | null;
 };
 
 type Relationships = [];

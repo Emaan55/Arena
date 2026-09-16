@@ -22,7 +22,7 @@ interface LemonSqueezyWebhookPayload {
 
 /**
  * The single source of truth for granting a paid action: we only ever
- * apply a boost/revive/defend here, after verifying LemonSqueezy's
+ * apply a boost/revive/defend/sponsor here, after verifying LemonSqueezy's
  * signature on the raw body and confirming the order is paid. The
  * `payments` table's unique constraint on `lemonsqueezy_order_id` makes
  * this idempotent against webhook retries.
@@ -55,23 +55,36 @@ export async function POST(req: NextRequest) {
   }
 
   const type = custom.type as PaymentType | undefined;
-  const productId = custom.product_id;
-  const matchId = custom.match_id;
-  const durationDays = custom.duration_days ? Number(custom.duration_days) : undefined;
-
   const isKnownType = type === "boost" || type === "revive" || type === "defend" || type === "sponsor";
-  if (!type || !productId || !isKnownType) {
+  if (!type || !isKnownType) {
     return NextResponse.json({ received: true });
   }
-  if (type === "sponsor" && (durationDays === undefined || !isSponsorDuration(durationDays))) {
+
+  const matchId = custom.match_id;
+  const durationDays = custom.duration_days ? Number(custom.duration_days) : undefined;
+  // An external sponsorship has no product_id at all — it's never added to
+  // the Arena. Every other type (boost/revive/defend, and an Arena-product
+  // sponsorship) requires one.
+  const isExternalSponsor = type === "sponsor" && custom.is_external === "1";
+  const productId = custom.product_id;
+
+  if (!isExternalSponsor && !productId) {
     return NextResponse.json({ received: true });
+  }
+  if (type === "sponsor") {
+    if (durationDays === undefined || !isSponsorDuration(durationDays)) {
+      return NextResponse.json({ received: true });
+    }
+    if (isExternalSponsor && (!custom.external_name || !custom.external_url)) {
+      return NextResponse.json({ received: true });
+    }
   }
 
   const admin = createAdminSupabaseClient();
 
   const { error: insertError } = await admin.from("payments").insert({
     lemonsqueezy_order_id: orderId,
-    product_id: productId,
+    product_id: productId ?? null,
     match_id: matchId ?? null,
     type,
     amount: payload.data?.attributes?.total ?? null,
@@ -88,22 +101,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not record payment." }, { status: 500 });
   }
 
-  const { data: product } = await admin.from("products").select("*").eq("id", productId).maybeSingle();
-  if (!product) return NextResponse.json({ received: true });
+  if (type === "boost" || type === "revive" || type === "defend") {
+    const { data: product } = await admin.from("products").select("*").eq("id", productId!).maybeSingle();
+    if (!product) return NextResponse.json({ received: true });
 
-  if (type === "boost" && matchId) {
-    await applyBoost(admin, matchId, productId);
-  } else if (type === "revive") {
-    await applyRevive(admin, product);
-  } else if (type === "defend") {
-    await applyDefend(admin, product);
+    if (type === "boost" && matchId) {
+      await applyBoost(admin, matchId, productId!);
+    } else if (type === "revive") {
+      await applyRevive(admin, product);
+    } else if (type === "defend") {
+      await applyDefend(admin, product);
+    }
   } else if (type === "sponsor" && durationDays !== undefined && isSponsorDuration(durationDays)) {
     await createSponsorship(admin, {
-      productId,
+      productId: isExternalSponsor ? undefined : productId,
+      external: isExternalSponsor
+        ? {
+            name: custom.external_name!,
+            url: custom.external_url!,
+            category: custom.external_category ?? "Other",
+            description: custom.external_description ?? "",
+          }
+        : undefined,
       durationDays,
       isFree: false,
       lemonsqueezyOrderId: orderId,
       amount: payload.data?.attributes?.total ?? undefined,
+      logoUrl: custom.logo_url || null,
     });
   }
 

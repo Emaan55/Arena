@@ -7,11 +7,27 @@ import type { SponsorDuration } from "./sponsorship-constants";
 type AdminClient = SupabaseClient<Database>;
 
 export type SponsorshipRow = Database["public"]["Tables"]["sponsorships"]["Row"];
-export type SponsorshipWithProduct = SponsorshipRow & { product: Product };
+// `product` is null for an external sponsorship (is_external = true) — see
+// resolveSponsorshipDisplay in sponsorship-constants.ts for reading either
+// shape uniformly.
+export type SponsorshipWithProduct = SponsorshipRow & { product: Product | null };
 
 export interface SponsorshipState {
   active: SponsorshipWithProduct | null;
   queue: SponsorshipWithProduct[];
+}
+
+/**
+ * Guards against a real charge succeeding while the sponsorship is
+ * silently lost: `createSponsorship`'s insert always writes the
+ * migration-0008 columns (is_external/logo_url/etc.) regardless of path,
+ * so if that migration hasn't been run yet the insert would fail *after*
+ * LemonSqueezy has already taken payment. Both checkout routes call this
+ * first and refuse with a clean 503 instead.
+ */
+export async function isSponsorshipSchemaReady(admin: AdminClient): Promise<boolean> {
+  const { error } = await admin.from("sponsorships").select("is_external").limit(1);
+  return !error;
 }
 
 /**
@@ -56,9 +72,21 @@ export async function promoteSponsorshipQueue(admin: AdminClient) {
     .maybeSingle();
 
   if (promoted) {
-    const { data: product } = await admin.from("products").select("name").eq("id", promoted.product_id).maybeSingle();
-    if (product) await logActivity(admin, `📣 ${product.name} is now the featured sponsor`);
+    const name = await resolveDisplayName(admin, promoted);
+    if (name) await logActivity(admin, `📣 ${name} is now the featured sponsor`);
   }
+}
+
+/** Arena-product name lookup, or the stored external name — used only for
+ * activity-log copy, where resolveSponsorshipDisplay's fuller shape isn't needed. */
+async function resolveDisplayName(
+  admin: AdminClient,
+  s: Pick<SponsorshipRow, "is_external" | "external_name" | "product_id">,
+): Promise<string | null> {
+  if (s.is_external) return s.external_name;
+  if (!s.product_id) return null;
+  const { data: product } = await admin.from("products").select("name").eq("id", s.product_id).maybeSingle();
+  return product?.name ?? null;
 }
 
 export async function getSponsorshipState(admin: AdminClient): Promise<SponsorshipState> {
@@ -84,24 +112,38 @@ export async function getSponsorshipState(admin: AdminClient): Promise<Sponsorsh
   };
 }
 
+export interface ExternalSponsorInput {
+  name: string;
+  url: string;
+  category: string;
+  description: string;
+}
+
 /**
- * Queues a new sponsorship for a product and immediately checks for
- * promotion, so it goes straight to 'active' when the spot is free. The
- * only thing that differs between a paid sponsorship (from the LemonSqueezy
- * webhook) and a founder-granted one (from the admin panel) is
- * `isFree`/`lemonsqueezyOrderId`/`amount` — the queue/promotion logic is
- * identical either way.
+ * Queues a new sponsorship — either for an existing Arena product
+ * (`productId`) or an arbitrary external URL (`external`, never added to
+ * the Arena) — and immediately checks for promotion, so it goes straight
+ * to 'active' when the spot is free. The only things that differ between a
+ * paid sponsorship (from the LemonSqueezy webhook) and a founder-granted
+ * one (from the admin panel) are `isFree`/`lemonsqueezyOrderId`/`amount` —
+ * the queue/promotion logic is identical either way.
  */
 export async function createSponsorship(
   admin: AdminClient,
   params: {
-    productId: string;
+    productId?: string;
+    external?: ExternalSponsorInput;
     durationDays: SponsorDuration;
     isFree: boolean;
     lemonsqueezyOrderId?: string;
     amount?: number;
+    /** Resolved once by the caller (checkout route / admin route) via
+     * lib/url-metadata.ts — never re-fetched here. */
+    logoUrl?: string | null;
   },
 ): Promise<SponsorshipRow | null> {
+  if (!params.productId && !params.external) return null;
+
   const { data: last } = await admin
     .from("sponsorships")
     .select("position")
@@ -112,7 +154,13 @@ export async function createSponsorship(
   const { data: sponsorship, error } = await admin
     .from("sponsorships")
     .insert({
-      product_id: params.productId,
+      product_id: params.productId ?? null,
+      is_external: !!params.external,
+      external_name: params.external?.name ?? null,
+      external_url: params.external?.url ?? null,
+      external_category: params.external?.category ?? null,
+      external_description: params.external?.description ?? null,
+      logo_url: params.logoUrl ?? null,
       status: "queued",
       duration_days: params.durationDays,
       is_free: params.isFree,
@@ -125,13 +173,13 @@ export async function createSponsorship(
 
   if (error || !sponsorship) return null;
 
-  const { data: product } = await admin.from("products").select("name").eq("id", params.productId).maybeSingle();
-  if (product) {
+  const name = await resolveDisplayName(admin, sponsorship);
+  if (name) {
     await logActivity(
       admin,
       params.isFree
-        ? `📣 ${product.name} was added as a featured sponsor by the founder`
-        : `📣 ${product.name} just booked a sponsorship`,
+        ? `📣 ${name} was added as a featured sponsor by the founder`
+        : `📣 ${name} just booked a sponsorship`,
     );
   }
 

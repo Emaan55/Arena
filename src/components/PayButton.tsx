@@ -21,7 +21,8 @@ export function PayButton({
   onPaid,
 }: {
   type: PaymentType;
-  productId: string;
+  /** Omitted for an external-product sponsorship, which has no product id. */
+  productId?: string;
   matchId?: string;
   /** Lets other paid flows (e.g. sponsorship) reuse this same checkout/overlay
    * plumbing against their own route instead of /api/checkout. */

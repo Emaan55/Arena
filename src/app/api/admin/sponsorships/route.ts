@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
-import { createSponsorship, cancelSponsorship, reorderSponsorshipQueue } from "@/lib/sponsorship";
+import { createSponsorship, cancelSponsorship, reorderSponsorshipQueue, isSponsorshipSchemaReady } from "@/lib/sponsorship";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
+import { resolveFaviconUrl } from "@/lib/url-metadata";
+import { normalizeUrl } from "@/lib/url";
+import { CATEGORIES, type Category } from "@/types/database";
 
-const PRODUCT_COLS = "id,name,category";
+const PRODUCT_COLS = "id,name,category,url,pitch";
+const NAME_MAX = 80;
+const DESCRIPTION_MAX = 140;
 
 /** Founder-only view of the sponsorship pipeline — active, queued (in
  * order), and recent history. Gated by ADMIN_SECRET (see lib/admin-auth.ts),
@@ -39,7 +44,13 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ active: active ?? null, queue: queue ?? [], history: history ?? [] });
 }
 
-/** Founder grants a free sponsorship slot to any existing product. */
+/**
+ * Founder grants a free sponsorship slot — the ONLY place a free
+ * sponsorship can ever be created (the public checkout route always goes
+ * through paid LemonSqueezy checkout). Accepts either an existing Arena
+ * product (`productId`) or an arbitrary external URL (`external`), exactly
+ * like the paid checkout route.
+ */
 export async function POST(req: NextRequest) {
   if (!isAuthorizedAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -51,18 +62,73 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { productId, durationDays } = (body ?? {}) as Record<string, unknown>;
-
-  if (typeof productId !== "string") {
-    return NextResponse.json({ error: "Missing product." }, { status: 400 });
-  }
-  const days = Number(durationDays);
+  const record = (body ?? {}) as Record<string, unknown>;
+  const days = Number(record.durationDays);
   if (!isSponsorDuration(days)) {
     return NextResponse.json({ error: "Invalid duration." }, { status: 400 });
   }
 
   const admin = createAdminSupabaseClient();
-  const { data: product } = await admin.from("products").select("id").eq("id", productId).maybeSingle();
+
+  if (!(await isSponsorshipSchemaReady(admin))) {
+    return NextResponse.json({ error: "Run migration 0008 before adding sponsors." }, { status: 503 });
+  }
+
+  const external = (record.external ?? null) as Record<string, unknown> | null;
+
+  if (external) {
+    const name = typeof external.name === "string" ? external.name.trim() : "";
+    const category = typeof external.category === "string" ? external.category : "";
+    const description = typeof external.description === "string" ? external.description.trim() : "";
+    const rawUrl = typeof external.url === "string" ? external.url : "";
+
+    if (!name || name.length > NAME_MAX) {
+      return NextResponse.json({ error: `Product name is required (max ${NAME_MAX} characters).` }, { status: 400 });
+    }
+    if (!CATEGORIES.includes(category as Category)) {
+      return NextResponse.json({ error: "Invalid category." }, { status: 400 });
+    }
+    if (!description || description.length > DESCRIPTION_MAX) {
+      return NextResponse.json(
+        { error: `A short description is required (max ${DESCRIPTION_MAX} characters).` },
+        { status: 400 },
+      );
+    }
+    const normalizedUrl = normalizeUrl(rawUrl);
+    if (!normalizedUrl) {
+      return NextResponse.json({ error: "Please enter a valid URL." }, { status: 400 });
+    }
+
+    const { data: existing } = await admin
+      .from("sponsorships")
+      .select("id")
+      .eq("external_url", normalizedUrl)
+      .in("status", ["queued", "active"])
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ error: "This product is already sponsored or in the queue." }, { status: 409 });
+    }
+
+    const logoUrl = await resolveFaviconUrl(normalizedUrl);
+    const sponsorship = await createSponsorship(admin, {
+      external: { name, url: normalizedUrl, category, description },
+      durationDays: days,
+      isFree: true,
+      logoUrl,
+    });
+    if (!sponsorship) {
+      return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });
+    }
+    return NextResponse.json({ sponsorship }, { status: 201 });
+  }
+
+  const productId = record.productId;
+  if (typeof productId !== "string") {
+    return NextResponse.json({ error: "Missing product." }, { status: 400 });
+  }
+
+  const { data: product } = await admin.from("products").select("id,url").eq("id", productId).maybeSingle();
   if (!product) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
@@ -78,7 +144,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This product is already sponsored or in the queue." }, { status: 409 });
   }
 
-  const sponsorship = await createSponsorship(admin, { productId, durationDays: days, isFree: true });
+  const logoUrl = await resolveFaviconUrl(product.url);
+  const sponsorship = await createSponsorship(admin, { productId, durationDays: days, isFree: true, logoUrl });
   if (!sponsorship) {
     return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });
   }

@@ -20,3 +20,49 @@ export const SPONSOR_PRICE_LABELS: Record<SponsorDuration, string> = {
 export function isSponsorDuration(value: number): value is SponsorDuration {
   return (SPONSOR_DURATIONS as readonly number[]).includes(value);
 }
+
+/** Whatever the Sponsored section / admin panel needs to render a listing,
+ * regardless of whether it's backed by an Arena product or an external URL. */
+export interface SponsorDisplay {
+  name: string;
+  url: string;
+  category: string;
+  description: string;
+  logoUrl: string | null;
+}
+
+export interface SponsorshipDisplaySource {
+  is_external: boolean;
+  external_name: string | null;
+  external_url: string | null;
+  external_category: string | null;
+  external_description: string | null;
+  logo_url: string | null;
+  product: { name: string; url: string; category: string; pitch: string } | null;
+}
+
+/** Pure data-shaping (no fetches), so both server routes and client
+ * components can call it on the same sponsorship row without duplicating
+ * the is_external branch everywhere it's displayed. */
+export function resolveSponsorshipDisplay(s: SponsorshipDisplaySource): SponsorDisplay | null {
+  if (s.is_external) {
+    if (!s.external_name || !s.external_url) return null;
+    return {
+      name: s.external_name,
+      url: s.external_url,
+      category: s.external_category ?? "Other",
+      description: s.external_description ?? "",
+      logoUrl: s.logo_url,
+    };
+  }
+  if (s.product) {
+    return {
+      name: s.product.name,
+      url: s.product.url,
+      category: s.product.category,
+      description: s.product.pitch,
+      logoUrl: s.logo_url,
+    };
+  }
+  return null;
+}
