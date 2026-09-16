@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Megaphone, Sparkles, Crown, Star, Users, ArrowUpRight, Loader2 } from "lucide-react";
+import { Megaphone, Sparkles, Crown, Star, Users, ArrowUpRight, Loader2, Shield } from "lucide-react";
 import type { SponsorshipState } from "@/lib/sponsorship";
 import {
   SPONSOR_DURATIONS,
@@ -185,51 +185,51 @@ export function SponsoredSection({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:items-center">
           {/* Compact left column: pitch + step-by-step sponsorship flow */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft/15 text-accent">
-                  <Megaphone className="h-5 w-5" />
-                  <Sparkles className="absolute -right-1 -top-1 h-3.5 w-3.5 text-accent" />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent-soft/15 text-accent">
+                  <Megaphone className="h-4 w-4" />
+                  <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-accent" />
                 </span>
-                <div className="flex flex-col gap-1">
-                  <span className="font-display text-base font-bold text-ink">Sponsored</span>
-                  <span className="flex w-fit items-center gap-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    <Star className="h-3 w-3 text-accent" fill="currentColor" />1 sponsor at a time
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-display text-sm font-bold text-ink">Sponsored</span>
+                  <span className="flex w-fit items-center gap-1 rounded-full border border-border bg-surface-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                    <Star className="h-2.5 w-2.5 text-accent" fill="currentColor" />1 sponsor at a time
                   </span>
                 </div>
               </div>
-              <h3 className="font-display text-lg font-bold leading-snug text-accent">
+              <h3 className="font-display text-sm font-bold leading-snug text-accent">
                 Put your product in front of builders.
               </h3>
-              <p className="text-sm leading-relaxed text-muted">
+              <p className="text-xs leading-relaxed text-muted">
                 Get your product featured on our platform and reach a community of active
                 builders. One spot at a time.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-md">
+            <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-surface p-3.5 shadow-md">
               {/* Step 1 — duration */}
-              <div className="flex items-center gap-2">
-                <Crown className="h-4 w-4 text-accent" />
-                <span className="text-sm font-bold text-ink">Sponsorship Plans</span>
+              <div className="flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5 text-accent" />
+                <span className="text-xs font-bold text-ink">Sponsorship Plans</span>
               </div>
-              <p className="-mt-2 text-xs text-muted">Choose how long you want to be featured.</p>
-              <div className="grid grid-cols-3 gap-2">
+              <p className="-mt-1.5 text-[10px] text-muted">Choose how long you want to be featured.</p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {SPONSOR_DURATIONS.map((days) => (
                   <button
                     key={days}
                     onClick={() => setDuration(days)}
-                    className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2.5 text-center transition-all duration-150 ease-out active:scale-95 ${
+                    className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1.5 text-center transition-all duration-150 ease-out active:scale-95 ${
                       duration === days
                         ? "border-accent bg-accent-soft/10 text-ink"
                         : "border-border text-muted hover:border-border-strong hover:text-ink"
                     }`}
                   >
-                    <span className="text-xs font-semibold">{days} Days</span>
-                    <span className="font-mono text-sm font-bold">{SPONSOR_PRICE_LABELS[days]}</span>
+                    <span className="text-[11px] font-semibold">{days} Days</span>
+                    <span className="font-mono text-xs font-bold">{SPONSOR_PRICE_LABELS[days]}</span>
                   </button>
                 ))}
               </div>
@@ -238,7 +238,7 @@ export function SponsoredSection({
               <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface-2 p-1">
                 <button
                   onClick={() => setMode("arena")}
-                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+                  className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors duration-150 ${
                     mode === "arena" ? "bg-accent text-accent-ink" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -246,7 +246,7 @@ export function SponsoredSection({
                 </button>
                 <button
                   onClick={() => setMode("external")}
-                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+                  className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors duration-150 ${
                     mode === "external" ? "bg-accent text-accent-ink" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -286,7 +286,7 @@ export function SponsoredSection({
                       placeholder="Search Arena products…"
                       className={inputClass}
                     />
-                    <div className="flex max-h-52 flex-col gap-1 overflow-y-auto rounded-lg border border-border bg-surface-2 p-1">
+                    <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border bg-surface-2 p-1">
                       {arenaProducts === null ? (
                         <p className="p-3 text-center text-xs text-muted">Loading…</p>
                       ) : arenaProducts.length === 0 ? (
@@ -359,7 +359,7 @@ export function SponsoredSection({
               {/* Step 4 — founder X handle, step 5 — review, step 6 — pay.
                   None of this renders until a product is actually chosen. */}
               {productChosen && (
-                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <div className="flex flex-col gap-2 border-t border-border pt-2.5">
                   <input
                     value={xHandle}
                     onChange={(e) => setXHandle(e.target.value)}
@@ -397,66 +397,87 @@ export function SponsoredSection({
                     }
                     label="Sponsor Now"
                     onPaid={onPaid}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-bg shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-bg shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
                   />
                 </div>
               )}
 
-              <p className="text-center text-[10px] text-muted">Only one product is featured at a time.</p>
+              <p className="text-center text-[9px] text-muted">Only one product is featured at a time.</p>
             </div>
           </div>
 
-          {/* Dominant right column: the featured product */}
-          <div className="flex flex-col justify-center rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8">
+          {/* Dominant right column: a compact horizontal banner, never
+              stretched to match the left column's height (see
+              `lg:items-center` on the grid above) — content is vertically
+              centered within its own short, fitted box instead of padding
+              out to fill available space. */}
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-lg sm:p-5">
+            {/* Decorative sponsorship marks — clipped to the card, purely
+                ornamental, never part of the readable content. */}
+            <Shield
+              className="pointer-events-none absolute -right-5 -top-6 h-24 w-24 rotate-12 text-accent/[0.07]"
+              aria-hidden="true"
+            />
+            <Sparkles
+              className="pointer-events-none absolute -bottom-3 -left-3 h-14 w-14 -rotate-12 text-accent/[0.08]"
+              aria-hidden="true"
+            />
+            <svg
+              className="pointer-events-none absolute bottom-0 right-0 h-16 w-32 text-accent/[0.08]"
+              viewBox="0 0 128 64"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M0 60 Q 64 -10 128 40" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+
             {activeDisplay ? (
-              <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
-                <span className="flex w-fit items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-accent sm:hidden">
-                  <Star className="h-3 w-3" fill="currentColor" />
-                  Featured Sponsor
-                </span>
-                <SponsorLogo logoUrl={activeDisplay.logoUrl} name={activeDisplay.name} />
-                <div className="flex min-w-0 flex-col gap-2">
-                  <span className="hidden w-fit items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-accent sm:flex">
-                    <Star className="h-3 w-3" fill="currentColor" />
-                    Featured Sponsor
-                  </span>
-                  <h2 className="font-display text-2xl font-black text-ink sm:text-4xl">{activeDisplay.name}</h2>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
-                      <Star className="h-3 w-3" fill="currentColor" />
+              <div className="relative flex items-center gap-3 sm:gap-5">
+                <SponsorLogo logoUrl={activeDisplay.logoUrl} name={activeDisplay.name} className="h-16 w-16 shrink-0 sm:h-20 sm:w-20" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <h2 className="truncate font-display text-lg font-black text-ink sm:text-2xl">{activeDisplay.name}</h2>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="flex items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent">
+                      <Star className="h-2.5 w-2.5" fill="currentColor" />
+                      Featured Sponsor
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent-ink">
+                      <Star className="h-2.5 w-2.5" fill="currentColor" />
                       Sponsored
                     </span>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
                       {activeDisplay.category}
                     </span>
-                    {remaining && <span className="text-xs text-muted">· {remaining}</span>}
+                    {remaining && <span className="text-[10px] text-muted">· {remaining}</span>}
                   </div>
-                  <p className="max-w-xl text-sm leading-relaxed text-muted sm:text-base">{activeDisplay.description}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <p className="line-clamp-1 max-w-xl text-xs text-muted sm:text-sm">{activeDisplay.description}</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2.5">
                     <a
                       href={activeDisplay.url}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="flex w-fit items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
+                      className="flex w-fit items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
                     >
                       Visit Product ↗
                     </a>
                     {activeDisplay.founderName && (
-                      <span className="text-xs text-muted">By {activeDisplay.founderName}</span>
+                      <span className="text-[10px] text-muted">By {activeDisplay.founderName}</span>
                     )}
-                    <XHandleLink handle={activeDisplay.xHandle} />
+                    <XHandleLink handle={activeDisplay.xHandle} className="text-[10px] text-muted transition-colors duration-150 ease-out hover:text-accent" />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 py-6 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-accent/40 bg-accent-soft/10 text-accent">
-                  <Megaphone className="h-6 w-6" />
+              <div className="relative flex items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-accent/40 bg-accent-soft/10 text-accent">
+                  <Megaphone className="h-5 w-5" />
                 </span>
-                <h2 className="font-display text-xl font-bold text-ink">This spot is open</h2>
-                <p className="max-w-sm text-sm text-muted">
-                  Be the first featured sponsor — your product goes live here the moment you sponsor it.
-                </p>
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="font-display text-base font-bold text-ink">This spot is open</h2>
+                  <p className="text-xs text-muted">
+                    Be the first featured sponsor — your product goes live here the moment you sponsor it.
+                  </p>
+                </div>
               </div>
             )}
           </div>
