@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminSupabaseClient();
 
   if (!(await isSponsorshipSchemaReady(admin))) {
-    return NextResponse.json({ error: "Run migration 0008 before adding sponsors." }, { status: 503 });
+    return NextResponse.json({ error: "Run the pending sponsorship migrations before adding sponsors." }, { status: 503 });
   }
 
   let founderXHandle: string | null = null;
@@ -84,6 +84,15 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+  }
+
+  let founderName: string | null = null;
+  if (typeof record.founderName === "string" && record.founderName.trim()) {
+    const trimmed = record.founderName.trim();
+    if (trimmed.length > NAME_MAX) {
+      return NextResponse.json({ error: `Founder name must be ${NAME_MAX} characters or fewer.` }, { status: 400 });
+    }
+    founderName = trimmed;
   }
 
   const external = (record.external ?? null) as Record<string, unknown> | null;
@@ -129,6 +138,7 @@ export async function POST(req: NextRequest) {
       isFree: true,
       logoUrl,
       founderXHandle,
+      founderName,
     });
     if (!sponsorship) {
       return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });
@@ -164,6 +174,7 @@ export async function POST(req: NextRequest) {
     isFree: true,
     logoUrl,
     founderXHandle,
+    founderName,
   });
   if (!sponsorship) {
     return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });

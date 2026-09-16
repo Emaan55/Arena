@@ -441,6 +441,9 @@ export function SponsoredSection({
                     >
                       Visit Product ↗
                     </a>
+                    {activeDisplay.founderName && (
+                      <span className="text-xs text-muted">By {activeDisplay.founderName}</span>
+                    )}
                     <XHandleLink handle={activeDisplay.xHandle} />
                   </div>
                 </div>

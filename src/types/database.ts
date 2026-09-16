@@ -127,6 +127,10 @@ export type Sponsorship = {
   // Optional, normalized (no leading '@') — same convention as
   // products.x_handle. Collected for both Arena and external sponsorships.
   founder_x_handle: string | null;
+  // Plain display name, distinct from the X handle — only ever set by the
+  // admin-only "Add External Product" flow (/admin/sponsorships), never
+  // the regular paid checkout.
+  founder_name: string | null;
 };
 
 type Relationships = [];

@@ -61,6 +61,30 @@ function useUrlDetect(url: string, nameTouched: boolean, onDetected: (name: stri
   return detecting;
 }
 
+function DurationPicker({
+  duration,
+  onChange,
+}: {
+  duration: SponsorDuration;
+  onChange: (days: SponsorDuration) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {SPONSOR_DURATIONS.map((days) => (
+        <button
+          key={days}
+          onClick={() => onChange(days)}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150 ease-out active:scale-95 ${
+            duration === days ? "border-accent bg-accent text-accent-ink" : "border-border text-muted hover:text-ink"
+          }`}
+        >
+          {days}d ({SPONSOR_PRICE_LABELS[days]} value)
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Founder-only control panel for the Sponsored section — no account system
  * exists anywhere else in the app, so this is gated by a single shared
@@ -89,6 +113,7 @@ export default function AdminSponsorshipsPage() {
   const [extCategory, setExtCategory] = useState<Category>("General");
   const [extDescription, setExtDescription] = useState("");
   const [extLogoUrl, setExtLogoUrl] = useState<string | null>(null);
+  const [extFounderName, setExtFounderName] = useState("");
   const [founderXHandle, setFounderXHandle] = useState("");
   const detecting = useUrlDetect(extUrl, extNameTouched, (name, logoUrl) => {
     if (name) setExtName(name);
@@ -184,6 +209,7 @@ export default function AdminSponsorshipsPage() {
             : {
                 durationDays: duration,
                 founderXHandle: founderXHandle.trim(),
+                founderName: extFounderName.trim(),
                 external: {
                   name: extName.trim(),
                   url: extUrl.trim(),
@@ -206,6 +232,7 @@ export default function AdminSponsorshipsPage() {
       setExtNameTouched(false);
       setExtDescription("");
       setExtLogoUrl(null);
+      setExtFounderName("");
       setFounderXHandle("");
       await load(secret);
     } finally {
@@ -309,6 +336,9 @@ export default function AdminSponsorshipsPage() {
                   {formatDate(data.active.starts_at)} → {formatDate(data.active.ends_at)}
                   {data.active.is_free ? " · Free" : ""}
                 </span>
+                {resolveSponsorshipDisplay(data.active)!.founderName && (
+                  <span className="text-xs text-muted">By {resolveSponsorshipDisplay(data.active)!.founderName}</span>
+                )}
                 <XHandleLink handle={resolveSponsorshipDisplay(data.active)!.xHandle} />
               </div>
             </div>
@@ -402,114 +432,149 @@ export default function AdminSponsorshipsPage() {
         </div>
 
         {mode === "arena" ? (
-          <div className="relative flex flex-col gap-2">
-            <input
-              value={pickedProductId ? pickedProductName : query}
-              onChange={(e) => {
-                setPickedProductId(null);
-                setQuery(e.target.value);
-              }}
-              placeholder="Search products by name…"
-              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-            />
-            {!pickedProductId && results.length > 0 && (
-              <ul className="flex flex-col gap-1 rounded-lg border border-border bg-surface-2 p-1">
-                {results.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      onClick={() => {
-                        setPickedProductId(r.id);
-                        setPickedProductName(r.name);
-                        setResults([]);
-                      }}
-                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-surface"
-                    >
-                      <span>{r.name}</span>
-                      <span className="text-xs text-muted">{r.category}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <input
-              value={extUrl}
-              onChange={(e) => setExtUrl(e.target.value)}
-              placeholder="https://theirproduct.com"
-              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-            />
-            <div className="flex items-center gap-2">
-              {detecting ? (
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted" />
-                </span>
-              ) : (
-                <SponsorLogo logoUrl={extLogoUrl} name={extName || "?"} className="h-9 w-9" />
-              )}
+          <>
+            <div className="relative flex flex-col gap-2">
               <input
-                value={extName}
+                value={pickedProductId ? pickedProductName : query}
                 onChange={(e) => {
-                  setExtNameTouched(true);
-                  setExtName(e.target.value);
+                  setPickedProductId(null);
+                  setQuery(e.target.value);
                 }}
-                placeholder="Product name"
+                placeholder="Search products by name…"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+              />
+              {!pickedProductId && results.length > 0 && (
+                <ul className="flex flex-col gap-1 rounded-lg border border-border bg-surface-2 p-1">
+                  {results.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        onClick={() => {
+                          setPickedProductId(r.id);
+                          setPickedProductName(r.name);
+                          setResults([]);
+                        }}
+                        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-surface"
+                      >
+                        <span>{r.name}</span>
+                        <span className="text-xs text-muted">{r.category}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <input
+              value={founderXHandle}
+              onChange={(e) => setFounderXHandle(e.target.value)}
+              placeholder="@yourhandle (founder X handle, optional)"
+              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+            />
+
+            <DurationPicker duration={duration} onChange={setDuration} />
+
+            <button
+              onClick={addSponsor}
+              disabled={busy || !pickedProductId}
+              className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+            >
+              Confirm Sponsorship
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <input
+                value={extUrl}
+                onChange={(e) => setExtUrl(e.target.value)}
+                placeholder="https://theirproduct.com"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+              />
+              <div className="flex items-center gap-2">
+                {detecting ? (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted" />
+                  </span>
+                ) : (
+                  <SponsorLogo logoUrl={extLogoUrl} name={extName || "?"} className="h-9 w-9" />
+                )}
+                <input
+                  value={extName}
+                  onChange={(e) => {
+                    setExtNameTouched(true);
+                    setExtName(e.target.value);
+                  }}
+                  placeholder="Product name"
+                  maxLength={NAME_MAX}
+                  className="flex-1 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+                />
+              </div>
+              <select
+                value={extCategory}
+                onChange={(e) => setExtCategory(e.target.value as Category)}
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={extDescription}
+                onChange={(e) => setExtDescription(e.target.value)}
+                placeholder="Short description"
+                maxLength={DESCRIPTION_MAX}
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+              />
+              <input
+                value={extFounderName}
+                onChange={(e) => setExtFounderName(e.target.value)}
+                placeholder="Founder name"
                 maxLength={NAME_MAX}
-                className="flex-1 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+              />
+              <input
+                value={founderXHandle}
+                onChange={(e) => setFounderXHandle(e.target.value)}
+                placeholder="@yourhandle (founder X handle, optional)"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
               />
             </div>
-            <select
-              value={extCategory}
-              onChange={(e) => setExtCategory(e.target.value as Category)}
-              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <input
-              value={extDescription}
-              onChange={(e) => setExtDescription(e.target.value)}
-              placeholder="Short description"
-              maxLength={DESCRIPTION_MAX}
-              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-            />
-          </div>
+
+            {/* Review/preview — only once there's enough to actually show,
+                followed by duration and the confirm step. */}
+            {externalReady && (
+              <>
+                <div className="flex items-center gap-3 rounded-xl border border-accent bg-accent-soft/5 p-3">
+                  <SponsorLogo logoUrl={extLogoUrl} name={extName} className="h-10 w-10" />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-sm font-semibold text-ink">{extName}</span>
+                    <span className="text-xs text-muted">{extCategory} · External</span>
+                    <span className="truncate text-xs text-muted">{extDescription}</span>
+                    {(extFounderName.trim() || founderXHandle.trim()) && (
+                      <span className="text-xs text-muted">
+                        {extFounderName.trim()}
+                        {extFounderName.trim() && founderXHandle.trim() ? " · " : ""}
+                        {founderXHandle.trim() && `@${founderXHandle.trim().replace(/^@/, "")}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <DurationPicker duration={duration} onChange={setDuration} />
+
+                <button
+                  onClick={addSponsor}
+                  disabled={busy}
+                  className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Confirm Sponsorship
+                </button>
+              </>
+            )}
+          </>
         )}
-
-        <input
-          value={founderXHandle}
-          onChange={(e) => setFounderXHandle(e.target.value)}
-          placeholder="@yourhandle (founder X handle, optional)"
-          className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-        />
-
-        <div className="flex flex-wrap items-center gap-2">
-          {SPONSOR_DURATIONS.map((days) => (
-            <button
-              key={days}
-              onClick={() => setDuration(days)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150 ease-out active:scale-95 ${
-                duration === days
-                  ? "border-accent bg-accent text-accent-ink"
-                  : "border-border text-muted hover:text-ink"
-              }`}
-            >
-              {days}d ({SPONSOR_PRICE_LABELS[days]} value)
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={addSponsor}
-          disabled={busy || (mode === "arena" ? !pickedProductId : !externalReady)}
-          className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
-        >
-          Add for free
-        </button>
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">

@@ -30,6 +30,7 @@ export interface SponsorDisplay {
   description: string;
   logoUrl: string | null;
   xHandle: string | null;
+  founderName: string | null;
 }
 
 export interface SponsorshipDisplaySource {
@@ -40,6 +41,7 @@ export interface SponsorshipDisplaySource {
   external_description: string | null;
   logo_url: string | null;
   founder_x_handle: string | null;
+  founder_name: string | null;
   product: { name: string; url: string; category: string; pitch: string } | null;
 }
 
@@ -56,6 +58,7 @@ export function resolveSponsorshipDisplay(s: SponsorshipDisplaySource): SponsorD
       description: s.external_description ?? "",
       logoUrl: s.logo_url,
       xHandle: s.founder_x_handle,
+      founderName: s.founder_name,
     };
   }
   if (s.product) {
@@ -66,6 +69,7 @@ export function resolveSponsorshipDisplay(s: SponsorshipDisplaySource): SponsorD
       description: s.product.pitch,
       logoUrl: s.logo_url,
       xHandle: s.founder_x_handle,
+      founderName: s.founder_name,
     };
   }
   return null;

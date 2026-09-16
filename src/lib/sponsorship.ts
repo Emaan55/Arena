@@ -19,14 +19,19 @@ export interface SponsorshipState {
 
 /**
  * Guards against a real charge succeeding while the sponsorship is
- * silently lost: `createSponsorship`'s insert always writes the
- * migration-0008 columns (is_external/logo_url/etc.) regardless of path,
- * so if that migration hasn't been run yet the insert would fail *after*
+ * silently lost: `createSponsorship`'s insert always writes every column
+ * below regardless of path (is_external/logo_url from 0008,
+ * founder_x_handle from 0009, founder_name from 0010), so if any of those
+ * migrations haven't been run yet the insert would fail *after*
  * LemonSqueezy has already taken payment. Both checkout routes call this
- * first and refuse with a clean 503 instead.
+ * first and refuse with a clean 503 instead. Keep this list in sync with
+ * whatever createSponsorship's insert actually writes.
  */
 export async function isSponsorshipSchemaReady(admin: AdminClient): Promise<boolean> {
-  const { error } = await admin.from("sponsorships").select("is_external").limit(1);
+  const { error } = await admin
+    .from("sponsorships")
+    .select("is_external, logo_url, founder_x_handle, founder_name")
+    .limit(1);
   return !error;
 }
 
@@ -142,6 +147,8 @@ export async function createSponsorship(
     logoUrl?: string | null;
     /** Optional, already normalized by the caller via lib/x-handle.ts. */
     founderXHandle?: string | null;
+    /** Optional plain display name — admin-only "Add External Product" flow. */
+    founderName?: string | null;
   },
 ): Promise<SponsorshipRow | null> {
   if (!params.productId && !params.external) return null;
@@ -164,6 +171,7 @@ export async function createSponsorship(
       external_description: params.external?.description ?? null,
       logo_url: params.logoUrl ?? null,
       founder_x_handle: params.founderXHandle ?? null,
+      founder_name: params.founderName ?? null,
       status: "queued",
       duration_days: params.durationDays,
       is_free: params.isFree,
