@@ -6,6 +6,7 @@ import {
   logActivity,
   markStaleWaitingProductsUnique,
   isProductFaviconColumnReady,
+  isFaviconTrackingReady,
 } from "@/lib/arena";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
@@ -153,14 +154,31 @@ export async function POST(req: NextRequest) {
   // other favicon call site uses (lib/favicon-service.ts), storing our own
   // copy keyed by this product's id (hence running after the insert, once
   // an id actually exists). Never a manual upload. Guarded so a submission
-  // still succeeds normally if migration 0011 hasn't been run yet, and a
-  // genuine discovery failure just leaves logo_url null to be retried by
-  // backfillMissingProductFavicons rather than failing the submission.
-  if (await isProductFaviconColumnReady(admin)) {
-    const logoUrl = await resolveAndStoreProductFavicon(admin, product.id, normalizedUrl);
-    if (logoUrl) {
-      await admin.from("products").update({ logo_url: logoUrl }).eq("id", product.id);
-      product.logo_url = logoUrl;
+  // still succeeds normally if migration 0012 hasn't been run yet. A
+  // failure here is never final — it's recorded as logo_status
+  // "temporary_failure"/"not_found" with a scheduled retry, and
+  // backfillMissingProductFavicons picks it up automatically in the
+  // background (see lib/arena.ts) rather than failing the submission or
+  // giving up.
+  if (await isFaviconTrackingReady(admin)) {
+    const result = await resolveAndStoreProductFavicon(admin, product.id, normalizedUrl);
+    const nowIso = new Date().toISOString();
+    if (result.status === "success" && result.logoUrl) {
+      await admin
+        .from("products")
+        .update({ logo_url: result.logoUrl, logo_status: "success", logo_source: result.source, logo_checked_at: nowIso, logo_attempts: 1 })
+        .eq("id", product.id);
+      product.logo_url = result.logoUrl;
+    } else {
+      await admin
+        .from("products")
+        .update({
+          logo_status: result.status,
+          logo_checked_at: nowIso,
+          logo_attempts: 1,
+          logo_next_attempt_at: new Date(Date.now() + 30_000).toISOString(),
+        })
+        .eq("id", product.id);
     }
   }
 

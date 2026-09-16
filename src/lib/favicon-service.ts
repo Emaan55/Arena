@@ -1,40 +1,44 @@
 import "server-only";
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
-import { safeFetch } from "./safe-fetch";
+import type { Database, LogoStatus } from "@/types/database";
+import { safeFetch, type RedirectCounter } from "./safe-fetch";
 
 type AdminClient = SupabaseClient<Database>;
 
 const MAX_IMAGE_BYTES = 1_500_000; // 1.5MB — generous for a favicon, still bounded
 const MAX_DISCOVERY_HTML_BYTES = 300_000;
 const MAX_MANIFEST_BYTES = 200_000;
+const MIN_ICON_DIMENSION = 8; // below this, treat as broken/placeholder rather than a real icon
 const FAVICON_BUCKET = "favicons";
 
 /**
  * The single reusable favicon engine for the whole platform — every
  * surface that shows a product icon (duel cards, leaderboard, search,
- * sponsors, and anything future) goes through ProductAvatar, which reads
- * whatever URL landed in `products.logo_url` / `sponsorships.logo_url`;
- * this module is the only thing that ever *produces* that URL. See
- * resolveAndStoreProductFavicon / resolveAndStoreExternalFavicon below.
+ * sponsors, activity feed, and anything future) goes through
+ * ProductAvatar, which reads whatever URL landed in `products.logo_url` /
+ * `sponsorships.logo_url`; this module is the only thing that ever
+ * *produces* that URL. See resolveAndStoreProductFavicon /
+ * resolveAndStoreExternalFavicon below.
  */
 
-function logFavicon(
-  domain: string,
-  strategy: string,
-  url: string | null,
-  status: number | null,
-  contentType: string | null,
-  reason: string,
-) {
-  // Plain console output (this app has no logging library) in a
-  // consistent key=value shape so failed attempts are greppable in
-  // server/platform logs: domain, strategy, candidate URL, HTTP status,
-  // content type, and the reason — exactly what's needed to diagnose why
-  // a given domain's favicon didn't resolve.
-  const line = `[favicon] domain=${domain} strategy=${strategy} url=${url ?? "-"} status=${status ?? "-"} content_type=${contentType ?? "-"} reason=${reason}`;
-  if (reason === "success") console.info(line);
+interface AttemptRecord {
+  strategy: string;
+  url: string;
+  status: number | null;
+  contentType: string | null;
+  redirects: number;
+  reason: string;
+  /** Worth retrying soon (network blip, rate limit, 5xx) vs. a clean "no"
+   * (404, wrong content, too small) that's still retried, just not urgently. */
+  retryable: boolean;
+}
+
+function logAttempt(domain: string, a: AttemptRecord) {
+  const line =
+    `[favicon] domain=${domain} strategy=${a.strategy} url=${a.url} status=${a.status ?? "-"} ` +
+    `content_type=${a.contentType ?? "-"} redirects=${a.redirects} reason=${a.reason} time=${new Date().toISOString()}`;
+  if (a.reason === "success") console.info(line);
   else console.warn(line);
 }
 
@@ -72,9 +76,18 @@ async function readCappedBytes(res: Response, maxBytes: number): Promise<Uint8Ar
   return out;
 }
 
+/** Resolves relative/absolute/protocol-relative hrefs against the page's
+ * (or manifest's) own URL, and filters out anything that was never going
+ * to be a fetchable candidate in the first place — `data:` URIs are a
+ * deliberate "no favicon" convention some minimal sites use (example.com
+ * among them), `javascript:`/`blob:`/etc. can't be fetched server-side at
+ * all. Skipping these up front means they're never attempted, logged, or
+ * misclassified as a failure — they just aren't candidates. */
 function resolveHref(href: string, base: string): string | null {
   try {
-    return new URL(href, base).toString();
+    const resolved = new URL(href, base);
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") return null;
+    return resolved.toString();
   } catch {
     return null;
   }
@@ -104,8 +117,11 @@ function headScope(html: string): string {
   return headEnd > -1 ? html.slice(0, headEnd) : html;
 }
 
-/** Every `<link rel="...icon...">` in <head> — matches "icon", "shortcut
- * icon", "apple-touch-icon", "apple-touch-icon-precomposed", "mask-icon". */
+/** Every `<link rel="...icon...">` in <head> — matches "icon", "Icon",
+ * "shortcut icon", "shortcut Icon", "apple-touch-icon",
+ * "apple-touch-icon-precomposed", "mask-icon", and non-standard-but-real
+ * variants like GitHub's "fluid-icon", since all of them contain "icon"
+ * case-insensitively. */
 function extractIconLinks(html: string): IconLink[] {
   const scope = headScope(html);
   const links: IconLink[] = [];
@@ -139,7 +155,7 @@ function relRank(rel: string): number {
   if (rel.includes("apple-touch-icon-precomposed")) return 1;
   if (rel.includes("apple-touch-icon")) return 2;
   if (rel.includes("mask-icon")) return 0; // usually a monochrome outline, last resort among links
-  return 3; // "icon" / "shortcut icon" — the most broadly-representative choice
+  return 3; // "icon" / "shortcut icon" (and lookalikes) — the most broadly-representative choice
 }
 
 /** Regular icon/shortcut-icon links first (largest declared size within
@@ -152,6 +168,12 @@ function rankIconLinks(links: IconLink[]): IconLink[] {
   });
 }
 
+interface ManifestIcon {
+  src: string;
+  sizes?: string;
+  purpose?: string;
+}
+
 async function fetchManifestIconUrls(manifestUrl: string): Promise<string[]> {
   try {
     const res = await safeFetch(manifestUrl, { headers: { Accept: "application/json,text/plain,*/*" } });
@@ -160,11 +182,17 @@ async function fetchManifestIconUrls(manifestUrl: string): Promise<string[]> {
       return [];
     }
     const bytes = await readCappedBytes(res, MAX_MANIFEST_BYTES);
-    const json = JSON.parse(Buffer.from(bytes).toString("utf8")) as { icons?: { src?: string; sizes?: string }[] };
+    const json = JSON.parse(Buffer.from(bytes).toString("utf8")) as { icons?: ManifestIcon[] };
     const icons = Array.isArray(json.icons) ? json.icons : [];
     return icons
-      .filter((i): i is { src: string; sizes?: string } => typeof i.src === "string" && i.src.length > 0)
-      .sort((a, b) => sizeScore(b.sizes) - sizeScore(a.sizes))
+      .filter((i): i is ManifestIcon => typeof i.src === "string" && i.src.length > 0)
+      // "maskable"-only purpose icons are meant to be padded/cropped by the
+      // OS, not shown as-is — deprioritize them behind any/monochrome/none.
+      .sort((a, b) => {
+        const purposeDiff = (a.purpose === "maskable" ? 1 : 0) - (b.purpose === "maskable" ? 1 : 0);
+        if (purposeDiff !== 0) return purposeDiff;
+        return sizeScore(b.sizes) - sizeScore(a.sizes);
+      })
       .map((i) => resolveHref(i.src, manifestUrl))
       .filter((u): u is string => !!u);
   } catch {
@@ -172,19 +200,66 @@ async function fetchManifestIconUrls(manifestUrl: string): Promise<string[]> {
   }
 }
 
-async function fetchPageHtml(pageUrl: string): Promise<string | null> {
+async function fetchPageHtml(pageUrl: string, counter: RedirectCounter): Promise<{ html: string | null; attempt: AttemptRecord }> {
   try {
-    const res = await safeFetch(pageUrl, { headers: { Accept: "text/html" } });
+    const res = await safeFetch(pageUrl, { headers: { Accept: "text/html" } }, undefined, counter);
     const contentType = res.headers.get("content-type") ?? "";
     if (!res.ok || !contentType.includes("html")) {
       await res.body?.cancel().catch(() => {});
-      return null;
+      return {
+        html: null,
+        attempt: {
+          strategy: "page-fetch",
+          url: pageUrl,
+          status: res.status,
+          contentType,
+          redirects: counter.count,
+          reason: res.ok ? "page response is not HTML" : "non-2xx response fetching page",
+          retryable: !res.ok && isRetryableStatus(res.status),
+        },
+      };
     }
     const bytes = await readCappedBytes(res, MAX_DISCOVERY_HTML_BYTES);
-    return Buffer.from(bytes).toString("utf8");
-  } catch {
-    return null;
+    return {
+      html: Buffer.from(bytes).toString("utf8"),
+      attempt: { strategy: "page-fetch", url: pageUrl, status: res.status, contentType, redirects: counter.count, reason: "success", retryable: false },
+    };
+  } catch (err) {
+    return {
+      html: null,
+      attempt: {
+        strategy: "page-fetch",
+        url: pageUrl,
+        status: null,
+        contentType: null,
+        redirects: counter.count,
+        reason: describeError(err),
+        retryable: !isPermanentRejection(err),
+      },
+    };
   }
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 403 || status === 408 || status === 429 || status >= 500;
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.name === "TimeoutError" || err.name === "AbortError") return "request timed out";
+    return err.message;
+  }
+  return "fetch failed";
+}
+
+// assertSafeUrl (lib/safe-fetch.ts) throws these exact messages for a URL
+// that will *never* become fetchable — wrong scheme, localhost, or a
+// private/link-local IP. That's a permanent "no" for this candidate, not
+// a transient network problem, and must not count toward classifying the
+// overall result as "temporary_failure" (which is supposed to mean "worth
+// retrying soon").
+function isPermanentRejection(err: unknown): boolean {
+  return err instanceof Error && (err.message === "Only http/https URLs are allowed." || err.message === "URL not allowed.");
 }
 
 /**
@@ -221,11 +296,9 @@ function sniffImageType(bytes: Uint8Array, declaredContentType: string): string 
     return "image/x-icon";
   }
   // SVG is text, not a magic-byte format — only trust it if the body
-  // actually contains an <svg> element, regardless of what Content-Type
-  // (or lack thereof) the server declared — but a longer XML prolog/DOCTYPE
-  // before the actual <svg> element could push it past a short byte
-  // window, so also trust an explicit `image/svg+xml` declaration as long
-  // as the body isn't obviously an HTML error page.
+  // actually contains an <svg> element (checked over a larger window than
+  // other formats, since a DOCTYPE/XML prolog can push it back a bit), or
+  // the server declared it explicitly and the body isn't an HTML page.
   const head = Buffer.from(bytes.subarray(0, 512)).toString("utf8").trimStart().toLowerCase();
   if (head.includes("<svg")) return "image/svg+xml";
   const declared = declaredContentType.split(";")[0].trim().toLowerCase();
@@ -233,6 +306,85 @@ function sniffImageType(bytes: Uint8Array, declaredContentType: string): string 
     return "image/svg+xml";
   }
   return null;
+}
+
+/**
+ * Best-effort pixel dimensions from the file's own header — no image
+ * library needed for the formats favicons actually come in. Returns null
+ * when we can't determine it (e.g. an unusual WebP chunk layout); callers
+ * treat "unknown" as acceptable rather than rejecting it, since this is a
+ * quality gate on top of format validation, not a replacement for it.
+ */
+function readImageDimensions(bytes: Uint8Array, contentType: string): { width: number; height: number } | null {
+  try {
+    if (contentType === "image/png" && bytes.length >= 24) {
+      return { width: readU32BE(bytes, 16), height: readU32BE(bytes, 20) };
+    }
+    if (contentType === "image/gif" && bytes.length >= 10) {
+      return { width: readU16LE(bytes, 6), height: readU16LE(bytes, 8) };
+    }
+    if (contentType === "image/x-icon" && bytes.length >= 22) {
+      // ICO directory: 6-byte header, then 16-byte entries; width/height
+      // are single bytes at offsets 6/7 of the first entry, 0 means 256.
+      const w = bytes[6] || 256;
+      const h = bytes[7] || 256;
+      return { width: w, height: h };
+    }
+    if (contentType === "image/jpeg") {
+      return readJpegDimensions(bytes);
+    }
+    if (contentType === "image/svg+xml") {
+      const text = Buffer.from(bytes.subarray(0, 1024)).toString("utf8");
+      const viewBox = text.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)/i);
+      if (viewBox) return { width: parseFloat(viewBox[1]), height: parseFloat(viewBox[2]) };
+      const w = text.match(/\bwidth=["']?(\d+(?:\.\d+)?)/i);
+      const h = text.match(/\bheight=["']?(\d+(?:\.\d+)?)/i);
+      if (w && h) return { width: parseFloat(w[1]), height: parseFloat(h[1]) };
+      return null; // scalable with no declared size — treat as acceptable, not rejected
+    }
+  } catch {
+    return null;
+  }
+  return null; // WebP and anything else: no cheap dimension read, treat as acceptable
+}
+
+function readU32BE(b: Uint8Array, offset: number): number {
+  return (b[offset] << 24) | (b[offset + 1] << 16) | (b[offset + 2] << 8) | b[offset + 3];
+}
+function readU16LE(b: Uint8Array, offset: number): number {
+  return b[offset] | (b[offset + 1] << 8);
+}
+function readU16BE(b: Uint8Array, offset: number): number {
+  return (b[offset] << 8) | b[offset + 1];
+}
+
+function readJpegDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+  let offset = 2; // skip SOI marker (0xFFD8)
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset++;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    // SOF0-SOF15 markers (excluding DHT/JPG/DAC) carry the frame dimensions.
+    const isSof = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    const segmentLength = readU16BE(bytes, offset + 2);
+    if (isSof) {
+      return { height: readU16BE(bytes, offset + 5), width: readU16BE(bytes, offset + 7) };
+    }
+    offset += 2 + segmentLength;
+  }
+  return null;
+}
+
+/** Rejects an image that's tiny or absurdly non-square — likely a broken
+ * placeholder or a mis-tagged banner rather than a real icon. Unknown
+ * dimensions are never rejected on this basis alone. */
+function isAcceptableIcon(dims: { width: number; height: number } | null): boolean {
+  if (!dims) return true;
+  if (dims.width < MIN_ICON_DIMENSION || dims.height < MIN_ICON_DIMENSION) return false;
+  const ratio = dims.width / dims.height;
+  return ratio >= 0.4 && ratio <= 2.5;
 }
 
 function extensionFor(contentType: string): string {
@@ -266,6 +418,15 @@ export interface DiscoveredFavicon {
   strategy: string;
 }
 
+export interface FaviconOutcome {
+  favicon: DiscoveredFavicon | null;
+  status: LogoStatus;
+  /** Full step-by-step trace — every candidate tried and why it did or
+   * didn't work. Used by the admin favicon-diagnostic tool; also what
+   * backs the [favicon] log lines. */
+  attempts: AttemptRecord[];
+}
+
 /**
  * Multi-strategy favicon discovery, tried in priority order until one
  * validates:
@@ -275,22 +436,31 @@ export interface DiscoveredFavicon {
  *   4. /favicon.ico (last resort — many modern sites, including this app's
  *      own thearena.lol, don't serve one at all)
  *
- * Every candidate is fetched server-side (never the browser) through the
- * same SSRF-guarded fetch used elsewhere, following redirects and
- * transparently handling bare-domain/www and http/https variations (the
- * redirect just gets followed). Response bytes are sniffed to confirm
- * they're a real, supported image (ICO/PNG/JPEG/GIF/WebP/SVG) — a
- * mislabeled Content-Type or an HTML error page never gets accepted.
+ * Every candidate is fetched server-side through the same SSRF-guarded
+ * fetch used elsewhere, following redirects and transparently handling
+ * bare-domain/www and http/https variations (the redirect just gets
+ * followed). Response bytes are sniffed to confirm they're a real,
+ * supported image (ICO/PNG/JPEG/GIF/WebP/SVG) and checked for sane
+ * dimensions — a mislabeled Content-Type, an HTML error page, or a
+ * 1x1 placeholder never gets accepted.
  *
- * Returns null if every strategy genuinely fails. Callers must treat that
- * as "not resolved yet," never a permanent failure to cache — see
- * backfillMissingProductFavicons in lib/arena.ts, which retries any
- * product still missing a logo_url on every poll.
+ * Never throws. The result always has a `status`: "success" with a
+ * favicon, "temporary_failure" if any attempt hit a retryable error
+ * (network/DNS/timeout, 429/403/5xx) and nothing else validated, or
+ * "not_found" if every attempt was a clean negative (404, wrong content).
+ * Both failure statuses are meant to be retried later — see
+ * backfillMissingProductFavicons in lib/arena.ts — never cached as
+ * permanent.
  */
-export async function discoverFavicon(pageUrl: string): Promise<DiscoveredFavicon | null> {
+export async function discoverFavicon(pageUrl: string): Promise<FaviconOutcome> {
   const domain = hostnameOf(pageUrl);
+  const attempts: AttemptRecord[] = [];
   const candidates: FaviconCandidate[] = [];
-  const html = await fetchPageHtml(pageUrl);
+
+  const pageCounter: RedirectCounter = { count: 0 };
+  const { html, attempt: pageAttempt } = await fetchPageHtml(pageUrl, pageCounter);
+  attempts.push(pageAttempt);
+  logAttempt(domain, pageAttempt);
 
   if (html) {
     for (const link of rankIconLinks(extractIconLinks(html))) {
@@ -306,8 +476,6 @@ export async function discoverFavicon(pageUrl: string): Promise<DiscoveredFavico
         }
       }
     }
-  } else {
-    logFavicon(domain, "page-fetch", pageUrl, null, null, "could not fetch or parse page HTML");
   }
 
   const faviconIco = resolveHref("/favicon.ico", pageUrl);
@@ -318,29 +486,103 @@ export async function discoverFavicon(pageUrl: string): Promise<DiscoveredFavico
     if (seen.has(candidate.url)) continue;
     seen.add(candidate.url);
 
+    const counter: RedirectCounter = { count: 0 };
     try {
-      const res = await safeFetch(candidate.url, { headers: { Accept: "image/*,*/*" } });
+      const res = await safeFetch(candidate.url, { headers: { Accept: "image/*,*/*" } }, undefined, counter);
       const contentType = res.headers.get("content-type") ?? "";
       if (!res.ok) {
-        logFavicon(domain, candidate.strategy, candidate.url, res.status, contentType, "non-2xx response");
+        const record: AttemptRecord = {
+          strategy: candidate.strategy,
+          url: candidate.url,
+          status: res.status,
+          contentType,
+          redirects: counter.count,
+          reason: "non-2xx response",
+          retryable: isRetryableStatus(res.status),
+        };
+        attempts.push(record);
+        logAttempt(domain, record);
         await res.body?.cancel().catch(() => {});
         continue;
       }
+
       const bytes = await readCappedBytes(res, MAX_IMAGE_BYTES);
       const sniffed = sniffImageType(bytes, contentType);
       if (!sniffed) {
-        logFavicon(domain, candidate.strategy, candidate.url, res.status, contentType, "response body is not a recognized image format");
+        const record: AttemptRecord = {
+          strategy: candidate.strategy,
+          url: candidate.url,
+          status: res.status,
+          contentType,
+          redirects: counter.count,
+          reason: "response body is not a recognized image format",
+          retryable: false,
+        };
+        attempts.push(record);
+        logAttempt(domain, record);
         continue;
       }
-      logFavicon(domain, candidate.strategy, candidate.url, res.status, contentType, "success");
-      return { bytes, contentType: sniffed, sourceUrl: candidate.url, strategy: candidate.strategy };
+
+      const dims = readImageDimensions(bytes, sniffed);
+      if (!isAcceptableIcon(dims)) {
+        const record: AttemptRecord = {
+          strategy: candidate.strategy,
+          url: candidate.url,
+          status: res.status,
+          contentType,
+          redirects: counter.count,
+          reason: `image too small or wrong aspect ratio${dims ? ` (${dims.width}x${dims.height})` : ""}`,
+          retryable: false,
+        };
+        attempts.push(record);
+        logAttempt(domain, record);
+        continue;
+      }
+
+      const record: AttemptRecord = {
+        strategy: candidate.strategy,
+        url: candidate.url,
+        status: res.status,
+        contentType,
+        redirects: counter.count,
+        reason: "success",
+        retryable: false,
+      };
+      attempts.push(record);
+      logAttempt(domain, record);
+      return {
+        favicon: { bytes, contentType: sniffed, sourceUrl: candidate.url, strategy: candidate.strategy },
+        status: "success",
+        attempts,
+      };
     } catch (err) {
-      logFavicon(domain, candidate.strategy, candidate.url, null, null, err instanceof Error ? err.message : "fetch failed");
+      const record: AttemptRecord = {
+        strategy: candidate.strategy,
+        url: candidate.url,
+        status: null,
+        contentType: null,
+        redirects: counter.count,
+        reason: describeError(err),
+        retryable: !isPermanentRejection(err),
+      };
+      attempts.push(record);
+      logAttempt(domain, record);
     }
   }
 
-  logFavicon(domain, "all", null, null, null, "every discovery strategy failed");
-  return null;
+  const summary: AttemptRecord = {
+    strategy: "all",
+    url: pageUrl,
+    status: null,
+    contentType: null,
+    redirects: 0,
+    reason: candidates.length === 0 ? "no candidates found on the page" : "every discovery strategy failed",
+    retryable: false,
+  };
+  logAttempt(domain, summary);
+
+  const anyRetryable = attempts.some((a) => a.retryable);
+  return { favicon: null, status: anyRetryable ? "temporary_failure" : "not_found", attempts: [...attempts, summary] };
 }
 
 let faviconBucketEnsured = false;
@@ -389,26 +631,39 @@ export async function storeFaviconBytes(
   return data.publicUrl;
 }
 
-/** Full pipeline for an Arena product: discover, validate, store our own
- * copy keyed by product id. Returns null on genuine failure — never a
- * sentinel value, so the caller leaves `logo_url` unset and it's retried
- * later rather than permanently treated as "no favicon." */
-export async function resolveAndStoreProductFavicon(
-  admin: AdminClient,
-  productId: string,
-  pageUrl: string,
-): Promise<string | null> {
-  const found = await discoverFavicon(pageUrl);
-  if (!found) return null;
-  return storeFaviconBytes(admin, `products/${productId}`, found.bytes, found.contentType);
+export interface ProductFaviconResult {
+  status: LogoStatus;
+  logoUrl: string | null;
+  source: string | null;
+  attempts: AttemptRecord[];
 }
 
-/** Same pipeline for an external (non-Arena) sponsorship, keyed by a
- * stable hash of the URL so sponsoring the same external product twice
- * reuses one stored file instead of uploading a duplicate. */
+/** Full pipeline for an Arena product: discover, validate, store our own
+ * copy keyed by product id. Always returns a status — see
+ * backfillMissingProductFavicons for how callers persist and schedule the
+ * next retry from it. */
+export async function resolveAndStoreProductFavicon(admin: AdminClient, productId: string, pageUrl: string): Promise<ProductFaviconResult> {
+  const outcome = await discoverFavicon(pageUrl);
+  if (!outcome.favicon) {
+    return { status: outcome.status, logoUrl: null, source: null, attempts: outcome.attempts };
+  }
+  const logoUrl = await storeFaviconBytes(admin, `products/${productId}`, outcome.favicon.bytes, outcome.favicon.contentType);
+  if (!logoUrl) {
+    return { status: "temporary_failure", logoUrl: null, source: null, attempts: outcome.attempts };
+  }
+  return { status: "success", logoUrl, source: outcome.favicon.strategy, attempts: outcome.attempts };
+}
+
+/** Same discovery pipeline for an external (non-Arena) sponsorship, keyed
+ * by a stable hash of the URL so sponsoring the same external product
+ * twice reuses one stored file instead of uploading a duplicate.
+ * Sponsorships are short-lived and resolved once at creation time, so
+ * (unlike products) they don't carry the fuller pending/retry lifecycle —
+ * a null return here just means "no favicon for this sponsorship," same
+ * as before. */
 export async function resolveAndStoreExternalFavicon(admin: AdminClient, pageUrl: string): Promise<string | null> {
-  const found = await discoverFavicon(pageUrl);
-  if (!found) return null;
+  const outcome = await discoverFavicon(pageUrl);
+  if (!outcome.favicon) return null;
   const key = crypto.createHash("sha256").update(pageUrl).digest("hex").slice(0, 24);
-  return storeFaviconBytes(admin, `external/${key}`, found.bytes, found.contentType);
+  return storeFaviconBytes(admin, `external/${key}`, outcome.favicon.bytes, outcome.favicon.contentType);
 }

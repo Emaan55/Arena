@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     logoUrl = withLogo?.logo_url ?? null;
   }
   if (!logoUrl) {
-    logoUrl = await resolveAndStoreProductFavicon(admin, productId, product.url);
+    logoUrl = (await resolveAndStoreProductFavicon(admin, productId, product.url)).logoUrl;
     if (logoUrl && productFaviconReady) {
       await admin.from("products").update({ logo_url: logoUrl }).eq("id", productId);
     }

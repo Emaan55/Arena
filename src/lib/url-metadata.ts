@@ -58,6 +58,6 @@ export interface UrlMetadata {
  * actually created, so an abandoned form fill never uploads anything.
  */
 export async function fetchUrlMetadata(pageUrl: string): Promise<UrlMetadata> {
-  const [name, favicon] = await Promise.all([fetchPageTitle(pageUrl), discoverFavicon(pageUrl)]);
-  return { name, logoUrl: favicon?.sourceUrl ?? null };
+  const [name, outcome] = await Promise.all([fetchPageTitle(pageUrl), discoverFavicon(pageUrl)]);
+  return { name, logoUrl: outcome.favicon?.sourceUrl ?? null };
 }

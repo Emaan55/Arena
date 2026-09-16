@@ -16,6 +16,7 @@ export type VoteSide = "a" | "b";
 export type PaymentType = "boost" | "revive" | "defend" | "sponsor";
 export type PaymentStatus = "pending" | "completed" | "failed";
 export type SponsorshipStatus = "queued" | "active" | "completed" | "cancelled";
+export type LogoStatus = "pending" | "success" | "temporary_failure" | "not_found";
 
 // These are `type` (not `interface`) deliberately: interfaces don't satisfy
 // the `Record<string, unknown>` structural constraint that supabase-js's
@@ -44,13 +45,26 @@ export type Product = {
   // Hash of a one-time edit token handed to the submitter at creation.
   // Never sent to the client after that — only compared server-side.
   edit_token_hash: string | null;
-  // Favicon resolved once (site's own /favicon.ico, else a public favicon
-  // service) via lib/url-metadata.ts — at submission for new products,
-  // lazily backfilled for older ones (see backfillMissingProductFavicons
-  // in lib/arena.ts) — and cached here so it's never re-fetched per view.
-  // Null means "not resolved yet"; ProductAvatar falls back to the
-  // product's initial either way, so this is never user-visible as broken.
+  // Auto-discovered via the multi-strategy pipeline in
+  // lib/favicon-service.ts — never a manual upload. `logo_url` is a stable
+  // copy in our own storage once `logo_status` is "success"; ProductAvatar
+  // falls back to the product's initial whenever it's null, so a pending/
+  // failed lookup is never user-visible as broken.
   logo_url: string | null;
+  // "pending" (never resolved, or queued for retry) / "success" /
+  // "temporary_failure" (network blip, 5xx, rate-limited — retried) /
+  // "not_found" (every strategy came back clean-negative — still retried,
+  // since a founder may add a favicon after submitting). Never a
+  // permanent-failure sentinel: see backfillMissingProductFavicons.
+  logo_status: LogoStatus;
+  logo_checked_at: string | null;
+  // Backoff-scheduled retry eligibility — see lib/arena.ts's
+  // backfillMissingProductFavicons for the schedule.
+  logo_next_attempt_at: string;
+  logo_attempts: number;
+  // Which discovery strategy actually succeeded (e.g. "link[rel=icon]") —
+  // diagnostic only, shown in /admin/favicon-diagnostic.
+  logo_source: string | null;
 };
 
 export type Match = {

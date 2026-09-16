@@ -236,46 +236,107 @@ export async function markStaleWaitingProductsUnique(admin: AdminClient) {
  * poll) while migration 0011 hasn't been run yet: `products.logo_url`
  * doesn't exist until then, and an insert/select naming a nonexistent
  * column fails outright — for submission that would mean failing the
- * *entire* product creation over an optional cosmetic field. Both
- * call sites below check this first and skip the favicon step entirely
- * (never touching `logo_url`) until it's ready, so submission and the
- * poll loop keep working exactly as before regardless of migration order.
+ * *entire* product creation over an optional cosmetic field.
  */
 export async function isProductFaviconColumnReady(admin: AdminClient): Promise<boolean> {
   const { error } = await admin.from("products").select("logo_url").limit(1);
   return !error;
 }
 
+/** Same reasoning as isProductFaviconColumnReady, for the fuller
+ * status/retry-tracking columns added by migration 0012. Submission and
+ * the backfill both check this before touching any of those columns, so
+ * both keep working exactly as before if 0012 hasn't been run yet — the
+ * one-time reclassification in that migration is what actually re-queues
+ * every already-submitted product (including ones stuck with the old
+ * third-party favicon-guess URL) for a real discovery attempt once it is. */
+export async function isFaviconTrackingReady(admin: AdminClient): Promise<boolean> {
+  const { error } = await admin.from("products").select("logo_status").limit(1);
+  return !error;
+}
+
+// Retry backoff by attempt count — "immediately, then a short delay, then
+// minutes, then hours, then next-day", per the retry schedule a founder
+// should never have to think about. Caps at the last tier rather than
+// growing unbounded, so a genuinely-broken site still gets checked daily
+// forever (a founder might fix their site's icon at any time) without
+// hammering it.
+const FAVICON_RETRY_BACKOFF_MS = [
+  30 * 1000, // attempt 1 -> retry in 30s (covers a one-off blip)
+  5 * 60 * 1000, // attempt 2 -> 5 minutes
+  60 * 60 * 1000, // attempt 3 -> 1 hour
+  6 * 60 * 60 * 1000, // attempt 4 -> 6 hours
+  24 * 60 * 60 * 1000, // attempt 5+ -> daily
+];
+
+function nextFaviconAttemptDelayMs(attemptsSoFar: number): number {
+  return FAVICON_RETRY_BACKOFF_MS[Math.min(attemptsSoFar, FAVICON_RETRY_BACKOFF_MS.length - 1)];
+}
+
 /**
- * Products submitted before the favicon column existed (or whose
- * discovery genuinely failed at submission time — a down site, a
- * transient network error) get resolved lazily, a small batch at a time,
- * through the exact same discoverFavicon() pipeline every other favicon
- * call site uses (lib/favicon-service.ts) — never a second implementation.
- * Batched (not "all missing at once") so this never turns one page load
- * into a dozen outbound favicon fetches. A row is only ever updated when
- * discovery actually succeeds: a still-failing product is left
- * `logo_url = null` and is simply reconsidered next batch — genuine
- * failures are never permanently cached, they're retried indefinitely in
- * the background. Called from GET /api/state, same lazy-on-every-poll
- * pattern as markStaleWaitingProductsUnique above.
+ * Products that have never resolved a favicon — never tried yet, or the
+ * last attempt was a "temporary_failure"/"not_found" whose backoff window
+ * has elapsed — get resolved lazily, a small batch at a time, through the
+ * exact same discoverFavicon() pipeline every other favicon call site uses
+ * (lib/favicon-service.ts) — never a second implementation. Batched (not
+ * "all due at once") so this never turns one page load into a dozen
+ * outbound favicon fetches.
+ *
+ * A genuine failure is never permanently cached: `logo_status` records
+ * *why* (for diagnostics), but the row is always re-queued for another
+ * attempt per the backoff schedule above — a founder may fix their
+ * site's icon at any time, so "not_found" today doesn't mean "never."
+ * Called from GET /api/state, same lazy-on-every-poll pattern as
+ * markStaleWaitingProductsUnique above.
  */
 export async function backfillMissingProductFavicons(admin: AdminClient) {
-  if (!(await isProductFaviconColumnReady(admin))) return;
+  if (!(await isFaviconTrackingReady(admin))) return;
 
-  const { data: missing } = await admin
+  const nowIso = new Date().toISOString();
+  const { data: due } = await admin
     .from("products")
-    .select("id, url")
-    .is("logo_url", null)
+    .select("id, url, logo_attempts")
+    .neq("logo_status", "success")
+    .lte("logo_next_attempt_at", nowIso)
+    .order("logo_next_attempt_at", { ascending: true })
     .limit(FAVICON_BACKFILL_BATCH);
 
-  if (!missing || missing.length === 0) return;
+  if (!due || due.length === 0) return;
 
   await Promise.all(
-    missing.map(async (product) => {
-      const logoUrl = await resolveAndStoreProductFavicon(admin, product.id, product.url);
-      if (!logoUrl) return; // still unresolved — retried again next batch, never cached as a failure
-      await admin.from("products").update({ logo_url: logoUrl }).eq("id", product.id).is("logo_url", null);
+    due.map(async (product) => {
+      const result = await resolveAndStoreProductFavicon(admin, product.id, product.url);
+      const attempts = product.logo_attempts + 1;
+      const checkedAt = new Date().toISOString();
+
+      if (result.status === "success" && result.logoUrl) {
+        await admin
+          .from("products")
+          .update({
+            logo_url: result.logoUrl,
+            logo_status: "success",
+            logo_source: result.source,
+            logo_checked_at: checkedAt,
+            logo_attempts: attempts,
+          })
+          .eq("id", product.id);
+        return;
+      }
+
+      // Still not resolved — record why, but always schedule another
+      // attempt rather than giving up. The pre-existing logo_url (even a
+      // stale third-party guess) is left untouched so nothing regresses
+      // to a blank icon while we keep retrying in the background.
+      const nextAttemptAt = new Date(Date.now() + nextFaviconAttemptDelayMs(attempts)).toISOString();
+      await admin
+        .from("products")
+        .update({
+          logo_status: result.status,
+          logo_checked_at: checkedAt,
+          logo_attempts: attempts,
+          logo_next_attempt_at: nextAttemptAt,
+        })
+        .eq("id", product.id);
     }),
   );
 }

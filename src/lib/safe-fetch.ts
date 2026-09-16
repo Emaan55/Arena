@@ -51,7 +51,19 @@ async function assertSafeUrl(rawUrl: string): Promise<URL> {
   return url;
 }
 
-export async function safeFetch(rawUrl: string, init: RequestInit, redirectsLeft = MAX_REDIRECTS): Promise<Response> {
+/** Mutable out-param some callers use to learn how many redirect hops were
+ * actually followed (for diagnostics) — optional, defaults to a throwaway
+ * counter so existing call sites that don't care can ignore it entirely. */
+export interface RedirectCounter {
+  count: number;
+}
+
+export async function safeFetch(
+  rawUrl: string,
+  init: RequestInit,
+  redirectsLeft = MAX_REDIRECTS,
+  counter: RedirectCounter = { count: 0 },
+): Promise<Response> {
   const url = await assertSafeUrl(rawUrl);
   const res = await fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
 
@@ -63,7 +75,8 @@ export async function safeFetch(rawUrl: string, init: RequestInit, redirectsLeft
     const location = res.headers.get("location");
     if (location) {
       await res.body?.cancel().catch(() => {});
-      return safeFetch(new URL(location, url).toString(), init, redirectsLeft - 1);
+      counter.count += 1;
+      return safeFetch(new URL(location, url).toString(), init, redirectsLeft - 1, counter);
     }
   }
   return res;
