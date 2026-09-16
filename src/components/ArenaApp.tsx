@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import type { ArenaState } from "@/lib/arena-state";
 import { CATEGORIES, type Category, type Product, type VoteSide } from "@/types/database";
 import { SubmitForm } from "./SubmitForm";
@@ -275,7 +276,17 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
           <aside className="flex w-full flex-col gap-6 lg:sticky lg:top-20 lg:w-80">
             <Leaderboard products={state.topProducts} />
             <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm">
-              <h2 className="font-display text-sm font-bold text-ink">Activity</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-display text-sm font-bold text-ink">Activity</h2>
+                <span className="flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-semibold text-muted">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+                  </span>
+                  Live Feed
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </div>
               <ActivityFeed activity={state.activity} />
             </div>
           </aside>
