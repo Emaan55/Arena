@@ -3,7 +3,8 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
 import { createSponsorship, cancelSponsorship, reorderSponsorshipQueue, isSponsorshipSchemaReady } from "@/lib/sponsorship";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
-import { resolveFaviconUrl } from "@/lib/url-metadata";
+import { isProductFaviconColumnReady } from "@/lib/arena";
+import { resolveAndStoreProductFavicon, resolveAndStoreExternalFavicon } from "@/lib/favicon-service";
 import { normalizeUrl } from "@/lib/url";
 import { normalizeXHandle } from "@/lib/x-handle";
 import { CATEGORIES, type Category } from "@/types/database";
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This product is already sponsored or in the queue." }, { status: 409 });
     }
 
-    const logoUrl = await resolveFaviconUrl(normalizedUrl);
+    const logoUrl = await resolveAndStoreExternalFavicon(admin, normalizedUrl);
     const sponsorship = await createSponsorship(admin, {
       external: { name, url: normalizedUrl, category, description },
       durationDays: days,
@@ -167,7 +168,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This product is already sponsored or in the queue." }, { status: 409 });
   }
 
-  const logoUrl = await resolveFaviconUrl(product.url);
+  // Reuse the product's own already-resolved favicon when it has one,
+  // same reasoning as the paid checkout route — never re-discover/upload
+  // a duplicate copy if we already have one. Guarded since products.
+  // logo_url (0011) may not be applied even when sponsorships' columns are.
+  let logoUrl: string | null = null;
+  const productFaviconReady = await isProductFaviconColumnReady(admin);
+  if (productFaviconReady) {
+    const { data: withLogo } = await admin.from("products").select("logo_url").eq("id", productId).maybeSingle();
+    logoUrl = withLogo?.logo_url ?? null;
+  }
+  if (!logoUrl) {
+    logoUrl = await resolveAndStoreProductFavicon(admin, productId, product.url);
+    if (logoUrl && productFaviconReady) {
+      await admin.from("products").update({ logo_url: logoUrl }).eq("id", productId);
+    }
+  }
+
   const sponsorship = await createSponsorship(admin, {
     productId,
     durationDays: days,

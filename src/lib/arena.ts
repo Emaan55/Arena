@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Category, Database, Match, Product } from "@/types/database";
-import { resolveFaviconUrl } from "./url-metadata";
+import { resolveAndStoreProductFavicon } from "./favicon-service";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -247,15 +247,18 @@ export async function isProductFaviconColumnReady(admin: AdminClient): Promise<b
 }
 
 /**
- * Products submitted before the favicon column existed (or any that
- * somehow slipped through without one) get resolved lazily, a small batch
- * at a time, reusing the exact same resolveFaviconUrl() sponsorships and
- * new submissions already use — never a second implementation. Batched
- * (not "all missing at once") so this never turns one page load into a
- * dozen outbound favicon fetches; once a product's `logo_url` is set it's
- * never touched again, so the backlog only ever shrinks. Called from GET
- * /api/state, same lazy-on-every-poll pattern as
- * markStaleWaitingProductsUnique above.
+ * Products submitted before the favicon column existed (or whose
+ * discovery genuinely failed at submission time — a down site, a
+ * transient network error) get resolved lazily, a small batch at a time,
+ * through the exact same discoverFavicon() pipeline every other favicon
+ * call site uses (lib/favicon-service.ts) — never a second implementation.
+ * Batched (not "all missing at once") so this never turns one page load
+ * into a dozen outbound favicon fetches. A row is only ever updated when
+ * discovery actually succeeds: a still-failing product is left
+ * `logo_url = null` and is simply reconsidered next batch — genuine
+ * failures are never permanently cached, they're retried indefinitely in
+ * the background. Called from GET /api/state, same lazy-on-every-poll
+ * pattern as markStaleWaitingProductsUnique above.
  */
 export async function backfillMissingProductFavicons(admin: AdminClient) {
   if (!(await isProductFaviconColumnReady(admin))) return;
@@ -270,7 +273,8 @@ export async function backfillMissingProductFavicons(admin: AdminClient) {
 
   await Promise.all(
     missing.map(async (product) => {
-      const logoUrl = await resolveFaviconUrl(product.url);
+      const logoUrl = await resolveAndStoreProductFavicon(admin, product.id, product.url);
+      if (!logoUrl) return; // still unresolved — retried again next batch, never cached as a failure
       await admin.from("products").update({ logo_url: logoUrl }).eq("id", product.id).is("logo_url", null);
     }),
   );

@@ -3,7 +3,8 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createCheckout, getSponsorVariantId } from "@/lib/lemonsqueezy";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import { isSponsorshipSchemaReady } from "@/lib/sponsorship";
-import { resolveFaviconUrl } from "@/lib/url-metadata";
+import { isProductFaviconColumnReady } from "@/lib/arena";
+import { resolveAndStoreProductFavicon, resolveAndStoreExternalFavicon } from "@/lib/favicon-service";
 import { normalizeUrl } from "@/lib/url";
 import { normalizeXHandle } from "@/lib/x-handle";
 import { rateLimit } from "@/lib/rate-limit";
@@ -88,9 +89,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Please enter a valid URL." }, { status: 400 });
     }
 
-    // Resolved server-side (never trusting a client-supplied logo URL) and
-    // stored once the sponsorship is created — see lib/url-metadata.ts.
-    const logoUrl = await resolveFaviconUrl(normalizedUrl);
+    // Resolved and stored server-side (never trusting a client-supplied
+    // logo URL) via the same multi-strategy pipeline every other favicon
+    // call site uses — see lib/favicon-service.ts.
+    const logoUrl = await resolveAndStoreExternalFavicon(admin, normalizedUrl);
 
     custom = {
       type: "sponsor",
@@ -115,7 +117,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
     }
 
-    const logoUrl = await resolveFaviconUrl(product.url);
+    // Reuse the product's own already-resolved favicon when it has one
+    // (set at submission time) instead of re-discovering/re-uploading a
+    // duplicate copy; only run discovery here if it's still missing, and
+    // write the result back to the product too so every other card
+    // benefits, not just this sponsorship. Guarded the same way
+    // isSponsorshipSchemaReady guards the sponsorships table above —
+    // products.logo_url is a separate migration (0011) that may not be
+    // applied yet even when the sponsorships columns are.
+    let logoUrl: string | null = null;
+    const productFaviconReady = await isProductFaviconColumnReady(admin);
+    if (productFaviconReady) {
+      const { data: withLogo } = await admin.from("products").select("logo_url").eq("id", productId).maybeSingle();
+      logoUrl = withLogo?.logo_url ?? null;
+    }
+    if (!logoUrl) {
+      logoUrl = await resolveAndStoreProductFavicon(admin, productId, product.url);
+      if (logoUrl && productFaviconReady) {
+        await admin.from("products").update({ logo_url: logoUrl }).eq("id", productId);
+      }
+    }
 
     custom = {
       type: "sponsor",

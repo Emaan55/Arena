@@ -14,7 +14,7 @@ import { parseBattleFields } from "@/lib/product-fields";
 import { CATEGORIES, type Category } from "@/types/database";
 import { normalizeUrl } from "@/lib/url";
 import { toSearchPattern } from "@/lib/search";
-import { resolveFaviconUrl } from "@/lib/url-metadata";
+import { resolveAndStoreProductFavicon } from "@/lib/favicon-service";
 
 const MIN_FILL_TIME_MS = 1200;
 const LIST_LIMIT = 100;
@@ -129,15 +129,6 @@ export async function POST(req: NextRequest) {
 
   const editToken = generateEditToken();
 
-  // Same auto-favicon resolution sponsorships already use (site's own
-  // /favicon.ico, else a public favicon service) — never a manual upload,
-  // and cached on the row so ProductAvatar never re-fetches it. Guarded so
-  // a submission still succeeds normally if migration 0011 hasn't been run
-  // yet — an optional cosmetic field must never be able to fail the whole
-  // submission (see isProductFaviconColumnReady).
-  const faviconReady = await isProductFaviconColumnReady(admin);
-  const logoUrl = faviconReady ? await resolveFaviconUrl(normalizedUrl) : null;
-
   const { data: product, error } = await admin
     .from("products")
     .insert({
@@ -150,13 +141,27 @@ export async function POST(req: NextRequest) {
       is_defending: false,
       ...battleFields.fields,
       edit_token_hash: hashEditToken(editToken),
-      ...(faviconReady ? { logo_url: logoUrl } : {}),
     })
     .select()
     .single();
 
   if (error || !product) {
     return NextResponse.json({ error: "Could not submit product. Please try again." }, { status: 500 });
+  }
+
+  // Auto favicon discovery — reuses the same multi-strategy pipeline every
+  // other favicon call site uses (lib/favicon-service.ts), storing our own
+  // copy keyed by this product's id (hence running after the insert, once
+  // an id actually exists). Never a manual upload. Guarded so a submission
+  // still succeeds normally if migration 0011 hasn't been run yet, and a
+  // genuine discovery failure just leaves logo_url null to be retried by
+  // backfillMissingProductFavicons rather than failing the submission.
+  if (await isProductFaviconColumnReady(admin)) {
+    const logoUrl = await resolveAndStoreProductFavicon(admin, product.id, normalizedUrl);
+    if (logoUrl) {
+      await admin.from("products").update({ logo_url: logoUrl }).eq("id", product.id);
+      product.logo_url = logoUrl;
+    }
   }
 
   await logActivity(admin, `🆕 ${product.name} just entered the arena in ${category}`);

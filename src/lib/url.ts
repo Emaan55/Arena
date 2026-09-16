@@ -1,8 +1,10 @@
 /** Best-effort, client-side-only favicon guess for a product-picker list
  * (e.g. "Select an Arena product") — a plain `{origin}/favicon.ico`, with
- * no server round-trip and no guarantee it resolves. This is distinct from
- * lib/url-metadata.ts's resolveFaviconUrl, which is the server-side,
- * verified resolution actually stored on a sponsorship. */
+ * no server round-trip and no guarantee it resolves (most modern sites
+ * don't even serve one at that path). Only ever a stopgap for a product
+ * that hasn't been through real discovery yet — see
+ * lib/favicon-service.ts's discoverFavicon for the real, server-side,
+ * multi-strategy resolution that's actually stored. */
 export function guessFaviconUrl(pageUrl: string): string | null {
   try {
     const url = new URL(pageUrl);
