@@ -64,7 +64,7 @@ export function Leaderboard({ products }: { products: Product[] }) {
                 style={i === 0 ? { boxShadow: "var(--glow-accent)" } : undefined}
               >
                 <RankMedal rank={i} />
-                <ProductAvatar name={p.name} accent={i === 0 || p.status === "champion"} />
+                <ProductAvatar name={p.name} logoUrl={p.logo_url} accent={i === 0 || p.status === "champion"} />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
                     <span className="truncate">{p.name}</span>

@@ -73,7 +73,7 @@ function ResultRow({ result, onNavigate }: { result: ProductSearchResult; onNavi
         onClick={onNavigate}
         className="flex items-start gap-3 px-4 py-3 transition-colors duration-150 ease-out hover:bg-surface-2"
       >
-        <ProductAvatar name={result.name} size="sm" accent={result.status === "champion"} />
+        <ProductAvatar name={result.name} logoUrl={result.logo_url} size="sm" accent={result.status === "champion"} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-semibold text-ink">{result.name}</span>

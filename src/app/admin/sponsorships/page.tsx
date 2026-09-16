@@ -10,7 +10,13 @@ import {
   resolveSponsorshipDisplay,
   type SponsorDuration,
 } from "@/lib/sponsorship-constants";
-import { SponsorLogo } from "@/components/SponsorLogo";
+import { ProductAvatar } from "@/components/ProductAvatar";
+
+// Matches the sponsor-context chrome the old bespoke SponsorLogo component
+// used (thicker accent border, larger radius) — ProductAvatar is now the
+// single shared favicon/fallback implementation everywhere.
+const SPONSOR_LOGO_BASE =
+  "flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-accent bg-surface-2";
 import { XHandleLink } from "@/components/XHandleLink";
 
 const SECRET_STORAGE_KEY = "arena_admin_secret";
@@ -321,10 +327,12 @@ export default function AdminSponsorshipsPage() {
         {data?.active && resolveSponsorshipDisplay(data.active) ? (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-accent bg-accent-soft/5 p-4">
             <div className="flex items-center gap-3">
-              <SponsorLogo
+              <ProductAvatar
                 logoUrl={resolveSponsorshipDisplay(data.active)!.logoUrl}
                 name={resolveSponsorshipDisplay(data.active)!.name}
-                className="h-10 w-10"
+                glow
+                padded
+                className={`h-10 w-10 ${SPONSOR_LOGO_BASE}`}
               />
               <div className="flex flex-col gap-0.5">
                 <span className="font-semibold text-ink">{resolveSponsorshipDisplay(data.active)!.name}</span>
@@ -496,7 +504,7 @@ export default function AdminSponsorshipsPage() {
                     <Loader2 className="h-4 w-4 animate-spin text-muted" />
                   </span>
                 ) : (
-                  <SponsorLogo logoUrl={extLogoUrl} name={extName || "?"} className="h-9 w-9" />
+                  <ProductAvatar logoUrl={extLogoUrl} name={extName || "?"} glow padded className={`h-9 w-9 ${SPONSOR_LOGO_BASE}`} />
                 )}
                 <input
                   value={extName}
@@ -547,7 +555,7 @@ export default function AdminSponsorshipsPage() {
             {externalReady && (
               <>
                 <div className="flex items-center gap-3 rounded-xl border border-accent bg-accent-soft/5 p-3">
-                  <SponsorLogo logoUrl={extLogoUrl} name={extName} className="h-10 w-10" />
+                  <ProductAvatar logoUrl={extLogoUrl} name={extName} glow padded className={`h-10 w-10 ${SPONSOR_LOGO_BASE}`} />
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-sm font-semibold text-ink">{extName}</span>
                     <span className="text-xs text-muted">{extCategory} · External</span>

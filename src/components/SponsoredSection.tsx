@@ -11,9 +11,16 @@ import {
 } from "@/lib/sponsorship-constants";
 import { guessFaviconUrl } from "@/lib/url";
 import { CATEGORIES, type Category } from "@/types/database";
-import { SponsorLogo } from "./SponsorLogo";
+import { ProductAvatar } from "./ProductAvatar";
 import { PayButton } from "./PayButton";
 import { XHandleLink } from "./XHandleLink";
+
+// Matches the sponsor-context chrome the old bespoke SponsorLogo component
+// used (thicker accent border, larger radius) — ProductAvatar is now the
+// single shared favicon/fallback implementation everywhere, this is just
+// its className override for this one visual treatment.
+const SPONSOR_LOGO_BASE =
+  "flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-accent bg-surface-2";
 
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 140;
@@ -26,6 +33,7 @@ interface ArenaProduct {
   category: string;
   url: string;
   pitch: string;
+  logo_url: string | null;
 }
 
 /** Anyone can sponsor any listed Arena product — this is the whole
@@ -164,7 +172,9 @@ export function SponsoredSection({
   const reviewName = mode === "arena" ? selectedArenaProduct?.name : ext.name;
   const reviewCategory = mode === "arena" ? selectedArenaProduct?.category : ext.category;
   const reviewLogoUrl =
-    mode === "arena" ? (selectedArenaProduct ? guessFaviconUrl(selectedArenaProduct.url) : null) : ext.logoUrl;
+    mode === "arena"
+      ? (selectedArenaProduct ? (selectedArenaProduct.logo_url ?? guessFaviconUrl(selectedArenaProduct.url)) : null)
+      : ext.logoUrl;
 
   return (
     <section className="relative border-t border-border px-6 py-16 md:px-10">
@@ -260,10 +270,12 @@ export function SponsoredSection({
                 selectedArenaProduct ? (
                   <div className="flex items-center justify-between gap-2 rounded-lg border border-accent bg-accent-soft/10 p-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <SponsorLogo
-                        logoUrl={guessFaviconUrl(selectedArenaProduct.url)}
+                      <ProductAvatar
+                        logoUrl={selectedArenaProduct.logo_url ?? guessFaviconUrl(selectedArenaProduct.url)}
                         name={selectedArenaProduct.name}
-                        className="h-8 w-8 shrink-0"
+                        glow
+                        padded
+                        className={`h-8 w-8 ${SPONSOR_LOGO_BASE}`}
                       />
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-xs font-semibold text-ink">{selectedArenaProduct.name}</span>
@@ -300,7 +312,13 @@ export function SponsoredSection({
                             onClick={() => setSelectedArenaProduct(p)}
                             className="flex items-center gap-2 rounded-md p-2 text-left transition-colors duration-150 ease-out hover:bg-surface"
                           >
-                            <SponsorLogo logoUrl={guessFaviconUrl(p.url)} name={p.name} className="h-8 w-8 shrink-0" />
+                            <ProductAvatar
+                              logoUrl={p.logo_url ?? guessFaviconUrl(p.url)}
+                              name={p.name}
+                              glow
+                              padded
+                              className={`h-8 w-8 ${SPONSOR_LOGO_BASE}`}
+                            />
                             <span className="flex min-w-0 flex-1 flex-col">
                               <span className="truncate text-xs font-semibold text-ink">{p.name}</span>
                               <span className="text-[10px] text-muted">{p.category}</span>
@@ -325,7 +343,13 @@ export function SponsoredSection({
                         <Loader2 className="h-4 w-4 animate-spin text-muted" />
                       </span>
                     ) : (
-                      <SponsorLogo logoUrl={ext.logoUrl} name={ext.name || "?"} className="h-9 w-9" />
+                      <ProductAvatar
+                        logoUrl={ext.logoUrl}
+                        name={ext.name || "?"}
+                        glow
+                        padded
+                        className={`h-9 w-9 ${SPONSOR_LOGO_BASE}`}
+                      />
                     )}
                     <input
                       value={ext.name}
@@ -369,7 +393,13 @@ export function SponsoredSection({
                   <p className="-mt-1 text-[10px] text-muted">Founder X handle (optional)</p>
 
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 p-2">
-                    <SponsorLogo logoUrl={reviewLogoUrl ?? null} name={reviewName ?? "?"} className="h-8 w-8 shrink-0" />
+                    <ProductAvatar
+                      logoUrl={reviewLogoUrl ?? null}
+                      name={reviewName ?? "?"}
+                      glow
+                      padded
+                      className={`h-8 w-8 ${SPONSOR_LOGO_BASE}`}
+                    />
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-xs font-semibold text-ink">{reviewName}</span>
                       <span className="text-[10px] text-muted">
@@ -433,7 +463,13 @@ export function SponsoredSection({
 
             {activeDisplay ? (
               <div className="relative flex items-center gap-3 sm:gap-5">
-                <SponsorLogo logoUrl={activeDisplay.logoUrl} name={activeDisplay.name} className="h-16 w-16 shrink-0 sm:h-20 sm:w-20" />
+                <ProductAvatar
+                  logoUrl={activeDisplay.logoUrl}
+                  name={activeDisplay.name}
+                  glow
+                  padded
+                  className={`h-16 w-16 sm:h-20 sm:w-20 ${SPONSOR_LOGO_BASE}`}
+                />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <h2 className="truncate font-display text-lg font-black text-ink sm:text-2xl">{activeDisplay.name}</h2>
                   <div className="flex flex-wrap items-center gap-1.5">

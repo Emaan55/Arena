@@ -28,7 +28,7 @@ export function EliminatedList({
           <div className="pointer-events-none absolute -right-11 top-4 w-36 rotate-45 bg-danger py-1 text-center text-[10px] font-bold uppercase tracking-widest text-danger-ink shadow-sm">
             Eliminated
           </div>
-          <ProductAvatar name={p.name} />
+          <ProductAvatar name={p.name} logoUrl={p.logo_url} />
           <div className="flex min-w-0 flex-col gap-1 pr-8">
             <div className="flex min-w-0 items-center gap-1.5">
               <Link href={`/product/${p.id}`} className="truncate font-display text-base font-bold text-muted hover:text-ink">

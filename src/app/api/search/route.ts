@@ -3,6 +3,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSearchPattern } from "@/lib/search";
+import { isProductFaviconColumnReady } from "@/lib/arena";
 
 const MAX_QUERY_LEN = 80;
 const RESULT_LIMIT = 20;
@@ -21,9 +22,16 @@ export async function GET(req: NextRequest) {
   const pattern = toSearchPattern(q);
   const admin = createAdminSupabaseClient();
 
+  // An explicit column list (unlike select("*")) fails outright if a named
+  // column doesn't exist yet — guard so search still works before
+  // migration 0011 has been run, same reasoning as isProductFaviconColumnReady's
+  // other call sites.
+  const faviconReady = await isProductFaviconColumnReady(admin);
+  const columns = `id,name,category,pitch,battle_pitch,status,wins,x_handle${faviconReady ? ",logo_url" : ""}`;
+
   const { data, error } = await admin
     .from("products")
-    .select("id,name,category,pitch,battle_pitch,status,wins,x_handle")
+    .select(columns)
     .or(
       `name.ilike.${pattern},pitch.ilike.${pattern},category.ilike.${pattern},x_handle.ilike.${pattern}`,
     )
@@ -34,5 +42,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Search failed. Please try again." }, { status: 500 });
   }
 
-  return NextResponse.json({ results: data ?? [] });
+  const results = (data ?? []).map((row) => {
+    const r = row as unknown as Record<string, unknown>;
+    return { ...r, logo_url: faviconReady ? ((r.logo_url as string | null | undefined) ?? null) : null };
+  });
+
+  return NextResponse.json({ results });
 }

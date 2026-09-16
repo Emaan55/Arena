@@ -48,7 +48,7 @@ export default async function ProductPage({
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <ProductAvatar name={product.name} size="lg" accent={product.status === "champion"} />
+            <ProductAvatar name={product.name} logoUrl={product.logo_url} size="lg" accent={product.status === "champion"} />
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">{product.name}</h1>

@@ -1,12 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Category, Database, Match, Product } from "@/types/database";
+import { resolveFaviconUrl } from "./url-metadata";
 
 type AdminClient = SupabaseClient<Database>;
 
 const WINS_TO_CHAMPION = 3;
 const VOTES_TO_WIN = 100;
 const UNIQUE_PRODUCT_MS = 7 * 24 * 60 * 60 * 1000;
+const FAVICON_BACKFILL_BATCH = 4;
 
 export async function logActivity(admin: AdminClient, text: string) {
   await admin.from("activity_log").insert({ text });
@@ -227,6 +229,51 @@ export async function markStaleWaitingProductsUnique(admin: AdminClient) {
       `🦄 ${product.name} found no challenger in ${product.category} after 7 days — marked as a Unique Product (still open to a challenge, no win awarded)`,
     );
   }
+}
+
+/**
+ * Guards against breaking product submission (or wasting a query every
+ * poll) while migration 0011 hasn't been run yet: `products.logo_url`
+ * doesn't exist until then, and an insert/select naming a nonexistent
+ * column fails outright — for submission that would mean failing the
+ * *entire* product creation over an optional cosmetic field. Both
+ * call sites below check this first and skip the favicon step entirely
+ * (never touching `logo_url`) until it's ready, so submission and the
+ * poll loop keep working exactly as before regardless of migration order.
+ */
+export async function isProductFaviconColumnReady(admin: AdminClient): Promise<boolean> {
+  const { error } = await admin.from("products").select("logo_url").limit(1);
+  return !error;
+}
+
+/**
+ * Products submitted before the favicon column existed (or any that
+ * somehow slipped through without one) get resolved lazily, a small batch
+ * at a time, reusing the exact same resolveFaviconUrl() sponsorships and
+ * new submissions already use — never a second implementation. Batched
+ * (not "all missing at once") so this never turns one page load into a
+ * dozen outbound favicon fetches; once a product's `logo_url` is set it's
+ * never touched again, so the backlog only ever shrinks. Called from GET
+ * /api/state, same lazy-on-every-poll pattern as
+ * markStaleWaitingProductsUnique above.
+ */
+export async function backfillMissingProductFavicons(admin: AdminClient) {
+  if (!(await isProductFaviconColumnReady(admin))) return;
+
+  const { data: missing } = await admin
+    .from("products")
+    .select("id, url")
+    .is("logo_url", null)
+    .limit(FAVICON_BACKFILL_BATCH);
+
+  if (!missing || missing.length === 0) return;
+
+  await Promise.all(
+    missing.map(async (product) => {
+      const logoUrl = await resolveFaviconUrl(product.url);
+      await admin.from("products").update({ logo_url: logoUrl }).eq("id", product.id).is("logo_url", null);
+    }),
+  );
 }
 
 /**

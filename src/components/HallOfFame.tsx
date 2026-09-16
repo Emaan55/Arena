@@ -32,7 +32,7 @@ export function HallOfFame({
           className="group flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-sm transition-all duration-150 ease-out hover:-translate-y-1 hover:shadow-lg"
         >
           <div className="flex items-start justify-between">
-            <ProductAvatar name={c.product.name} accent size="lg" />
+            <ProductAvatar name={c.product.name} logoUrl={c.product.logo_url} accent size="lg" />
             <CrownIcon
               className="h-6 w-6 text-accent transition-transform group-hover:scale-110"
               style={{ animation: "crown-float 3s ease-in-out infinite" }}

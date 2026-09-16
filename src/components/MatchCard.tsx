@@ -128,6 +128,7 @@ function SideCard({
   productId,
   matchId,
   name,
+  logoUrl,
   pitch,
   url,
   category,
@@ -150,6 +151,7 @@ function SideCard({
   productId: string;
   matchId: string;
   name: string;
+  logoUrl: string | null;
   pitch: string;
   url: string;
   category: string;
@@ -185,7 +187,7 @@ function SideCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
-          <ProductAvatar name={name} accent={isMyVote} />
+          <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="truncate font-display text-base font-bold text-ink sm:text-lg">{name}</span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
@@ -339,6 +341,7 @@ export function MatchCard({
           productId={match.product_a.id}
           matchId={match.id}
           name={match.product_a.name}
+          logoUrl={match.product_a.logo_url}
           pitch={match.product_a.pitch}
           url={match.product_a.url}
           category={match.category}
@@ -363,6 +366,7 @@ export function MatchCard({
           productId={match.product_b.id}
           matchId={match.id}
           name={match.product_b.name}
+          logoUrl={match.product_b.logo_url}
           pitch={match.product_b.pitch}
           url={match.product_b.url}
           category={match.category}

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getArenaState } from "@/lib/arena-state";
-import { pairUnmatchedProducts, logActivity, markStaleWaitingProductsUnique } from "@/lib/arena";
+import {
+  pairUnmatchedProducts,
+  logActivity,
+  markStaleWaitingProductsUnique,
+  isProductFaviconColumnReady,
+} from "@/lib/arena";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateEditToken, hashEditToken } from "@/lib/edit-token";
@@ -9,6 +14,7 @@ import { parseBattleFields } from "@/lib/product-fields";
 import { CATEGORIES, type Category } from "@/types/database";
 import { normalizeUrl } from "@/lib/url";
 import { toSearchPattern } from "@/lib/search";
+import { resolveFaviconUrl } from "@/lib/url-metadata";
 
 const MIN_FILL_TIME_MS = 1200;
 const LIST_LIMIT = 100;
@@ -29,11 +35,13 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, LIST_QUERY_MAX);
   const admin = createAdminSupabaseClient();
 
-  let query = admin
-    .from("products")
-    .select("id,name,category,url,pitch")
-    .order("name", { ascending: true })
-    .limit(LIST_LIMIT);
+  // An explicit column list (unlike select("*")) fails outright if a named
+  // column doesn't exist yet — guard so this picker still works before
+  // migration 0011 has been run.
+  const faviconReady = await isProductFaviconColumnReady(admin);
+  const columns = `id,name,category,url,pitch${faviconReady ? ",logo_url" : ""}`;
+
+  let query = admin.from("products").select(columns).order("name", { ascending: true }).limit(LIST_LIMIT);
   if (q) {
     query = query.ilike("name", toSearchPattern(q));
   }
@@ -42,7 +50,13 @@ export async function GET(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: "Could not load products." }, { status: 500 });
   }
-  return NextResponse.json({ products: data ?? [] });
+
+  const products = (data ?? []).map((row) => {
+    const r = row as unknown as Record<string, unknown>;
+    return { ...r, logo_url: faviconReady ? ((r.logo_url as string | null | undefined) ?? null) : null };
+  });
+
+  return NextResponse.json({ products });
 }
 
 export async function POST(req: NextRequest) {
@@ -115,6 +129,15 @@ export async function POST(req: NextRequest) {
 
   const editToken = generateEditToken();
 
+  // Same auto-favicon resolution sponsorships already use (site's own
+  // /favicon.ico, else a public favicon service) — never a manual upload,
+  // and cached on the row so ProductAvatar never re-fetches it. Guarded so
+  // a submission still succeeds normally if migration 0011 hasn't been run
+  // yet — an optional cosmetic field must never be able to fail the whole
+  // submission (see isProductFaviconColumnReady).
+  const faviconReady = await isProductFaviconColumnReady(admin);
+  const logoUrl = faviconReady ? await resolveFaviconUrl(normalizedUrl) : null;
+
   const { data: product, error } = await admin
     .from("products")
     .insert({
@@ -127,6 +150,7 @@ export async function POST(req: NextRequest) {
       is_defending: false,
       ...battleFields.fields,
       edit_token_hash: hashEditToken(editToken),
+      ...(faviconReady ? { logo_url: logoUrl } : {}),
     })
     .select()
     .single();

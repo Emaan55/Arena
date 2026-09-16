@@ -43,7 +43,7 @@ export function WaitingCard({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-accent/40 bg-accent-soft/5 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
-        <ProductAvatar name={product.name} accent />
+        <ProductAvatar name={product.name} logoUrl={product.logo_url} accent />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
             <Swords className="h-3.5 w-3.5 shrink-0" />

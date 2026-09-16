@@ -44,6 +44,13 @@ export type Product = {
   // Hash of a one-time edit token handed to the submitter at creation.
   // Never sent to the client after that — only compared server-side.
   edit_token_hash: string | null;
+  // Favicon resolved once (site's own /favicon.ico, else a public favicon
+  // service) via lib/url-metadata.ts — at submission for new products,
+  // lazily backfilled for older ones (see backfillMissingProductFavicons
+  // in lib/arena.ts) — and cached here so it's never re-fetched per view.
+  // Null means "not resolved yet"; ProductAvatar falls back to the
+  // product's initial either way, so this is never user-visible as broken.
+  logo_url: string | null;
 };
 
 export type Match = {
@@ -76,7 +83,7 @@ export type Champion = {
 
 export type ProductSearchResult = Pick<
   Product,
-  "id" | "name" | "category" | "pitch" | "battle_pitch" | "status" | "wins" | "x_handle"
+  "id" | "name" | "category" | "pitch" | "battle_pitch" | "status" | "wins" | "x_handle" | "logo_url"
 >;
 
 export type ActivityLogEntry = {
