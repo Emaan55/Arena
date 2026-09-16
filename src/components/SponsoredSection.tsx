@@ -9,71 +9,52 @@ import {
   resolveSponsorshipDisplay,
   type SponsorDuration,
 } from "@/lib/sponsorship-constants";
-import { editTokenStorageKey } from "@/lib/edit-token-storage";
+import { guessFaviconUrl } from "@/lib/url";
 import { CATEGORIES, type Category } from "@/types/database";
 import { SponsorLogo } from "./SponsorLogo";
 import { PayButton } from "./PayButton";
+import { XHandleLink } from "./XHandleLink";
 
-const EDIT_TOKEN_PREFIX = "arena_edit_token:";
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 140;
+const inputClass =
+  "rounded-lg border border-border bg-bg px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none";
 
-interface MyProduct {
+interface ArenaProduct {
   id: string;
   name: string;
   category: string;
+  url: string;
   pitch: string;
 }
 
-/** Scans localStorage for every product this browser holds an edit token
- * for — the same "no accounts, token is ownership" mechanism EditProductButton
- * and ProductEditor use — and resolves each id to a product via the public
- * GET /api/products/[id]. That's how an anonymous submitter picks which of
- * their own Arena products to sponsor. */
-function useMyProducts() {
-  const [products, setProducts] = useState<MyProduct[] | null>(null);
+/** Anyone can sponsor any listed Arena product — this is the whole
+ * catalog (GET /api/products), not just what the visitor's browser
+ * happens to hold an edit token for. Debounced so typing to filter
+ * doesn't fire a request per keystroke; the very first (empty-query)
+ * load fires immediately. */
+function useArenaProducts(query: string) {
+  const [products, setProducts] = useState<ArenaProduct[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function load() {
-      let ids: string[] = [];
-      try {
-        ids = Object.keys(window.localStorage)
-          .filter((k) => k.startsWith(EDIT_TOKEN_PREFIX))
-          .map((k) => k.slice(EDIT_TOKEN_PREFIX.length));
-      } catch {
-        ids = [];
-      }
-
-      if (ids.length === 0) {
-        if (!cancelled) setProducts([]);
-        return;
-      }
-
-      const results = await Promise.all(
-        ids.map(async (id) => {
-          try {
-            const res = await fetch(`/api/products/${id}`);
-            if (!res.ok) return null;
-            const data = await res.json();
-            return data.product
-              ? { id: data.product.id, name: data.product.name, category: data.product.category, pitch: data.product.pitch }
-              : null;
-          } catch {
-            return null;
-          }
-        }),
-      );
-
-      if (!cancelled) setProducts(results.filter((p): p is MyProduct => p !== null));
-    }
-
-    load();
+    const t = setTimeout(
+      async () => {
+        try {
+          const res = await fetch(`/api/products${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`);
+          const data = await res.json();
+          if (!cancelled) setProducts(res.ok ? (data.products ?? []) : []);
+        } catch {
+          if (!cancelled) setProducts([]);
+        }
+      },
+      query ? 300 : 0,
+    );
     return () => {
       cancelled = true;
+      clearTimeout(t);
     };
-  }, []);
+  }, [query]);
 
   return products;
 }
@@ -85,9 +66,6 @@ function timeLeft(endsAt: string | null): string | null {
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
   return days === 1 ? "1 day left" : `${days} days left`;
 }
-
-const inputClass =
-  "rounded-lg border border-border bg-bg px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none";
 
 /** "Add External Product" fields — any URL, never added to the Arena. Name
  * and favicon are best-effort auto-detected from the URL (POST
@@ -151,26 +129,22 @@ export function SponsoredSection({
   sponsorship: SponsorshipState;
   onPaid?: () => void;
 }) {
-  const myProducts = useMyProducts();
-  const [mode, setMode] = useState<"arena" | "external">("arena");
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [duration, setDuration] = useState<SponsorDuration>(7);
+  const [mode, setMode] = useState<"arena" | "external">("arena");
+
+  const [arenaQuery, setArenaQuery] = useState("");
+  const arenaProducts = useArenaProducts(arenaQuery);
+  const [selectedArenaProduct, setSelectedArenaProduct] = useState<ArenaProduct | null>(null);
+
   const ext = useExternalProductForm();
+  const [xHandle, setXHandle] = useState("");
 
   useEffect(() => {
-    if (myProducts && myProducts.length > 0 && !selectedProductId) {
+    if (arenaProducts && arenaProducts.length === 0 && !arenaQuery) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedProductId(myProducts[0].id);
-    }
-    if (myProducts && myProducts.length === 0) {
       setMode("external");
     }
-  }, [myProducts, selectedProductId]);
-
-  const editToken =
-    mode === "arena" && selectedProductId && typeof window !== "undefined"
-      ? window.localStorage.getItem(editTokenStorageKey(selectedProductId))
-      : null;
+  }, [arenaProducts, arenaQuery]);
 
   const { active, queue } = sponsorship;
   const remaining = active ? timeLeft(active.ends_at) : null;
@@ -183,6 +157,14 @@ export function SponsoredSection({
     ext.url.trim().length > 0 &&
     ext.description.trim().length > 0 &&
     ext.description.trim().length <= DESCRIPTION_MAX;
+
+  // STEP 3 is complete — a product has actually been chosen — only then do
+  // the founder X handle field, review summary, and payment appear.
+  const productChosen = mode === "arena" ? selectedArenaProduct !== null : externalReady;
+  const reviewName = mode === "arena" ? selectedArenaProduct?.name : ext.name;
+  const reviewCategory = mode === "arena" ? selectedArenaProduct?.category : ext.category;
+  const reviewLogoUrl =
+    mode === "arena" ? (selectedArenaProduct ? guessFaviconUrl(selectedArenaProduct.url) : null) : ext.logoUrl;
 
   return (
     <section className="relative border-t border-border px-6 py-16 md:px-10">
@@ -204,7 +186,7 @@ export function SponsoredSection({
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-          {/* Compact left column: pitch + pricing */}
+          {/* Compact left column: pitch + step-by-step sponsorship flow */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
@@ -229,12 +211,12 @@ export function SponsoredSection({
             </div>
 
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-md">
+              {/* Step 1 — duration */}
               <div className="flex items-center gap-2">
                 <Crown className="h-4 w-4 text-accent" />
                 <span className="text-sm font-bold text-ink">Sponsorship Plans</span>
               </div>
               <p className="-mt-2 text-xs text-muted">Choose how long you want to be featured.</p>
-
               <div className="grid grid-cols-3 gap-2">
                 {SPONSOR_DURATIONS.map((days) => (
                   <button
@@ -252,10 +234,7 @@ export function SponsoredSection({
                 ))}
               </div>
 
-              {/* Any product can be sponsored — one already in the Arena
-                  (proven by the same edit token used to edit it), or any
-                  external URL. Either way this is always a paid slot; only
-                  the founder can grant a free one, from /admin/sponsorships. */}
+              {/* Step 2 — product type */}
               <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface-2 p-1">
                 <button
                   onClick={() => setMode("arena")}
@@ -275,39 +254,62 @@ export function SponsoredSection({
                 </button>
               </div>
 
+              {/* Step 3 — pick/enter the product. Payment never appears
+                  before this step is complete. */}
               {mode === "arena" ? (
-                myProducts === null ? null : myProducts.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-border bg-surface-2 p-3 text-center text-xs text-muted">
-                    Submit a product first, then come back here to sponsor it — or sponsor an
-                    external product above.
-                  </p>
-                ) : (
-                  <>
-                    {myProducts.length > 1 && (
-                      <select
-                        value={selectedProductId ?? ""}
-                        onChange={(e) => setSelectedProductId(e.target.value)}
-                        className={inputClass}
-                      >
-                        {myProducts.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {selectedProductId && editToken ? (
-                      <PayButton
-                        type="sponsor"
-                        productId={selectedProductId}
-                        endpoint="/api/sponsorship/checkout"
-                        extraBody={{ editToken, durationDays: duration }}
-                        label="Sponsor Now"
-                        onPaid={onPaid}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-bg shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                selectedArenaProduct ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-accent bg-accent-soft/10 p-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <SponsorLogo
+                        logoUrl={guessFaviconUrl(selectedArenaProduct.url)}
+                        name={selectedArenaProduct.name}
+                        className="h-8 w-8 shrink-0"
                       />
-                    ) : null}
-                  </>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-xs font-semibold text-ink">{selectedArenaProduct.name}</span>
+                        <span className="text-[10px] text-muted">{selectedArenaProduct.category}</span>
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedArenaProduct(null)}
+                      className="shrink-0 text-[10px] font-semibold text-accent hover:text-ink"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-ink">Select an Arena product</span>
+                    <input
+                      value={arenaQuery}
+                      onChange={(e) => setArenaQuery(e.target.value)}
+                      placeholder="Search Arena products…"
+                      className={inputClass}
+                    />
+                    <div className="flex max-h-52 flex-col gap-1 overflow-y-auto rounded-lg border border-border bg-surface-2 p-1">
+                      {arenaProducts === null ? (
+                        <p className="p-3 text-center text-xs text-muted">Loading…</p>
+                      ) : arenaProducts.length === 0 ? (
+                        <p className="p-3 text-center text-xs text-muted">
+                          No Arena products found — try External Product instead.
+                        </p>
+                      ) : (
+                        arenaProducts.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setSelectedArenaProduct(p)}
+                            className="flex items-center gap-2 rounded-md p-2 text-left transition-colors duration-150 ease-out hover:bg-surface"
+                          >
+                            <SponsorLogo logoUrl={guessFaviconUrl(p.url)} name={p.name} className="h-8 w-8 shrink-0" />
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="truncate text-xs font-semibold text-ink">{p.name}</span>
+                              <span className="text-[10px] text-muted">{p.category}</span>
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )
               ) : (
                 <div className="flex flex-col gap-2">
@@ -351,32 +353,55 @@ export function SponsoredSection({
                     maxLength={DESCRIPTION_MAX}
                     className={inputClass}
                   />
-                  {externalReady ? (
-                    <PayButton
-                      type="sponsor"
-                      endpoint="/api/sponsorship/checkout"
-                      extraBody={{
-                        durationDays: duration,
-                        isExternal: "1",
-                        externalName: ext.name.trim(),
-                        externalUrl: ext.url.trim(),
-                        externalCategory: ext.category,
-                        externalDescription: ext.description.trim(),
-                      }}
-                      label="Sponsor Now"
-                      onPaid={onPaid}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-bg shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
-                    />
-                  ) : (
-                    <button
-                      disabled
-                      className="w-full rounded-lg bg-surface-2 px-3 py-2.5 text-sm font-semibold text-muted opacity-60"
-                    >
-                      Sponsor Now
-                    </button>
-                  )}
                 </div>
               )}
+
+              {/* Step 4 — founder X handle, step 5 — review, step 6 — pay.
+                  None of this renders until a product is actually chosen. */}
+              {productChosen && (
+                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                  <input
+                    value={xHandle}
+                    onChange={(e) => setXHandle(e.target.value)}
+                    placeholder="@yourhandle"
+                    className={inputClass}
+                  />
+                  <p className="-mt-1 text-[10px] text-muted">Founder X handle (optional)</p>
+
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 p-2">
+                    <SponsorLogo logoUrl={reviewLogoUrl ?? null} name={reviewName ?? "?"} className="h-8 w-8 shrink-0" />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-xs font-semibold text-ink">{reviewName}</span>
+                      <span className="text-[10px] text-muted">
+                        {reviewCategory} · {duration} days — {SPONSOR_PRICE_LABELS[duration]}
+                      </span>
+                    </div>
+                  </div>
+
+                  <PayButton
+                    type="sponsor"
+                    productId={mode === "arena" ? selectedArenaProduct?.id : undefined}
+                    endpoint="/api/sponsorship/checkout"
+                    extraBody={
+                      mode === "arena"
+                        ? { durationDays: duration, xHandle: xHandle.trim() }
+                        : {
+                            durationDays: duration,
+                            isExternal: "1",
+                            externalName: ext.name.trim(),
+                            externalUrl: ext.url.trim(),
+                            externalCategory: ext.category,
+                            externalDescription: ext.description.trim(),
+                            xHandle: xHandle.trim(),
+                          }
+                    }
+                    label="Sponsor Now"
+                    onPaid={onPaid}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-bg shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                  />
+                </div>
+              )}
+
               <p className="text-center text-[10px] text-muted">Only one product is featured at a time.</p>
             </div>
           </div>
@@ -407,14 +432,17 @@ export function SponsoredSection({
                     {remaining && <span className="text-xs text-muted">· {remaining}</span>}
                   </div>
                   <p className="max-w-xl text-sm leading-relaxed text-muted sm:text-base">{activeDisplay.description}</p>
-                  <a
-                    href={activeDisplay.url}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="mt-1 flex w-fit items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
-                  >
-                    Visit Product ↗
-                  </a>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <a
+                      href={activeDisplay.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="flex w-fit items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
+                    >
+                      Visit Product ↗
+                    </a>
+                    <XHandleLink handle={activeDisplay.xHandle} />
+                  </div>
                 </div>
               </div>
             ) : (

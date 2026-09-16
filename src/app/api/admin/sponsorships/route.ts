@@ -5,6 +5,7 @@ import { createSponsorship, cancelSponsorship, reorderSponsorshipQueue, isSponso
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import { resolveFaviconUrl } from "@/lib/url-metadata";
 import { normalizeUrl } from "@/lib/url";
+import { normalizeXHandle } from "@/lib/x-handle";
 import { CATEGORIES, type Category } from "@/types/database";
 
 const PRODUCT_COLS = "id,name,category,url,pitch";
@@ -74,6 +75,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Run migration 0008 before adding sponsors." }, { status: 503 });
   }
 
+  let founderXHandle: string | null = null;
+  if (typeof record.founderXHandle === "string" && record.founderXHandle.trim()) {
+    founderXHandle = normalizeXHandle(record.founderXHandle);
+    if (!founderXHandle) {
+      return NextResponse.json(
+        { error: "Enter a valid X handle (letters, numbers, underscore — max 15 characters)." },
+        { status: 400 },
+      );
+    }
+  }
+
   const external = (record.external ?? null) as Record<string, unknown> | null;
 
   if (external) {
@@ -116,6 +128,7 @@ export async function POST(req: NextRequest) {
       durationDays: days,
       isFree: true,
       logoUrl,
+      founderXHandle,
     });
     if (!sponsorship) {
       return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });
@@ -145,7 +158,13 @@ export async function POST(req: NextRequest) {
   }
 
   const logoUrl = await resolveFaviconUrl(product.url);
-  const sponsorship = await createSponsorship(admin, { productId, durationDays: days, isFree: true, logoUrl });
+  const sponsorship = await createSponsorship(admin, {
+    productId,
+    durationDays: days,
+    isFree: true,
+    logoUrl,
+    founderXHandle,
+  });
   if (!sponsorship) {
     return NextResponse.json({ error: "Could not create sponsorship." }, { status: 500 });
   }

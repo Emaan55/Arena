@@ -11,6 +11,7 @@ import {
   type SponsorDuration,
 } from "@/lib/sponsorship-constants";
 import { SponsorLogo } from "@/components/SponsorLogo";
+import { XHandleLink } from "@/components/XHandleLink";
 
 const SECRET_STORAGE_KEY = "arena_admin_secret";
 const NAME_MAX = 80;
@@ -88,6 +89,7 @@ export default function AdminSponsorshipsPage() {
   const [extCategory, setExtCategory] = useState<Category>("General");
   const [extDescription, setExtDescription] = useState("");
   const [extLogoUrl, setExtLogoUrl] = useState<string | null>(null);
+  const [founderXHandle, setFounderXHandle] = useState("");
   const detecting = useUrlDetect(extUrl, extNameTouched, (name, logoUrl) => {
     if (name) setExtName(name);
     setExtLogoUrl(logoUrl);
@@ -178,9 +180,10 @@ export default function AdminSponsorshipsPage() {
         headers: { "Content-Type": "application/json", "x-admin-secret": secret },
         body: JSON.stringify(
           mode === "arena"
-            ? { productId: pickedProductId, durationDays: duration }
+            ? { productId: pickedProductId, durationDays: duration, founderXHandle: founderXHandle.trim() }
             : {
                 durationDays: duration,
+                founderXHandle: founderXHandle.trim(),
                 external: {
                   name: extName.trim(),
                   url: extUrl.trim(),
@@ -203,6 +206,7 @@ export default function AdminSponsorshipsPage() {
       setExtNameTouched(false);
       setExtDescription("");
       setExtLogoUrl(null);
+      setFounderXHandle("");
       await load(secret);
     } finally {
       setBusy(false);
@@ -305,6 +309,7 @@ export default function AdminSponsorshipsPage() {
                   {formatDate(data.active.starts_at)} → {formatDate(data.active.ends_at)}
                   {data.active.is_free ? " · Free" : ""}
                 </span>
+                <XHandleLink handle={resolveSponsorshipDisplay(data.active)!.xHandle} />
               </div>
             </div>
             <button
@@ -474,6 +479,13 @@ export default function AdminSponsorshipsPage() {
             />
           </div>
         )}
+
+        <input
+          value={founderXHandle}
+          onChange={(e) => setFounderXHandle(e.target.value)}
+          placeholder="@yourhandle (founder X handle, optional)"
+          className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           {SPONSOR_DURATIONS.map((days) => (

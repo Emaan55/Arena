@@ -8,8 +8,42 @@ import { generateEditToken, hashEditToken } from "@/lib/edit-token";
 import { parseBattleFields } from "@/lib/product-fields";
 import { CATEGORIES, type Category } from "@/types/database";
 import { normalizeUrl } from "@/lib/url";
+import { toSearchPattern } from "@/lib/search";
 
 const MIN_FILL_TIME_MS = 1200;
+const LIST_LIMIT = 100;
+const LIST_QUERY_MAX = 80;
+
+/**
+ * Browsable list of Arena products for the sponsorship picker ("Select an
+ * Arena product") — anyone can sponsor any listed product, so this needs
+ * the whole catalog, not just what a submitter's browser happens to hold
+ * an edit token for. Optional `?q=` narrows it client-side-search-style.
+ */
+export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!rateLimit(`products-list:${ip}`, 60, 60 * 1000)) {
+    return NextResponse.json({ error: "Slow down and try again shortly." }, { status: 429 });
+  }
+
+  const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, LIST_QUERY_MAX);
+  const admin = createAdminSupabaseClient();
+
+  let query = admin
+    .from("products")
+    .select("id,name,category,url,pitch")
+    .order("name", { ascending: true })
+    .limit(LIST_LIMIT);
+  if (q) {
+    query = query.ilike("name", toSearchPattern(q));
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    return NextResponse.json({ error: "Could not load products." }, { status: 500 });
+  }
+  return NextResponse.json({ products: data ?? [] });
+}
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);

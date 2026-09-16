@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createCheckout, getSponsorVariantId } from "@/lib/lemonsqueezy";
-import { hashEditToken } from "@/lib/edit-token";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import { isSponsorshipSchemaReady } from "@/lib/sponsorship";
 import { resolveFaviconUrl } from "@/lib/url-metadata";
 import { normalizeUrl } from "@/lib/url";
+import { normalizeXHandle } from "@/lib/x-handle";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/fingerprint";
 import { CATEGORIES, type Category } from "@/types/database";
@@ -13,6 +13,13 @@ import { CATEGORIES, type Category } from "@/types/database";
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 140;
 
+/**
+ * Anyone can pay to sponsor any listed Arena product or an arbitrary
+ * external URL — there's no ownership check for either. (Ownership only
+ * matters for *editing* a product's own listing, via the edit-token flow
+ * in PATCH /api/products/[id]; sponsoring it is a separate, unrestricted
+ * paid action, same as boosting an opponent's duel.)
+ */
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`sponsor-checkout:${ip}`, 10, 60 * 1000)) {
@@ -30,6 +37,17 @@ export async function POST(req: NextRequest) {
   const durationDays = Number(record.durationDays);
   if (!isSponsorDuration(durationDays)) {
     return NextResponse.json({ error: "Invalid sponsorship duration." }, { status: 400 });
+  }
+
+  let xHandle: string | null = null;
+  if (typeof record.xHandle === "string" && record.xHandle.trim()) {
+    xHandle = normalizeXHandle(record.xHandle);
+    if (!xHandle) {
+      return NextResponse.json(
+        { error: "Enter a valid X handle (letters, numbers, underscore — max 15 characters)." },
+        { status: 400 },
+      );
+    }
   }
 
   const admin = createAdminSupabaseClient();
@@ -83,28 +101,18 @@ export async function POST(req: NextRequest) {
       external_category: category,
       external_description: description,
       logo_url: logoUrl ?? "",
+      founder_x_handle: xHandle ?? "",
     };
     dedupeFilter = { column: "external_url", value: normalizedUrl };
   } else {
     const productId = record.productId;
-    const editToken = record.editToken;
     if (typeof productId !== "string") {
-      return NextResponse.json({ error: "Invalid product." }, { status: 400 });
-    }
-    if (typeof editToken !== "string" || !editToken) {
-      return NextResponse.json({ error: "Missing edit token." }, { status: 400 });
+      return NextResponse.json({ error: "Select a product to sponsor first." }, { status: 400 });
     }
 
-    const { data: product } = await admin.from("products").select("*").eq("id", productId).maybeSingle();
+    const { data: product } = await admin.from("products").select("url").eq("id", productId).maybeSingle();
     if (!product) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
-    }
-    // Ownership only, via the same edit-token hash used to gate PATCH
-    // /api/products/[id] — deliberately NOT gated by the 24h edit window,
-    // since that window exists to stop Battle Pitch rewrites mid-duel, an
-    // unrelated concern to who's allowed to sponsor this product.
-    if (!product.edit_token_hash || product.edit_token_hash !== hashEditToken(editToken)) {
-      return NextResponse.json({ error: "Could not verify you own this product." }, { status: 403 });
     }
 
     const logoUrl = await resolveFaviconUrl(product.url);
@@ -114,6 +122,7 @@ export async function POST(req: NextRequest) {
       duration_days: String(durationDays),
       product_id: productId,
       logo_url: logoUrl ?? "",
+      founder_x_handle: xHandle ?? "",
     };
     dedupeFilter = { column: "product_id", value: productId };
   }

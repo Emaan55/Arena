@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
       isFree: false,
       lemonsqueezyOrderId: orderId,
       amount: payload.data?.attributes?.total ?? undefined,
+      founderXHandle: custom.founder_x_handle || null,
       logoUrl: custom.logo_url || null,
     });
   }

@@ -1,3 +1,17 @@
+/** Best-effort, client-side-only favicon guess for a product-picker list
+ * (e.g. "Select an Arena product") — a plain `{origin}/favicon.ico`, with
+ * no server round-trip and no guarantee it resolves. This is distinct from
+ * lib/url-metadata.ts's resolveFaviconUrl, which is the server-side,
+ * verified resolution actually stored on a sponsorship. */
+export function guessFaviconUrl(pageUrl: string): string | null {
+  try {
+    const url = new URL(pageUrl);
+    return `${url.protocol}//${url.host}/favicon.ico`;
+  } catch {
+    return null;
+  }
+}
+
 // Shared by product submission (POST /api/products) and external
 // sponsorship (POST /api/sponsorship/checkout) so both validate/normalize
 // URLs the same way.

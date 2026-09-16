@@ -124,6 +124,9 @@ export type Sponsorship = {
   // service) at checkout/creation time and stored here — see
   // lib/url-metadata.ts — so it's never re-fetched on every page view.
   logo_url: string | null;
+  // Optional, normalized (no leading '@') — same convention as
+  // products.x_handle. Collected for both Arena and external sponsorships.
+  founder_x_handle: string | null;
 };
 
 type Relationships = [];

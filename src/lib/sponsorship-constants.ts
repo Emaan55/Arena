@@ -29,6 +29,7 @@ export interface SponsorDisplay {
   category: string;
   description: string;
   logoUrl: string | null;
+  xHandle: string | null;
 }
 
 export interface SponsorshipDisplaySource {
@@ -38,6 +39,7 @@ export interface SponsorshipDisplaySource {
   external_category: string | null;
   external_description: string | null;
   logo_url: string | null;
+  founder_x_handle: string | null;
   product: { name: string; url: string; category: string; pitch: string } | null;
 }
 
@@ -53,6 +55,7 @@ export function resolveSponsorshipDisplay(s: SponsorshipDisplaySource): SponsorD
       category: s.external_category ?? "Other",
       description: s.external_description ?? "",
       logoUrl: s.logo_url,
+      xHandle: s.founder_x_handle,
     };
   }
   if (s.product) {
@@ -62,6 +65,7 @@ export function resolveSponsorshipDisplay(s: SponsorshipDisplaySource): SponsorD
       category: s.product.category,
       description: s.product.pitch,
       logoUrl: s.logo_url,
+      xHandle: s.founder_x_handle,
     };
   }
   return null;

@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
+import { toSearchPattern } from "@/lib/search";
 
 const MAX_QUERY_LEN = 80;
 const RESULT_LIMIT = 20;
-
-// PostgREST's `.or()` filter syntax uses "," to separate conditions and
-// "()" to group them, and `ilike` treats "%"/"_" as wildcards — strip/escape
-// all of them so a search term is always treated as a literal substring,
-// never as filter syntax or a wildcard pattern the caller controls.
-function toSearchPattern(raw: string): string {
-  const stripped = raw.replace(/^@/, "").replace(/[,()]/g, " ").trim();
-  const escaped = stripped.replace(/[\\%_]/g, (m) => `\\${m}`);
-  return `%${escaped}%`;
-}
 
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);

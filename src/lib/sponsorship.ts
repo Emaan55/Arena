@@ -140,6 +140,8 @@ export async function createSponsorship(
     /** Resolved once by the caller (checkout route / admin route) via
      * lib/url-metadata.ts — never re-fetched here. */
     logoUrl?: string | null;
+    /** Optional, already normalized by the caller via lib/x-handle.ts. */
+    founderXHandle?: string | null;
   },
 ): Promise<SponsorshipRow | null> {
   if (!params.productId && !params.external) return null;
@@ -161,6 +163,7 @@ export async function createSponsorship(
       external_category: params.external?.category ?? null,
       external_description: params.external?.description ?? null,
       logo_url: params.logoUrl ?? null,
+      founder_x_handle: params.founderXHandle ?? null,
       status: "queued",
       duration_days: params.durationDays,
       is_free: params.isFree,
