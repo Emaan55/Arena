@@ -29,7 +29,14 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
-const SITE_URL = "https://thearena.lol";
+// Single source of truth for the canonical production host — same env var
+// api/checkout, api/sponsorship/checkout, and product/[id] already build
+// absolute URLs from, so metadata can never drift to a different host than
+// the rest of the app. www.thearena.lol is canonical: the bare apex domain
+// (thearena.lol) permanently redirects to it at the Vercel domain level
+// (verified live: thearena.lol -> 308 -> https://www.thearena.lol/), not in
+// this app's code, so no in-app redirect is needed for that.
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.thearena.lol").replace(/\/+$/, "");
 const SITE_TITLE = "THE ARENA — Where Products Compete";
 const SITE_DESCRIPTION = "Where products compete. You decide.";
 
@@ -38,6 +45,9 @@ export const metadata: Metadata = {
   title: "The Arena — Win three duels. Become champion.",
   description:
     "Submit your product for free and battle head-to-head against other products in your category. First to 100 votes wins. Win 3 in a row, become the Champion.",
+  alternates: {
+    canonical: SITE_URL,
+  },
   openGraph: {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
