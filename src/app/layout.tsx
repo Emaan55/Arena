@@ -29,10 +29,36 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+const SITE_URL = "https://thearena.lol";
+const SITE_TITLE = "THE ARENA — Where Products Compete";
+const SITE_DESCRIPTION = "Where products compete. You decide.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "The Arena — Win three duels. Become champion.",
   description:
     "Submit your product for free and battle head-to-head against other products in your category. First to 100 votes wins. Win 3 in a row, become the Champion.",
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "THE ARENA",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 628,
+        alt: SITE_TITLE,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
