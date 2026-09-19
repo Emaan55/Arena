@@ -13,6 +13,7 @@ import {
 } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
+import { checkNewIdentityAbuse, checkDuelSprayAbuse } from "@/lib/vote-abuse";
 import type { VoteSide } from "@/types/database";
 
 // Minting a "new" voter identity is the one thing a request can trigger
@@ -58,6 +59,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid vote." }, { status: 400 });
   }
 
+  const admin = createAdminSupabaseClient();
+
+  // "Vote spraying" — one IP attempting an unusually large number of
+  // *different* duels in a short window — applies regardless of whether
+  // this request's identity is new or an already-valid returning voter,
+  // since a script using many separately-legitimate identities (each
+  // voting once per duel, exactly as the rules allow) is otherwise
+  // invisible to any per-identity check. Degrades to a no-op if migration
+  // 0013 hasn't been applied yet, so this never blocks a vote it can't
+  // actually evaluate.
+  const spray = await checkDuelSprayAbuse(admin, ip, matchId);
+  if (spray.blocked) {
+    logSecurityEvent("rate_limited_duel_spray", { ip, matchId });
+    return NextResponse.json({ error: "Vote unavailable right now." }, { status: 429 });
+  }
+
   const { id: visitorId, isNew, wasInvalid } = getOrCreateSignedVisitorId(req);
 
   if (wasInvalid) {
@@ -69,8 +86,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (isNew || wasInvalid) {
+    // In-memory check first: always available, zero latency, and alone is
+    // exactly the protection already shipped. The persistent check below
+    // is additive — it never weakens this, only adds a cross-serverless-
+    // instance-durable ceiling plus a much tighter burst window and
+    // invalid-token weighting, once migration 0013 has been applied.
     if (!rateLimit(`vote:newvoter:${ip}`, NEW_VOTER_LIMIT, NEW_VOTER_WINDOW_MS)) {
       logSecurityEvent("rate_limited_new_voter", { ip, matchId, wasInvalid });
+      return NextResponse.json({ error: "Vote unavailable right now." }, { status: 429 });
+    }
+
+    const abuse = await checkNewIdentityAbuse(admin, ip, wasInvalid);
+    if (abuse.blocked) {
+      logSecurityEvent("rate_limited_new_voter_persistent", { ip, matchId, wasInvalid });
       return NextResponse.json({ error: "Vote unavailable right now." }, { status: 429 });
     }
   }
@@ -84,8 +112,6 @@ export async function POST(req: NextRequest) {
     logSecurityEvent("rate_limited_fingerprint", { ip, matchId });
     return NextResponse.json({ error: "Slow down — too many votes." }, { status: 429 });
   }
-
-  const admin = createAdminSupabaseClient();
 
   const { data: match, error } = await admin.rpc("cast_vote", {
     p_match_id: matchId,

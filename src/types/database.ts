@@ -212,6 +212,14 @@ export interface Database {
         Args: { p_match_id: string; p_side: VoteSide; p_amount: number };
         Returns: Match;
       };
+      bump_abuse_window: {
+        Args: { p_ip_hash: string; p_event_type: string; p_window_seconds: number };
+        Returns: number;
+      };
+      record_recent_match_and_count: {
+        Args: { p_ip_hash: string; p_match_id: string; p_window_seconds: number };
+        Returns: number;
+      };
     };
   };
 }
