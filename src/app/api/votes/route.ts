@@ -9,6 +9,7 @@ import {
   getOrCreateSignedVisitorId,
   buildTokenForId,
   hashFingerprint,
+  isVoterIdentitySigningConfigured,
 } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
@@ -28,6 +29,15 @@ const NEW_VOTER_LIMIT = 12;
 const NEW_VOTER_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
+  if (!isVoterIdentitySigningConfigured()) {
+    // Production with FINGERPRINT_SIGNING_SECRET unset: every deployment
+    // would otherwise share the same fallback secret, making every voter
+    // token forgeable. Fail closed instead of accepting an unsigned/
+    // uniformly-signable identity.
+    logSecurityEvent("voter_signing_unconfigured", {});
+    return NextResponse.json({ error: "Vote unavailable right now." }, { status: 503 });
+  }
+
   const ip = getClientIp(req);
   if (!rateLimit(`vote:ip:${ip}`, 30, 60 * 1000)) {
     logSecurityEvent("rate_limited_ip", { ip });
