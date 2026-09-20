@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MatchCard } from "./MatchCard";
+import { SignInPrompt } from "./SignInPrompt";
+import { useAuthUser } from "@/lib/useAuthUser";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { VoteSide } from "@/types/database";
 
@@ -35,6 +37,9 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
   const [votedSide, setVotedSide] = useState<VoteSide | undefined>(undefined);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signInPending, setSignInPending] = useState<{ matchId: string; side: VoteSide } | null>(null);
+  const { user, loading: authLoading } = useAuthUser();
+  const resumedVote = useRef(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -42,6 +47,10 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
   }, [match.id]);
 
   async function handleVote(matchId: string, side: VoteSide) {
+    if (!user) {
+      setSignInPending({ matchId, side });
+      return;
+    }
     setVoting(true);
     setError(null);
     try {
@@ -52,6 +61,10 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          setSignInPending({ matchId, side });
+          return;
+        }
         setError(data.error ?? "Could not cast vote.");
         if (res.status === 409) {
           saveVote(matchId, side);
@@ -69,6 +82,22 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
     }
   }
 
+  useEffect(() => {
+    // Same cross-tab resume mechanism as ArenaApp — see SignInPrompt.tsx.
+    if (authLoading || !user || resumedVote.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const resume = params.get("resumeVote");
+    if (!resume) return;
+    const [matchId, side] = resume.split(":");
+    if (matchId === match.id && (side === "a" || side === "b")) {
+      resumedVote.current = true;
+      window.history.replaceState({}, "", window.location.pathname);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resuming a vote the visitor explicitly started before signing in, not a render-driven side effect
+      handleVote(matchId, side as VoteSide);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+
   return (
     <div className="flex flex-col gap-2">
       <MatchCard
@@ -79,6 +108,11 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
         onPaid={() => router.refresh()}
       />
       {error && <p className="text-sm text-danger">{error}</p>}
+      <SignInPrompt
+        open={signInPending !== null}
+        onClose={() => setSignInPending(null)}
+        pendingVote={signInPending}
+      />
     </div>
   );
 }

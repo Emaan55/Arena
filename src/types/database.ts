@@ -82,7 +82,11 @@ export type Match = {
 export type Vote = {
   id: string;
   match_id: string;
-  voter_fingerprint: string;
+  // Exactly one of these two is set — see migration 0014's
+  // votes_identity_check constraint. Historical rows are all
+  // voter_fingerprint (anonymous); user_id is the newer, authenticated path.
+  voter_fingerprint: string | null;
+  user_id: string | null;
   side: VoteSide;
   created_at: string;
 };
@@ -219,6 +223,10 @@ export interface Database {
       record_recent_match_and_count: {
         Args: { p_ip_hash: string; p_match_id: string; p_window_seconds: number };
         Returns: number;
+      };
+      cast_vote_authenticated: {
+        Args: { p_match_id: string; p_user_id: string; p_side: VoteSide };
+        Returns: Match;
       };
     };
   };

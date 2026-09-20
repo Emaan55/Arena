@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { BrandLogo } from "./BrandLogo";
 import { ProductSearchBar, ProductSearchToggle } from "./ProductSearch";
+import { SignInPrompt } from "./SignInPrompt";
+import { useAuthUser } from "@/lib/useAuthUser";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -17,6 +20,13 @@ const NAV_LINKS = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const { user } = useAuthUser();
+
+  async function handleSignOut() {
+    const supabase = createBrowserSupabaseClient();
+    await supabase.auth.signOut();
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur-md">
@@ -42,6 +52,23 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle className="hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90 sm:flex" />
+          {user ? (
+            <button
+              onClick={handleSignOut}
+              title={user.email ?? undefined}
+              className="hidden items-center gap-1.5 text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          ) : (
+            <button
+              onClick={() => setSignInOpen(true)}
+              className="hidden text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
+            >
+              Sign in
+            </button>
+          )}
           <Link
             href="/#submit"
             className="hidden rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
@@ -75,6 +102,27 @@ export function SiteHeader() {
           ))}
           <div className="mt-2 flex items-center gap-3 px-2">
             <ThemeToggle />
+            {user ? (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  handleSignOut();
+                }}
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                Sign out
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setSignInOpen(true);
+                }}
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                Sign in
+              </button>
+            )}
             <Link
               href="/#submit"
               onClick={() => setOpen(false)}
@@ -85,6 +133,8 @@ export function SiteHeader() {
           </div>
         </nav>
       )}
+
+      <SignInPrompt open={signInOpen} onClose={() => setSignInOpen(false)} />
     </header>
   );
 }

@@ -20,6 +20,8 @@ import { Leaderboard } from "./Leaderboard";
 import { PowerMoves } from "./PowerMoves";
 import { ScrollReveal } from "./ScrollReveal";
 import { BrandLogo } from "./BrandLogo";
+import { SignInPrompt } from "./SignInPrompt";
+import { useAuthUser } from "@/lib/useAuthUser";
 
 const POLL_MS = 5000;
 const VOTED_STORAGE_KEY = "arena_voted_matches";
@@ -40,7 +42,10 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
   const [pendingVotes, setPendingVotes] = useState<Set<string>>(new Set());
   const [voteError, setVoteError] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<{ category: Category; from: string } | null>(null);
+  const [signInPending, setSignInPending] = useState<{ matchId: string; side: VoteSide } | null>(null);
   const inFlight = useRef(false);
+  const { user, loading: authLoading } = useAuthUser();
+  const resumedVote = useRef(false);
 
   useEffect(() => {
     // Hydrate from localStorage after mount (not in the lazy useState
@@ -75,6 +80,23 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    // Returning from the sign-in email link: `?resumeVote=<matchId>:<side>`
+    // was embedded in the emailRedirectTo by SignInPrompt precisely so this
+    // works even when the link opens in a different tab/device than the
+    // one that started voting, which sessionStorage alone couldn't do.
+    if (authLoading || !user || resumedVote.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const resume = params.get("resumeVote");
+    if (!resume) return;
+    const [matchId, side] = resume.split(":");
+    if (matchId && (side === "a" || side === "b")) {
+      resumedVote.current = true;
+      window.history.replaceState({}, "", window.location.pathname);
+      castVote(matchId, side as VoteSide);
+    }
+  }, [user, authLoading]);
+
   function markVoted(matchId: string, side: VoteSide) {
     setVotedMap((prev) => {
       const next = { ...prev, [matchId]: side };
@@ -85,6 +107,10 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
 
   async function castVote(matchId: string, side: VoteSide) {
     if (votedMap[matchId] || pendingVotes.has(matchId)) return;
+    if (!user) {
+      setSignInPending({ matchId, side });
+      return;
+    }
     setVoteError(null);
     setPendingVotes((prev) => new Set(prev).add(matchId));
     inFlight.current = true;
@@ -96,8 +122,16 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
       });
       const data = await res.json();
       if (!res.ok) {
+        // Session expired between page load and this click (client-side
+        // `user` was stale) — fall back to the same sign-in prompt rather
+        // than just showing an error, so a hung session doesn't dead-end
+        // an otherwise-legitimate vote attempt.
+        if (res.status === 401) {
+          setSignInPending({ matchId, side });
+          return;
+        }
         setVoteError(data.error ?? "Could not cast vote.");
-        // A 409 means a vote under this fingerprint already exists for this
+        // A 409 means a vote under this identity already exists for this
         // match — lock the button locally too. Any other failure (rate
         // limit, network hiccup, resolved match) leaves it retryable.
         if (res.status === 409) markVoted(matchId, side);
@@ -332,6 +366,12 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
           </div>
         </section>
       </ScrollReveal>
+
+      <SignInPrompt
+        open={signInPending !== null}
+        onClose={() => setSignInPending(null)}
+        pendingVote={signInPending}
+      />
     </main>
   );
 }
