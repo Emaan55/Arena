@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
+import { GetListedHeroArt } from "@/components/GetListedHeroArt";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 
 const PACKAGE_ORDER: GetListedPackageKey[] = ["starter", "growth", "scale"];
@@ -88,13 +89,9 @@ export default function GetListedPage() {
             <p className="text-xs text-muted">Optional. Buy at full price anytime.</p>
           </div>
 
-          {/* Right: existing hero artwork — used exactly as-is, never regenerated */}
-          <div className="flex min-w-0 items-center justify-center lg:justify-end">
-            <img
-              src="/listingheroright.png"
-              alt="THE ARENA product submission dashboard"
-              className="w-full max-w-[560px] object-contain lg:max-w-none"
-            />
+          {/* Right: existing hero artwork, composited (not pasted) — see GetListedHeroArt */}
+          <div className="relative min-h-[260px] w-full min-w-0 sm:min-h-[360px] lg:min-h-[560px]">
+            <GetListedHeroArt />
           </div>
         </div>
       </section>
