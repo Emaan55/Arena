@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 
@@ -52,36 +52,50 @@ export default function GetListedPage() {
   return (
     <main className="flex flex-col">
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pb-14 pt-16 text-center sm:pt-24">
-        <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-            Manual submissions · Real work · Clear reporting
-          </span>
-          <h1 className="font-display text-4xl font-black leading-[1.08] text-ink sm:text-6xl">
-            Get your product
-            <br />
-            <span className="text-accent">listed.</span>
-          </h1>
-          <p className="max-w-lg text-base text-muted sm:text-lg">
-            We manually submit your product to relevant directories and give you a clear report of every
-            submission.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#packages"
-              className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-            >
-              Choose a Package
-            </a>
-            <a
-              href="#discount-drop"
-              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-            >
-              <Gamepad2 className="h-4 w-4 text-accent" />
-              Play &amp; Unlock Discount
-            </a>
+      <section className="relative overflow-hidden px-6 pb-14 pt-14 sm:px-10 sm:pt-20 lg:pb-20">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[45%_55%] lg:gap-8">
+          {/* Left: message */}
+          <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+            <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+              <Zap className="h-3.5 w-3.5 shrink-0 text-accent" />
+              <span className="min-w-0">Manual submissions · Real work · Clear reporting</span>
+            </span>
+            <h1 className="font-display text-4xl font-black uppercase leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+              Get your product
+              <br />
+              <span className="text-accent">listed.</span>
+            </h1>
+            <p className="max-w-md text-base text-muted sm:text-lg">
+              We manually submit your product to relevant directories and give you a clear report of every
+              submission.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <a
+                href="#packages"
+                className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+              >
+                Choose a Package
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href="#discount-drop"
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold uppercase tracking-wide text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+              >
+                <Gamepad2 className="h-4 w-4 text-accent" />
+                Play &amp; Unlock Discount
+              </a>
+            </div>
+            <p className="text-xs text-muted">Optional. Buy at full price anytime.</p>
           </div>
-          <p className="text-xs text-muted">Optional. Buy at full price anytime.</p>
+
+          {/* Right: existing hero artwork — used exactly as-is, never regenerated */}
+          <div className="flex min-w-0 items-center justify-center lg:justify-end">
+            <img
+              src="/listingheroright.png"
+              alt="THE ARENA product submission dashboard"
+              className="w-full max-w-[560px] object-contain lg:max-w-none"
+            />
+          </div>
         </div>
       </section>
 

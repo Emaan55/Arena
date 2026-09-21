@@ -30,33 +30,33 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold text-ink">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3 lg:gap-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-ink">
           <BrandLogo variant="icon" className="h-7 w-7" />
           Arena
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="hidden shrink-0 items-center gap-5 md:flex lg:gap-6">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink"
+              className="whitespace-nowrap text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink"
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <ProductSearchBar className="hidden w-full max-w-xs lg:block" />
+        <ProductSearchBar className="hidden w-full max-w-[200px] lg:block xl:max-w-xs" />
 
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2.5 lg:gap-3">
           <ThemeToggle className="hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90 sm:flex" />
           {user ? (
             <button
               onClick={handleSignOut}
               title={user.email ?? undefined}
-              className="hidden items-center gap-1.5 text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
+              className="hidden items-center gap-1.5 whitespace-nowrap text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign out
@@ -64,20 +64,20 @@ export function SiteHeader() {
           ) : (
             <button
               onClick={() => setSignInOpen(true)}
-              className="hidden text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
+              className="hidden whitespace-nowrap text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
             >
               Sign in
             </button>
           )}
           <Link
             href="/get-listed"
-            className="hidden rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
+            className="hidden whitespace-nowrap rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
           >
             Get Listed
           </Link>
           <Link
             href="/#submit"
-            className="hidden rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
+            className="hidden whitespace-nowrap rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
           >
             Submit Product
           </Link>
