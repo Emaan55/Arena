@@ -18,6 +18,9 @@ export type PaymentStatus = "pending" | "completed" | "failed";
 export type SponsorshipStatus = "queued" | "active" | "completed" | "cancelled";
 export type LogoStatus = "pending" | "success" | "temporary_failure" | "not_found";
 
+export type CampaignStatus = "draft" | "awaiting_payment" | "active" | "in_progress" | "completed" | "cancelled";
+export type SubmissionStatus = "pending" | "submitted" | "accepted" | "rejected";
+
 // These are `type` (not `interface`) deliberately: interfaces don't satisfy
 // the `Record<string, unknown>` structural constraint that supabase-js's
 // generic Database typing relies on for Row/Insert/Update, which silently
@@ -158,6 +161,39 @@ export type Sponsorship = {
   founder_name: string | null;
 };
 
+// Phase 1 "Get Listed" — see supabase/migrations/0015_get_listed.sql and
+// lib/get-listed/packages.ts for the package pricing/target source of truth.
+export type Campaign = {
+  id: string;
+  owner_id: string;
+  startup_name: string;
+  website_url: string;
+  description: string;
+  category: string;
+  x_url: string | null;
+  linkedin_url: string | null;
+  other_url: string | null;
+  package_key: string;
+  submission_target: number;
+  status: CampaignStatus;
+  terms_accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Submission = {
+  id: string;
+  campaign_id: string;
+  directory_name: string;
+  directory_url: string | null;
+  status: SubmissionStatus;
+  listing_url: string | null;
+  notes: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type Relationships = [];
 
 export interface Database {
@@ -203,6 +239,18 @@ export interface Database {
         Row: Sponsorship;
         Insert: Partial<Sponsorship>;
         Update: Partial<Sponsorship>;
+        Relationships: Relationships;
+      };
+      campaigns: {
+        Row: Campaign;
+        Insert: Partial<Campaign>;
+        Update: Partial<Campaign>;
+        Relationships: Relationships;
+      };
+      submissions: {
+        Row: Submission;
+        Insert: Partial<Submission>;
+        Update: Partial<Submission>;
         Relationships: Relationships;
       };
     };

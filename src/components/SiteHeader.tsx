@@ -70,6 +70,12 @@ export function SiteHeader() {
             </button>
           )}
           <Link
+            href="/get-listed"
+            className="hidden rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
+          >
+            Get Listed
+          </Link>
+          <Link
             href="/#submit"
             className="hidden rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:inline-block"
           >
@@ -100,6 +106,13 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/get-listed"
+            onClick={() => setOpen(false)}
+            className="rounded-lg px-2 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-ink"
+          >
+            Get Listed
+          </Link>
           <div className="mt-2 flex items-center gap-3 px-2">
             <ThemeToggle />
             {user ? (
