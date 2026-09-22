@@ -229,6 +229,16 @@ export type DiscountAward = {
   redeemed_at: string | null;
 };
 
+// Recorded once, server-side, at email/password sign-up time — see
+// migration 0017 and POST /api/auth/sign-up.
+export type TermsAcceptance = {
+  id: string;
+  user_id: string;
+  accepted_at: string;
+  terms_version: string;
+  privacy_version: string;
+};
+
 type Relationships = [];
 
 export interface Database {
@@ -298,6 +308,12 @@ export interface Database {
         Row: DiscountAward;
         Insert: Partial<DiscountAward>;
         Update: Partial<DiscountAward>;
+        Relationships: Relationships;
+      };
+      terms_acceptances: {
+        Row: TermsAcceptance;
+        Insert: Partial<TermsAcceptance>;
+        Update: Partial<TermsAcceptance>;
         Relationships: Relationships;
       };
     };

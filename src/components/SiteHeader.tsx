@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { BrandLogo } from "./BrandLogo";
 import { ProductSearchBar, ProductSearchToggle } from "./ProductSearch";
-import { SignInPrompt } from "./SignInPrompt";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -20,12 +20,15 @@ const NAV_LINKS = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
   const { user } = useAuthUser();
+  const pathname = usePathname();
+  const router = useRouter();
+  const signInHref = `/auth/sign-in?next=${encodeURIComponent(pathname || "/")}`;
 
   async function handleSignOut() {
     const supabase = createBrowserSupabaseClient();
     await supabase.auth.signOut();
+    router.push("/");
   }
 
   return (
@@ -62,12 +65,12 @@ export function SiteHeader() {
               Sign out
             </button>
           ) : (
-            <button
-              onClick={() => setSignInOpen(true)}
+            <Link
+              href={signInHref}
               className="hidden whitespace-nowrap text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink sm:flex"
             >
               Sign in
-            </button>
+            </Link>
           )}
           <Link
             href="/get-listed"
@@ -126,15 +129,13 @@ export function SiteHeader() {
                 Sign out
               </button>
             ) : (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setSignInOpen(true);
-                }}
+              <Link
+                href={signInHref}
+                onClick={() => setOpen(false)}
                 className="text-sm font-medium text-muted hover:text-ink"
               >
                 Sign in
-              </button>
+              </Link>
             )}
             <Link
               href="/#submit"
@@ -146,8 +147,6 @@ export function SiteHeader() {
           </div>
         </nav>
       )}
-
-      <SignInPrompt open={signInOpen} onClose={() => setSignInOpen(false)} />
     </header>
   );
 }

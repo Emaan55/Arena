@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
-import { SignInPrompt } from "@/components/SignInPrompt";
 import type { Campaign, CampaignStatus, Submission, SubmissionStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
 
@@ -31,7 +30,6 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -52,13 +50,12 @@ export default function CampaignDetailPage() {
     return (
       <main className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 px-6 py-24 text-center">
         <p className="text-sm text-muted">Sign in to view this campaign.</p>
-        <button
-          onClick={() => setSignInOpen(true)}
+        <Link
+          href={`/auth/sign-in?next=${encodeURIComponent(`/get-listed/campaigns/${params.id}`)}`}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm"
         >
           Sign in
-        </button>
-        <SignInPrompt open={signInOpen} onClose={() => setSignInOpen(false)} />
+        </Link>
       </main>
     );
   }

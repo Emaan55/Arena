@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { MatchCard } from "./MatchCard";
-import { SignInPrompt } from "./SignInPrompt";
 import { useAuthUser } from "@/lib/useAuthUser";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { VoteSide } from "@/types/database";
@@ -34,10 +33,10 @@ function saveVote(matchId: string, side: VoteSide) {
  */
 export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [votedSide, setVotedSide] = useState<VoteSide | undefined>(undefined);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [signInPending, setSignInPending] = useState<{ matchId: string; side: VoteSide } | null>(null);
   const { user, loading: authLoading } = useAuthUser();
   const resumedVote = useRef(false);
 
@@ -46,9 +45,14 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
     setVotedSide(loadVotedMap()[match.id]);
   }, [match.id]);
 
+  function redirectToSignIn(matchId: string, side: VoteSide) {
+    const next = `${pathname}?resumeVote=${matchId}:${side}`;
+    router.push(`/auth/sign-in?next=${encodeURIComponent(next)}`);
+  }
+
   async function handleVote(matchId: string, side: VoteSide) {
     if (!user) {
-      setSignInPending({ matchId, side });
+      redirectToSignIn(matchId, side);
       return;
     }
     setVoting(true);
@@ -62,7 +66,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
-          setSignInPending({ matchId, side });
+          redirectToSignIn(matchId, side);
           return;
         }
         setError(data.error ?? "Could not cast vote.");
@@ -83,7 +87,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
   }
 
   useEffect(() => {
-    // Same cross-tab resume mechanism as ArenaApp — see SignInPrompt.tsx.
+    // Same cross-tab resume mechanism as ArenaApp — see /auth/sign-in.
     if (authLoading || !user || resumedVote.current) return;
     const params = new URLSearchParams(window.location.search);
     const resume = params.get("resumeVote");
@@ -108,11 +112,6 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
         onPaid={() => router.refresh()}
       />
       {error && <p className="text-sm text-danger">{error}</p>}
-      <SignInPrompt
-        open={signInPending !== null}
-        onClose={() => setSignInPending(null)}
-        pendingVote={signInPending}
-      />
     </div>
   );
 }

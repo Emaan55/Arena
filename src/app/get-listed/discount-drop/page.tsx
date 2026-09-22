@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Zap, Trophy, Share2, CheckCircle2 } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
-import { SignInPrompt } from "@/components/SignInPrompt";
 import type { ChallengeEvent } from "@/lib/discount-drop/schedule";
 
 interface StatusResponse {
@@ -38,7 +37,6 @@ interface Outcome {
 export default function DiscountDropPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthUser();
-  const [signInOpen, setSignInOpen] = useState(false);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -191,13 +189,12 @@ export default function DiscountDropPage() {
       <main className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 px-6 py-24 text-center">
         <Zap className="h-8 w-8 text-accent" />
         <h1 className="font-display text-2xl font-bold text-ink">Sign in to play Discount Drop</h1>
-        <button
-          onClick={() => setSignInOpen(true)}
+        <Link
+          href={`/auth/sign-in?next=${encodeURIComponent("/get-listed/discount-drop")}`}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm"
         >
           Sign in
-        </button>
-        <SignInPrompt open={signInOpen} onClose={() => setSignInOpen(false)} />
+        </Link>
       </main>
     );
   }

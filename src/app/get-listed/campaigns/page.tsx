@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
-import { SignInPrompt } from "@/components/SignInPrompt";
 import type { Campaign, CampaignStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
 
@@ -22,7 +21,6 @@ type CampaignWithCount = Campaign & { submission_count: number };
 export default function CampaignsListPage() {
   const { user, loading: authLoading } = useAuthUser();
   const [campaigns, setCampaigns] = useState<CampaignWithCount[] | null>(null);
-  const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -53,12 +51,12 @@ export default function CampaignsListPage() {
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-10 text-center">
           <FolderOpen className="h-8 w-8 text-muted" />
           <p className="text-sm text-muted">Sign in to see your Get Listed campaigns.</p>
-          <button
-            onClick={() => setSignInOpen(true)}
+          <Link
+            href={`/auth/sign-in?next=${encodeURIComponent("/get-listed/campaigns")}`}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
           >
             Sign in
-          </button>
+          </Link>
         </div>
       )}
 
@@ -105,8 +103,6 @@ export default function CampaignsListPage() {
           })}
         </div>
       )}
-
-      <SignInPrompt open={signInOpen} onClose={() => setSignInOpen(false)} />
     </main>
   );
 }

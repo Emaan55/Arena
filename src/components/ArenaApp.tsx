@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { ArenaState } from "@/lib/arena-state";
 import { CATEGORIES, type Category, type Product, type VoteSide } from "@/types/database";
@@ -20,7 +21,6 @@ import { Leaderboard } from "./Leaderboard";
 import { PowerMoves } from "./PowerMoves";
 import { ScrollReveal } from "./ScrollReveal";
 import { BrandLogo } from "./BrandLogo";
-import { SignInPrompt } from "./SignInPrompt";
 import { useAuthUser } from "@/lib/useAuthUser";
 
 const POLL_MS = 5000;
@@ -36,13 +36,13 @@ function loadVotedMap(): Record<string, VoteSide> {
 }
 
 export function ArenaApp({ initialState }: { initialState: ArenaState }) {
+  const router = useRouter();
   const [state, setState] = useState(initialState);
   const [tab, setTab] = useState<TabValue>("All");
   const [votedMap, setVotedMap] = useState<Record<string, VoteSide>>({});
   const [pendingVotes, setPendingVotes] = useState<Set<string>>(new Set());
   const [voteError, setVoteError] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<{ category: Category; from: string } | null>(null);
-  const [signInPending, setSignInPending] = useState<{ matchId: string; side: VoteSide } | null>(null);
   const inFlight = useRef(false);
   const { user, loading: authLoading } = useAuthUser();
   const resumedVote = useRef(false);
@@ -81,10 +81,11 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
   }, []);
 
   useEffect(() => {
-    // Returning from the sign-in email link: `?resumeVote=<matchId>:<side>`
-    // was embedded in the emailRedirectTo by SignInPrompt precisely so this
-    // works even when the link opens in a different tab/device than the
-    // one that started voting, which sessionStorage alone couldn't do.
+    // Returning from /auth/sign-in (or, for a new account, from clicking
+    // the verification email, which signs itself in): `next` carried
+    // `?resumeVote=<matchId>:<side>` all the way through, so this finishes
+    // the exact vote that was interrupted — works even across devices/tabs,
+    // which sessionStorage alone couldn't do.
     if (authLoading || !user || resumedVote.current) return;
     const params = new URLSearchParams(window.location.search);
     const resume = params.get("resumeVote");
@@ -105,10 +106,15 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
     });
   }
 
+  function redirectToSignIn(matchId: string, side: VoteSide) {
+    const next = `/?resumeVote=${matchId}:${side}`;
+    router.push(`/auth/sign-in?next=${encodeURIComponent(next)}`);
+  }
+
   async function castVote(matchId: string, side: VoteSide) {
     if (votedMap[matchId] || pendingVotes.has(matchId)) return;
     if (!user) {
-      setSignInPending({ matchId, side });
+      redirectToSignIn(matchId, side);
       return;
     }
     setVoteError(null);
@@ -127,7 +133,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
         // than just showing an error, so a hung session doesn't dead-end
         // an otherwise-legitimate vote attempt.
         if (res.status === 401) {
-          setSignInPending({ matchId, side });
+          redirectToSignIn(matchId, side);
           return;
         }
         setVoteError(data.error ?? "Could not cast vote.");
@@ -366,12 +372,6 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
           </div>
         </section>
       </ScrollReveal>
-
-      <SignInPrompt
-        open={signInPending !== null}
-        onClose={() => setSignInPending(null)}
-        pendingVote={signInPending}
-      />
     </main>
   );
 }
