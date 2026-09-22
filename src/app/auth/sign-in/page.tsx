@@ -9,7 +9,7 @@ import { useAuthUser } from "@/lib/useAuthUser";
 import { sanitizeNextPath } from "@/lib/auth/config";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthInput } from "@/components/auth/AuthInput";
-import { AuthButton, AuthDivider, ContinueWithX } from "@/components/auth/AuthControls";
+import { AuthButton } from "@/components/auth/AuthControls";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -20,7 +20,6 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Already authenticated (e.g. arriving right after email verification,
@@ -33,12 +32,9 @@ export default function SignInPage() {
   }, [authLoading, user, next, router]);
 
   useEffect(() => {
-    const authError = searchParams.get("authError");
-    const message =
-      authError === "oauth" ? "Could not sign in with X. Please try again." : authError ? "That link is invalid or has expired." : null;
-    if (message) {
+    if (searchParams.get("authError")) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reflecting a redirect-carried query param into the error banner, not a render-driven derivation
-      setError(message);
+      setError("That link is invalid or has expired.");
     }
   }, [searchParams]);
 
@@ -62,26 +58,6 @@ export default function SignInPage() {
       setError("Network error — please try again.");
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleX() {
-    setError(null);
-    setOauthLoading(true);
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "twitter",
-        options: { redirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}` },
-      });
-      if (oauthError) {
-        setError("Could not start sign-in with X. Please try again.");
-        setOauthLoading(false);
-      }
-      // On success the browser navigates away to X — no further state to set.
-    } catch {
-      setError("Network error — please try again.");
-      setOauthLoading(false);
     }
   }
 
@@ -137,9 +113,6 @@ export default function SignInPage() {
           Sign in
         </AuthButton>
       </form>
-
-      <AuthDivider />
-      <ContinueWithX onClick={handleX} loading={oauthLoading} />
     </AuthCard>
   );
 }

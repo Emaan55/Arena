@@ -4,11 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, User } from "lucide-react";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { sanitizeNextPath } from "@/lib/auth/config";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthInput } from "@/components/auth/AuthInput";
-import { AuthButton, AuthDivider, ContinueWithX, PasswordChecklist } from "@/components/auth/AuthControls";
+import { AuthButton, PasswordChecklist } from "@/components/auth/AuthControls";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -21,7 +20,6 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -60,25 +58,6 @@ export default function SignUpPage() {
       setError("Network error — please try again.");
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleX() {
-    setError(null);
-    setOauthLoading(true);
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "twitter",
-        options: { redirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}` },
-      });
-      if (oauthError) {
-        setError("Could not start sign-up with X. Please try again.");
-        setOauthLoading(false);
-      }
-    } catch {
-      setError("Network error — please try again.");
-      setOauthLoading(false);
     }
   }
 
@@ -159,9 +138,6 @@ export default function SignUpPage() {
           Create account
         </AuthButton>
       </form>
-
-      <AuthDivider />
-      <ContinueWithX onClick={handleX} loading={oauthLoading} />
     </AuthCard>
   );
 }
