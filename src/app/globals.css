@@ -33,7 +33,7 @@
      background-image + gradient-fade composition (GetListedHeroArt.tsx),
      never a plain <img>, so its edges blend into --bg instead of showing
      as a pasted rectangle. Same swap cascade as the logo/backdrop above. */
-  --get-listed-hero-image: url("/listingheroright.png");
+  --get-listed-hero-image: url("/listingheroright.webp");
   /* Duel-grid atmosphere behind the live-duel cards: a faint diagonal line
      grid plus two soft accent glows, swapped for a stronger dark-mode
      version below via the same cascade as the hero backdrop. */
@@ -60,7 +60,7 @@
     --logo-wordmark: url("/brand/wordmark-dark-theme.png");
     --backdrop-image: url("/backdrop-dark.jpeg");
     --backdrop-opacity: 0.55;
-    --get-listed-hero-image: url("/listingherodarkright.png");
+    --get-listed-hero-image: url("/listingherodarkright.webp");
     --duel-grid-line: rgba(255, 255, 255, 0.07);
     --duel-glow-1: rgba(0, 180, 216, 0.18);
     --duel-glow-2: rgba(0, 180, 216, 0.12);
@@ -84,7 +84,7 @@
   --logo-wordmark: url("/brand/wordmark-dark-theme.png");
   --backdrop-image: url("/backdrop-dark.jpeg");
   --backdrop-opacity: 0.55;
-  --get-listed-hero-image: url("/listingherodarkright.png");
+  --get-listed-hero-image: url("/listingherodarkright.webp");
   --duel-grid-line: rgba(255, 255, 255, 0.07);
   --duel-glow-1: rgba(0, 180, 216, 0.18);
   --duel-glow-2: rgba(0, 180, 216, 0.12);

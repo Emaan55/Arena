@@ -52,9 +52,26 @@ export default function GetListedPage() {
 
   return (
     <main className="flex flex-col">
+      {/* Preload whichever theme's hero artwork actually applies — React
+          hoists <link> tags rendered anywhere in the tree into <head>, so
+          this works from a Client Component with no separate layout
+          change. The `media` attribute means only the matching one is
+          ever fetched, never both. */}
+      <link rel="preload" as="image" href="/listingheroright.webp" media="(prefers-color-scheme: light)" />
+      <link rel="preload" as="image" href="/listingherodarkright.webp" media="(prefers-color-scheme: dark)" />
+
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pb-14 pt-14 sm:px-10 sm:pt-20 lg:pb-20">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[45%_55%] lg:gap-8">
+      <section className="relative overflow-hidden pb-14 pt-14 sm:pt-20 lg:min-h-[600px] lg:pb-0 lg:pt-0">
+        {/* Desktop: artwork bleeds edge-to-edge across the section's full
+            height on the right side — sized against the section, not the
+            padded/centered grid below, so it can never leave a gap above,
+            below, or to the right of itself regardless of how tall the
+            text column gets. */}
+        <div className="absolute inset-y-0 right-0 hidden w-[55%] lg:block">
+          <GetListedHeroArt />
+        </div>
+
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 sm:px-10 lg:grid-cols-[45%_55%] lg:gap-8 lg:min-h-[600px] lg:py-20">
           {/* Left: message */}
           <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
             <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -89,8 +106,11 @@ export default function GetListedPage() {
             <p className="text-xs text-muted">Optional. Buy at full price anytime.</p>
           </div>
 
-          {/* Right: existing hero artwork, composited (not pasted) — see GetListedHeroArt */}
-          <div className="relative min-h-[260px] w-full min-w-0 sm:min-h-[360px] lg:min-h-[560px]">
+          {/* Mobile/tablet: no room for a full-bleed side layer once the
+              layout stacks, so the artwork renders inline here instead —
+              the lg:block layer above takes over at the two-column
+              breakpoint (lg:hidden keeps this one from doubling up). */}
+          <div className="relative min-h-[260px] w-full min-w-0 sm:min-h-[360px] lg:hidden">
             <GetListedHeroArt />
           </div>
         </div>

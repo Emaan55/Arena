@@ -1,9 +1,10 @@
 /**
- * Get Listed hero artwork — swapped between /listingheroright.png (light)
- * and /listingherodarkright.png (dark) via the `--get-listed-hero-image`
- * CSS variable in globals.css, the exact same light/dark/manual-override
- * cascade as the brand logo and the homepage's ArenaBackdrop — no JS, so
- * it can never flash the wrong asset.
+ * Get Listed hero artwork — swapped between /listingheroright.webp (light)
+ * and /listingherodarkright.webp (dark, re-encoded from the original PNGs
+ * at ~90% smaller with no visible quality loss) via the
+ * `--get-listed-hero-image` CSS variable in globals.css, the exact same
+ * light/dark/manual-override cascade as the brand logo and the homepage's
+ * ArenaBackdrop — no JS, so it can never flash the wrong asset.
  *
  * Rendered as a cover-fit background-image inside an overflow-hidden box
  * rather than a plain <img>, with a gradient overlay that fades the top,
