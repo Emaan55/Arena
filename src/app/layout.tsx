@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter, IBM_Plex_Mono } from "next/font/google";
 import { LemonSqueezyScript } from "@/components/LemonSqueezyScript";
+import { PasswordRecoveryRedirect } from "@/components/PasswordRecoveryRedirect";
 import { SiteHeader } from "@/components/SiteHeader";
 import "./globals.css";
 
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link id="favicon-512" rel="icon" type="image/png" sizes="512x512" href="/favicons/icon-light-512.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/favicons/icon-light-180.png" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <PasswordRecoveryRedirect />
         <SiteHeader />
         {children}
         <LemonSqueezyScript />

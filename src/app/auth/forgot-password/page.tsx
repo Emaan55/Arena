@@ -28,8 +28,15 @@ export default function ForgotPasswordPage() {
       const supabase = createBrowserSupabaseClient();
       // Never reveal whether the email exists — same response either way,
       // consistent with sign-up's anti-enumeration handling.
+      //
+      // Points straight at /auth/reset-password rather than /auth/confirm:
+      // that page can read a query-param token_hash itself, and if this
+      // project's reset-password email template instead uses the older
+      // URL-fragment token style, a fragment is invisible to any server
+      // route anyway — only landing directly on the client-rendered page
+      // lets the Supabase browser client pick it up.
       await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/auth/reset-password?next=${encodeURIComponent(next)}`,
       });
       setSent(true);
     } catch {

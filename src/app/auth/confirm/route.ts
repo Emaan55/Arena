@@ -3,23 +3,47 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 /**
- * The single callback every Supabase Auth email flow redirects back to:
- * signup verification, password recovery, and (still, for any caller that
- * keeps using it) magic-link sign-in all arrive here as `token_hash`+
- * `type` and are verified with verifyOtp() — that IS the email-ownership
- * proof, there's no separate step. Establishes a real session cookie,
- * then returns the visitor to wherever they were headed (`next`,
- * restricted to a same-site relative path so this can never become an
- * open redirect).
+ * The single callback every Supabase Auth email flow redirects back to.
+ *
+ * `@supabase/ssr` forces `flowType: "pkce"` on both the browser and server
+ * clients (see lib/supabase/client.ts and lib/supabase/server.ts) — that
+ * applies to *every* auth method built on it, not just OAuth. signUp()
+ * embeds a PKCE code_challenge the same way signInWithOAuth() does, so the
+ * signup-confirmation email link arrives here as `?code=...`, exchanged
+ * with exchangeCodeForSession() (this is not a leftover OAuth-only path:
+ * an earlier cleanup that removed X/Twitter OAuth also removed this branch
+ * under the assumption it was OAuth-specific, which silently broke signup
+ * verification too — confirmed live by capturing the real signUp() network
+ * request and seeing it carries the same code_challenge/code_challenge_method
+ * fields as resetPasswordForEmail()).
+ *
+ * Password recovery no longer routes through here — forgot-password now
+ * points resetPasswordForEmail's redirectTo straight at /auth/reset-password
+ * so that client-rendered page (and the global PASSWORD_RECOVERY listener in
+ * PasswordRecoveryRedirect.tsx) can handle the PKCE code exchange itself,
+ * since a server route can't be relied on to be the page the link actually
+ * lands on if the project's redirect-URL allow-list ever collapses the
+ * request to a bare origin. The `type === "recovery"` branch below is kept
+ * only as a harmless fallback for the classic token_hash+type OTP style, in
+ * case that's ever how this project's email template gets configured.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const rawNext = searchParams.get("next") ?? "/";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
   const supabase = await createRouteHandlerSupabaseClient();
+
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      return NextResponse.redirect(new URL(`/auth/sign-in?verified=1&next=${encodeURIComponent(next)}`, origin));
+    }
+    return NextResponse.redirect(new URL("/auth/sign-in?authError=1", origin));
+  }
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
