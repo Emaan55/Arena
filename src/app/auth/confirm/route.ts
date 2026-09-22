@@ -7,25 +7,21 @@ import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
  *
  * `@supabase/ssr` forces `flowType: "pkce"` on both the browser and server
  * clients (see lib/supabase/client.ts and lib/supabase/server.ts) — that
- * applies to *every* auth method built on it, not just OAuth. signUp()
- * embeds a PKCE code_challenge the same way signInWithOAuth() does, so the
- * signup-confirmation email link arrives here as `?code=...`, exchanged
- * with exchangeCodeForSession() (this is not a leftover OAuth-only path:
- * an earlier cleanup that removed X/Twitter OAuth also removed this branch
- * under the assumption it was OAuth-specific, which silently broke signup
- * verification too — confirmed live by capturing the real signUp() network
- * request and seeing it carries the same code_challenge/code_challenge_method
- * fields as resetPasswordForEmail()).
+ * applies to *every* auth method built on it, not just OAuth. signUp() and
+ * resetPasswordForEmail() both embed a PKCE code_challenge the same way
+ * signInWithOAuth() does, so their confirmation links arrive here as
+ * `?code=...`, exchanged with exchangeCodeForSession() (this is not a
+ * leftover OAuth-only path: an earlier cleanup that removed X/Twitter OAuth
+ * also removed this branch under the assumption it was OAuth-specific,
+ * which silently broke signup verification and password recovery too —
+ * confirmed live by capturing the real signUp() and resetPasswordForEmail()
+ * network requests and seeing both carry code_challenge/code_challenge_method).
  *
- * Password recovery no longer routes through here — forgot-password now
- * points resetPasswordForEmail's redirectTo straight at /auth/reset-password
- * so that client-rendered page (and the global PASSWORD_RECOVERY listener in
- * PasswordRecoveryRedirect.tsx) can handle the PKCE code exchange itself,
- * since a server route can't be relied on to be the page the link actually
- * lands on if the project's redirect-URL allow-list ever collapses the
- * request to a bare origin. The `type === "recovery"` branch below is kept
- * only as a harmless fallback for the classic token_hash+type OTP style, in
- * case that's ever how this project's email template gets configured.
+ * A `code=` redirect carries no `type` of its own — unlike the classic
+ * token_hash+type OTP style, Supabase doesn't tell us what kind of PKCE
+ * flow produced it. So forgot-password embeds `type=recovery` in its own
+ * redirectTo (the same way sign-up already embeds `type=signup`) purely as
+ * our own marker to read back here, not anything Supabase interprets.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -40,6 +36,9 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      if (type === "recovery") {
+        return NextResponse.redirect(new URL(`/auth/reset-password?next=${encodeURIComponent(next)}`, origin));
+      }
       return NextResponse.redirect(new URL(`/auth/sign-in?verified=1&next=${encodeURIComponent(next)}`, origin));
     }
     return NextResponse.redirect(new URL("/auth/sign-in?authError=1", origin));

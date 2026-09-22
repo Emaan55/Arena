@@ -29,14 +29,15 @@ export default function ForgotPasswordPage() {
       // Never reveal whether the email exists — same response either way,
       // consistent with sign-up's anti-enumeration handling.
       //
-      // Points straight at /auth/reset-password rather than /auth/confirm:
-      // that page can read a query-param token_hash itself, and if this
-      // project's reset-password email template instead uses the older
-      // URL-fragment token style, a fragment is invisible to any server
-      // route anyway — only landing directly on the client-rendered page
-      // lets the Supabase browser client pick it up.
+      // Routes through /auth/confirm (same as sign-up's emailRedirectTo)
+      // rather than straight at /auth/reset-password: this project's
+      // Supabase client is PKCE-flow, so the link arrives as `?code=...`,
+      // and /auth/confirm is what exchanges it server-side. `type=recovery`
+      // is our own marker (Supabase doesn't attach one to a code redirect)
+      // so /auth/confirm knows to send the visitor to the reset-password
+      // form afterward instead of straight to sign-in.
       await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/reset-password?next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=${encodeURIComponent(next)}`,
       });
       setSent(true);
     } catch {
