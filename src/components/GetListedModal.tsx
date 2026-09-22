@@ -24,10 +24,13 @@ export function GetListedModal({
   open,
   onClose,
   packageKey,
+  discountAward,
 }: {
   open: boolean;
   onClose: () => void;
   packageKey: GetListedPackageKey;
+  /** A verified, still-available Discount Drop award to apply — re-checked again server-side on submit regardless. */
+  discountAward?: { id: string; discountPercent: number } | null;
 }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthUser();
@@ -50,6 +53,9 @@ export function GetListedModal({
   if (!open) return null;
 
   const pkg = GET_LISTED_PACKAGES[packageKey];
+  const discountedPrice = discountAward
+    ? Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))
+    : null;
 
   function handleClose() {
     setEmailStatus("idle");
@@ -86,7 +92,7 @@ export function GetListedModal({
       const res = await fetch("/api/get-listed/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageKey, ...form }),
+        body: JSON.stringify({ packageKey, ...form, discountAwardId: discountAward?.id }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -163,7 +169,17 @@ export function GetListedModal({
             <div className="flex flex-col gap-1">
               <h2 className="font-display text-lg font-bold text-ink">Set up your {pkg.label} campaign</h2>
               <p className="text-sm text-muted">
-                {pkg.target} manual submissions — ${pkg.priceUsd}
+                {pkg.target} manual submissions —{" "}
+                {discountedPrice !== null ? (
+                  <>
+                    <span className="line-through">${pkg.priceUsd}</span>{" "}
+                    <span className="font-semibold text-accent">
+                      ${discountedPrice} ({discountAward!.discountPercent}% off)
+                    </span>
+                  </>
+                ) : (
+                  `$${pkg.priceUsd}`
+                )}
               </p>
             </div>
 
@@ -240,7 +256,7 @@ export function GetListedModal({
               disabled={submitting}
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
             >
-              {submitting ? "Creating…" : `Get Listed — $${pkg.priceUsd}`}
+              {submitting ? "Creating…" : `Get Listed — $${discountedPrice ?? pkg.priceUsd}`}
             </button>
           </form>
         )}

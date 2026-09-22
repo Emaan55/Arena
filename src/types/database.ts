@@ -20,6 +20,8 @@ export type LogoStatus = "pending" | "success" | "temporary_failure" | "not_foun
 
 export type CampaignStatus = "draft" | "awaiting_payment" | "active" | "in_progress" | "completed" | "cancelled";
 export type SubmissionStatus = "pending" | "submitted" | "accepted" | "rejected";
+export type GameValidationStatus = "pending" | "valid" | "suspicious" | "rejected";
+export type DiscountAwardStatus = "available" | "redeemed" | "expired" | "cancelled";
 
 // These are `type` (not `interface`) deliberately: interfaces don't satisfy
 // the `Record<string, unknown>` structural constraint that supabase-js's
@@ -179,6 +181,10 @@ export type Campaign = {
   terms_accepted_at: string | null;
   created_at: string;
   updated_at: string;
+  // Set only if a verified Discount Drop award was attached at creation
+  // time — see migration 0016. Null for a full-price campaign.
+  discount_award_id: string | null;
+  discount_percent: number | null;
 };
 
 export type Submission = {
@@ -192,6 +198,35 @@ export type Submission = {
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Phase 2 "Discount Drop" — see migration 0016 and lib/discount-drop/*.
+// `metadata` carries the server-generated challenge schedule/seed used to
+// validate a completed attempt (never trusted from the client) — see
+// lib/discount-drop/schedule.ts for its shape.
+export type GameAttempt = {
+  id: string;
+  user_id: string;
+  score: number | null;
+  discount_percent: number | null;
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  validation_status: GameValidationStatus;
+  metadata: Record<string, unknown>;
+};
+
+export type DiscountAward = {
+  id: string;
+  user_id: string;
+  campaign_id: string | null;
+  game_attempt_id: string;
+  score: number;
+  discount_percent: number;
+  status: DiscountAwardStatus;
+  created_at: string;
+  expires_at: string;
+  redeemed_at: string | null;
 };
 
 type Relationships = [];
@@ -251,6 +286,18 @@ export interface Database {
         Row: Submission;
         Insert: Partial<Submission>;
         Update: Partial<Submission>;
+        Relationships: Relationships;
+      };
+      game_attempts: {
+        Row: GameAttempt;
+        Insert: Partial<GameAttempt>;
+        Update: Partial<GameAttempt>;
+        Relationships: Relationships;
+      };
+      discount_awards: {
+        Row: DiscountAward;
+        Insert: Partial<DiscountAward>;
+        Update: Partial<DiscountAward>;
         Relationships: Relationships;
       };
     };

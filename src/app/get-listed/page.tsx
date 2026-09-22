@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
 import { GetListedHeroArt } from "@/components/GetListedHeroArt";
@@ -31,7 +32,7 @@ const FAQ = [
   },
   {
     q: "What is Discount Drop?",
-    a: "An optional mini-game that can unlock a discount on your package before you pay. It's coming soon — for now, every package is available at full price.",
+    a: "An optional 45-second reaction game — hit the targets, avoid the decoys — that can unlock up to 60% off your package. Your score is verified server-side, so the discount is always based on real performance. Playing is never required to get listed.",
   },
 ];
 
@@ -39,6 +40,25 @@ export default function GetListedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activePackage, setActivePackage] = useState<GetListedPackageKey | null>(null);
+  const [discountAward, setDiscountAward] = useState<{ id: string; discountPercent: number } | null>(null);
+
+  useEffect(() => {
+    const awardId = searchParams.get("discountAward");
+    if (!awardId) return;
+    // Re-fetched from the server, not trusted from the URL — the id is
+    // just "which award to look up," the amount always comes from
+    // /status's own record of it. Campaign creation re-validates this
+    // award again from scratch regardless (ownership, available, not
+    // expired), so this is purely a display convenience.
+    fetch("/api/get-listed/discount-drop/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.activeAward?.id === awardId) {
+          setDiscountAward({ id: data.activeAward.id, discountPercent: data.activeAward.discount_percent });
+        }
+      })
+      .catch(() => {});
+  }, [searchParams]);
 
   useEffect(() => {
     const resume = searchParams.get("resume");
@@ -95,13 +115,13 @@ export default function GetListedPage() {
                 Choose a Package
                 <ArrowRight className="h-4 w-4" />
               </a>
-              <a
-                href="#discount-drop"
+              <Link
+                href="/get-listed/discount-drop"
                 className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold uppercase tracking-wide text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
               >
                 <Gamepad2 className="h-4 w-4 text-accent" />
                 Play &amp; Unlock Discount
-              </a>
+              </Link>
             </div>
             <p className="text-xs text-muted">Optional. Buy at full price anytime.</p>
           </div>
@@ -122,6 +142,11 @@ export default function GetListedPage() {
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Packages</h2>
             <p className="text-sm text-muted">One-time price. No subscriptions.</p>
+            {discountAward && (
+              <span className="mt-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-ink">
+                {discountAward.discountPercent}% off ready — pick a package below to apply it
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {PACKAGE_ORDER.map((key) => {
@@ -138,8 +163,17 @@ export default function GetListedPage() {
                     </span>
                   )}
                   <h3 className="font-display text-xl font-bold text-ink">{pkg.label}</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-display text-3xl font-black text-ink">${pkg.priceUsd}</span>
+                  <div className="flex items-baseline gap-2">
+                    {discountAward ? (
+                      <>
+                        <span className="text-lg text-muted line-through">${pkg.priceUsd}</span>
+                        <span className="font-display text-3xl font-black text-accent">
+                          ${Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-display text-3xl font-black text-ink">${pkg.priceUsd}</span>
+                    )}
                   </div>
                   <p className="text-sm text-muted">{pkg.target} manual directory submissions</p>
                   <button
@@ -162,14 +196,21 @@ export default function GetListedPage() {
             <Gamepad2 className="h-6 w-6" />
           </div>
           <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Coming soon
+            Optional
           </span>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Discount Drop</h2>
           <p className="text-sm text-muted">
-            A quick, optional mini-game that can unlock a discount on your package before checkout. It&apos;s not
-            live yet — every package above is available at full price right now, and playing is never required to
-            get listed.
+            A 45-second reaction game — hit the targets, avoid the decoys — that can unlock up to 60% off your
+            package. Every score is verified server-side. Playing is never required; every package above is always
+            available at full price.
           </p>
+          <Link
+            href="/get-listed/discount-drop"
+            className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+          >
+            <Gamepad2 className="h-4 w-4" />
+            Play Discount Drop
+          </Link>
         </div>
       </section>
 
@@ -234,7 +275,12 @@ export default function GetListedPage() {
       </section>
 
       {activePackage && (
-        <GetListedModal open onClose={() => setActivePackage(null)} packageKey={activePackage} />
+        <GetListedModal
+          open
+          onClose={() => setActivePackage(null)}
+          packageKey={activePackage}
+          discountAward={discountAward}
+        />
       )}
     </main>
   );

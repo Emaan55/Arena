@@ -77,6 +77,31 @@ export async function POST(req: NextRequest) {
   const pkg = GET_LISTED_PACKAGES[packageKey];
 
   const admin = createAdminSupabaseClient();
+
+  // Optional Discount Drop award — re-validated here from scratch (owned
+  // by this user, still "available", not expired) rather than trusting
+  // anything the client claims about it, exactly like every other
+  // server-side eligibility check in this app. An invalid/expired/foreign
+  // award id is a hard error rather than being silently dropped, so the
+  // UI can tell the founder their discount didn't apply instead of
+  // quietly charging full price.
+  let discountAwardId: string | null = null;
+  let discountPercent: number | null = null;
+  if (typeof record.discountAwardId === "string" && record.discountAwardId) {
+    const { data: award } = await admin
+      .from("discount_awards")
+      .select("id, discount_percent, status, expires_at")
+      .eq("id", record.discountAwardId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!award || award.status !== "available" || new Date(award.expires_at).getTime() <= Date.now()) {
+      return NextResponse.json({ error: "This discount is no longer available." }, { status: 400 });
+    }
+    discountAwardId = award.id;
+    discountPercent = award.discount_percent;
+  }
+
   const { data: campaign, error } = await admin
     .from("campaigns")
     .insert({
@@ -96,12 +121,20 @@ export async function POST(req: NextRequest) {
       // for how an admin currently moves this forward by hand.
       status: "awaiting_payment",
       terms_accepted_at: new Date().toISOString(),
+      discount_award_id: discountAwardId,
+      discount_percent: discountPercent,
     })
     .select("*")
     .single();
 
   if (error || !campaign) {
     return NextResponse.json({ error: "Could not create campaign." }, { status: 500 });
+  }
+
+  if (discountAwardId) {
+    // Links the award to what it was used for; actually marking it
+    // "redeemed" happens at payment time, a LemonSqueezy-phase concern.
+    await admin.from("discount_awards").update({ campaign_id: campaign.id }).eq("id", discountAwardId);
   }
 
   return NextResponse.json({ campaign }, { status: 201 });
