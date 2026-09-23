@@ -55,13 +55,17 @@ export default function DiscountDropPage() {
   const durationRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadStatus = useCallback(async () => {
+  // `drivePhase` only applies on the initial load (before a game has been
+  // played) — refreshing attempt counts after a game ends must NOT flip
+  // the screen away from the result the player just earned back to
+  // "ready"/"gate" out from under them.
+  const loadStatus = useCallback(async (drivePhase: boolean = true) => {
     try {
       const res = await fetch("/api/get-listed/discount-drop/status");
       if (res.status === 401) return;
       const data = await res.json();
       setStatus(data);
-      setPhase(data.canPlay ? "ready" : "gate");
+      if (drivePhase) setPhase(data.canPlay ? "ready" : "gate");
     } catch {
       setError("Could not load Discount Drop.");
     }
@@ -104,7 +108,7 @@ export default function DiscountDropPage() {
       }
       setResult(data);
       setPhase("result");
-      loadStatus();
+      loadStatus(false);
       fetch("/api/get-listed/discount-drop/leaderboard")
         .then((r) => r.json())
         .then((d) => setLeaderboard(d.leaderboard ?? []))
