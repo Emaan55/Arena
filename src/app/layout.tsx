@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Inter, IBM_Plex_Mono } from "next/font/google";
 import { LemonSqueezyScript } from "@/components/LemonSqueezyScript";
 import { PasswordRecoveryRedirect } from "@/components/PasswordRecoveryRedirect";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
 
 // Applies a saved theme override before first paint, so a light/dark
@@ -88,7 +89,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <PasswordRecoveryRedirect />
         <SiteHeader />
-        {children}
+        <div className="flex-1">{children}</div>
+        <SiteFooter />
         <LemonSqueezyScript />
       </body>
     </html>
