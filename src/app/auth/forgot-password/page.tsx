@@ -29,15 +29,18 @@ export default function ForgotPasswordPage() {
       // Never reveal whether the email exists — same response either way,
       // consistent with sign-up's anti-enumeration handling.
       //
-      // Routes through /auth/confirm (same as sign-up's emailRedirectTo)
-      // rather than straight at /auth/reset-password: this project's
-      // Supabase client is PKCE-flow, so the link arrives as `?code=...`,
-      // and /auth/confirm is what exchanges it server-side. `type=recovery`
-      // is our own marker (Supabase doesn't attach one to a code redirect)
-      // so /auth/confirm knows to send the visitor to the reset-password
-      // form afterward instead of straight to sign-in.
+      // Points straight at /reset-password (a bare top-level route, not
+      // under /auth) rather than through the server-only /auth/confirm
+      // callback: this project's Supabase client is PKCE-flow, so the link
+      // arrives as `?code=...`, and only a client-rendered page can run the
+      // Supabase browser client's own URL detection to consume it — a
+      // server route can't. /reset-password is also the exact URL
+      // registered in this project's Supabase "Redirect URLs" allow-list;
+      // Supabase silently collapses redirectTo to the bare Site URL if it
+      // doesn't match an allow-listed entry exactly, dropping the path
+      // entirely, so this has to match precisely.
       await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/reset-password?next=${encodeURIComponent(next)}`,
       });
       setSent(true);
     } catch {

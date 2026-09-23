@@ -10,7 +10,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
  * matches an entry in the project's Redirect URLs allow-list — otherwise it
  * silently falls back to the bare Site URL, dropping the path and query
  * entirely. That means a recovery link can land on any page (typically the
- * homepage) instead of /auth/reset-password, regardless of what this app
+ * homepage) instead of /reset-password, regardless of what this app
  * requests. Supabase's client still fires a distinct PASSWORD_RECOVERY auth
  * event wherever the token actually gets consumed, so catching it here —
  * mounted once, globally, in the root layout — is what gets the visitor to
@@ -25,8 +25,8 @@ export function PasswordRecoveryRedirect() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" && pathname !== "/auth/reset-password") {
-        router.replace("/auth/reset-password");
+      if (event === "PASSWORD_RECOVERY" && pathname !== "/reset-password") {
+        router.replace("/reset-password");
       }
     });
     return () => subscription.unsubscribe();

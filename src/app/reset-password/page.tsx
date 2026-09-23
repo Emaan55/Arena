@@ -12,37 +12,34 @@ import { AuthInput } from "@/components/auth/AuthInput";
 import { AuthButton, PasswordChecklist } from "@/components/auth/AuthControls";
 
 /**
- * The password-reset email link can arrive here in either of two shapes
- * depending on how the project's "Reset Password" template is configured
- * in the Supabase dashboard (something this app's code can't see or
- * control):
+ * Lives at the bare /reset-password path (not under /auth) because that's
+ * the exact URL registered in this project's Supabase "Redirect URLs"
+ * allow-list — resetPasswordForEmail's redirectTo has to match an
+ * allow-listed entry exactly or Supabase silently collapses it to the bare
+ * Site URL, dropping the path entirely (observed live against this
+ * project). forgot-password points straight here, not through
+ * /auth/confirm: this needs to be a client-rendered page so the Supabase
+ * browser client's own URL detection can run, and a server route can't do
+ * that.
  *
- * 1. `?token_hash=...&type=recovery` (Supabase's current default,
- *    `{{ .ConfirmationURL }}`-style template) — a plain query string, so a
- *    server route COULD read it, but verifying it here instead (rather
- *    than bouncing through /auth/confirm first) means this page never
- *    depends on which shape is actually configured.
- * 2. `?code=...` (the actual style this project uses in practice — its
- *    Supabase client is on PKCE flow, forced on by @supabase/ssr for both
- *    the browser and server clients, and resetPasswordForEmail() embeds a
- *    PKCE code_challenge whenever the initiating client is PKCE-flow).
- *    This is a plain query param, not a fragment, and the Supabase browser
- *    client auto-exchanges it for a session as soon as it's mounted
- *    anywhere (detectSessionInUrl, on by default) — no code needed here
- *    beyond being a real page the link can land on, which is why
- *    forgot-password points resetPasswordForEmail's redirectTo straight at
- *    this page instead of bouncing through the server-only /auth/confirm
- *    route (which can't run client-side detection at all, and previously
- *    couldn't see this project's actual token shape either way).
- * 3. `#access_token=...&type=recovery` (the older implicit-grant style) —
- *    a URL fragment, which never reaches any server. Also
- *    auto-handled by the same client-side detection, for any project
- *    still configured this way.
+ * The email link can arrive here in any of three shapes, depending on how
+ * the project's Supabase email template is configured:
+ *
+ * 1. `?code=...` — this project's actual style. Its Supabase client is on
+ *    PKCE flow (forced on by @supabase/ssr for both browser and server
+ *    clients), and resetPasswordForEmail() embeds a PKCE code_challenge
+ *    whenever the initiating client is PKCE-flow. The Supabase browser
+ *    client auto-exchanges this for a session as soon as it's mounted
+ *    anywhere (detectSessionInUrl, on by default) — no code needed here.
+ * 2. `?token_hash=...&type=recovery` — the classic OTP-link style. A plain
+ *    query string, verified explicitly below.
+ * 3. `#access_token=...&type=recovery` — the older implicit-grant style, a
+ *    URL fragment. Also auto-handled by the same client-side detection.
  *
  * Whichever shape shows up, the session lands via the ordinary
  * onAuthStateChange stream that useAuthUser() below already subscribes
  * to — this page just needs to wait for it instead of assuming "no user
- * yet" means "expired" while that's still in flight (see the pending-code
+ * yet" means "expired" while that's still in flight (see the pending-token
  * grace period below).
  */
 const VERIFY_GRACE_MS = 6000;
@@ -69,7 +66,7 @@ export default function ResetPasswordPage() {
     const supabase = createBrowserSupabaseClient();
     supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash }).then(({ error: verifyError }) => {
       if (verifyError) setVerifyFailed(true);
-      router.replace(`/auth/reset-password?next=${encodeURIComponent(next)}`);
+      router.replace(`/reset-password?next=${encodeURIComponent(next)}`);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
