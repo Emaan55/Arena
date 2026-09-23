@@ -313,11 +313,14 @@ export default function DiscountDropPage() {
               </button>
             </div>
           )}
+          <a href="#leaderboard" className="text-xs font-semibold text-accent hover:underline">
+            View Leaderboard
+          </a>
           <p className="text-xs text-muted">Discounts expire 30 minutes after they&apos;re earned.</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div id="leaderboard" className="flex flex-col gap-3 scroll-mt-20">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
           <Trophy className="h-4 w-4 text-accent" />
           Discount Drop Leaderboard

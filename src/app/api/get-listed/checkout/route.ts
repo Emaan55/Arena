@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (!award || award.status !== "available" || new Date(award.expires_at).getTime() <= Date.now()) {
       logSecurityEvent("get_listed_checkout_discount_expired", { ip, userId: user.id, campaignId });
       return NextResponse.json(
-        { error: "Your discount has expired. Please contact support or start a new campaign." },
+        { error: "Your discount has expired. Play Discount Drop again to earn a new discount." },
         { status: 409 },
       );
     }

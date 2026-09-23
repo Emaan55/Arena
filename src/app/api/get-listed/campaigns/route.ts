@@ -96,7 +96,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!award || award.status !== "available" || new Date(award.expires_at).getTime() <= Date.now()) {
-      return NextResponse.json({ error: "This discount is no longer available." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Your discount has expired. Play Discount Drop again to earn a new discount." },
+        { status: 400 },
+      );
     }
     discountAwardId = award.id;
     discountPercent = award.discount_percent;
