@@ -3,12 +3,15 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const LIMIT = 20;
 
-/** Masks an email for public display — this app has no display-name/profile system, so a full email is never shown. */
-function maskEmail(email: string | null | undefined): string {
-  if (!email) return "Anonymous";
-  const [local] = email.split("@");
-  if (local.length <= 2) return `${local[0] ?? "?"}***`;
-  return `${local.slice(0, 2)}***`;
+/**
+ * There's no separate profiles table — `full_name` (collected at sign-up,
+ * see /api/auth/sign-up) is stored in Supabase auth's user_metadata, which
+ * is the only display-name field that exists. Only that string is ever
+ * returned to the client; email/id/other auth fields never leave this route.
+ */
+function displayName(fullName: unknown): string {
+  if (typeof fullName === "string" && fullName.trim().length > 0) return fullName.trim();
+  return "Player";
 }
 
 /**
@@ -35,11 +38,11 @@ export async function GET() {
   }
 
   const { data: usersPage } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const emailById = new Map((usersPage?.users ?? []).map((u) => [u.id, u.email ?? null]));
+  const nameById = new Map((usersPage?.users ?? []).map((u) => [u.id, u.user_metadata?.full_name]));
 
   const leaderboard = rows.map((a, i) => ({
     rank: i + 1,
-    player: maskEmail(emailById.get(a.user_id)),
+    player: displayName(nameById.get(a.user_id)),
     score: a.score,
     discountPercent: a.discount_percent,
     completedAt: a.completed_at,
