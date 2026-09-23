@@ -5,8 +5,9 @@ import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { generateSeed, generateSchedule } from "@/lib/discount-drop/schedule";
-import { getMissionProgress } from "@/lib/discount-drop/mission";
-import { FREE_ATTEMPTS, MAX_ATTEMPTS, GAME_DURATION_MS } from "@/lib/discount-drop/config";
+import { getDiscountDropEligibility } from "@/lib/discount-drop/eligibility";
+import { getActiveAward } from "@/lib/discount-drop/awards";
+import { GAME_DURATION_MS } from "@/lib/discount-drop/config";
 
 /**
  * Attempt eligibility is decided here, server-side, from a COUNT of the
@@ -36,24 +37,24 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminSupabaseClient();
 
-  const { count } = await admin
-    .from("game_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-  const attemptsUsed = count ?? 0;
-
-  if (attemptsUsed >= MAX_ATTEMPTS) {
-    return NextResponse.json({ error: "No attempts remaining." }, { status: 403 });
+  // A still-claimable award always blocks a new attempt — Discount Drop
+  // deliberately never lets a user hold two active awards at once (see
+  // lib/discount-drop/awards.ts), and starting a fresh game while one is
+  // live would only ever waste it.
+  const activeAward = await getActiveAward(admin, user.id);
+  if (activeAward) {
+    return NextResponse.json({ error: "You already have an unclaimed discount. Use it before it expires." }, { status: 409 });
   }
 
-  if (attemptsUsed >= FREE_ATTEMPTS) {
-    const mission = await getMissionProgress(admin, user.id);
-    if (!mission.complete) {
+  const eligibility = await getDiscountDropEligibility(admin, user.id);
+  if (!eligibility.canPlay) {
+    if (eligibility.cooldownActive) {
       return NextResponse.json(
-        { error: "mission_incomplete", mission },
+        { error: "cooldown_active", nextAttemptAt: eligibility.nextAttemptAt, mission: eligibility.mission },
         { status: 403 },
       );
     }
+    return NextResponse.json({ error: "mission_incomplete", mission: eligibility.mission }, { status: 403 });
   }
 
   const seed = generateSeed();

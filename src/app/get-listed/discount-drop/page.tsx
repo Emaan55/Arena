@@ -7,12 +7,25 @@ import { ArrowLeft, Zap, Trophy, Share2, CheckCircle2 } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
 import type { ChallengeEvent } from "@/lib/discount-drop/schedule";
 
+interface MissionProgress {
+  votedDuels: number;
+  required: number;
+  complete: boolean;
+}
+
+interface Award {
+  id: string;
+  score: number;
+  discount_percent: number;
+  expires_at: string;
+}
+
 interface StatusResponse {
-  attemptsUsed: number;
-  maxAttempts: number;
   canPlay: boolean;
-  mission: { votedDuels: number; required: number; complete: boolean } | null;
-  activeAward: { id: string; discount_percent: number; expires_at: string } | null;
+  mission: MissionProgress | null;
+  nextAttemptAt: string | null;
+  cooldownActive: boolean;
+  activeAward: Award | null;
 }
 
 interface LeaderboardRow {
@@ -22,7 +35,11 @@ interface LeaderboardRow {
   discountPercent: number;
 }
 
-type Phase = "loading" | "gate" | "ready" | "playing" | "result";
+// "claim" = a still-active award is being shown with its live countdown;
+// "no-discount" = the just-finished attempt scored too low for an award.
+// Both are session-transient except "claim", which is also reconstructed
+// from the server on every load (see loadStatus) so it survives a refresh.
+type Phase = "loading" | "gate" | "ready" | "playing" | "claim" | "no-discount";
 
 interface LiveEvent extends ChallengeEvent {
   spawnedAtClientMs: number;
@@ -34,6 +51,13 @@ interface Outcome {
   reactionMs: number | null;
 }
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function DiscountDropPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthUser();
@@ -41,9 +65,17 @@ export default function DiscountDropPage() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
-  const [result, setResult] = useState<{ score: number; discountPercent: number; award: { id: string } | null } | null>(
-    null,
-  );
+
+  // The one currently-claimable award (server-issued expires_at is the only
+  // authority on when it expires — remainingMs below is purely a visual
+  // countdown derived from it, ticked locally, never the source of truth).
+  const [award, setAward] = useState<Award | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  // Session-only: true right after the local countdown hits zero and the
+  // server confirms the award is really gone, so the gate screen can say
+  // "your discount window has ended" instead of just going silent.
+  const [expiredNotice, setExpiredNotice] = useState(false);
+  const [noDiscountScore, setNoDiscountScore] = useState<number | null>(null);
 
   const [live, setLive] = useState<LiveEvent[]>([]);
   const [timeLeftMs, setTimeLeftMs] = useState(0);
@@ -55,17 +87,25 @@ export default function DiscountDropPage() {
   const durationRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // `drivePhase` only applies on the initial load (before a game has been
-  // played) — refreshing attempt counts after a game ends must NOT flip
-  // the screen away from the result the player just earned back to
-  // "ready"/"gate" out from under them.
+  // `drivePhase` only applies on the initial/refresh load and whenever we
+  // need to re-sync after an award expires — refreshing attempt counts
+  // right after a game ends must NOT flip the screen away from the result
+  // the player just earned out from under them (see endGame).
   const loadStatus = useCallback(async (drivePhase: boolean = true) => {
     try {
       const res = await fetch("/api/get-listed/discount-drop/status");
       if (res.status === 401) return;
-      const data = await res.json();
+      const data: StatusResponse = await res.json();
       setStatus(data);
-      if (drivePhase) setPhase(data.canPlay ? "ready" : "gate");
+      if (!drivePhase) return;
+      if (data.activeAward) {
+        setAward(data.activeAward);
+        setNoDiscountScore(null);
+        setPhase("claim");
+      } else {
+        setAward(null);
+        setPhase(data.canPlay ? "ready" : "gate");
+      }
     } catch {
       setError("Could not load Discount Drop.");
     }
@@ -73,7 +113,7 @@ export default function DiscountDropPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching eligibility once auth resolves, not a render-driven derivation
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching eligibility/active-award once auth resolves, not a render-driven derivation
     loadStatus();
   }, [authLoading, user, loadStatus]);
 
@@ -83,6 +123,31 @@ export default function DiscountDropPage() {
       .then((data) => setLeaderboard(data.leaderboard ?? []))
       .catch(() => {});
   }, []);
+
+  // Drives the visible "Discount expires in 1:59" countdown purely from
+  // award.expires_at (a server timestamp). When it reaches zero this
+  // doesn't just assume expiry locally — it re-fetches /status so the
+  // server's own clock is what actually confirms the award is gone,
+  // correcting for any client clock drift either way.
+  useEffect(() => {
+    // Nothing to count down — stale remainingMs is harmless since the
+    // "claim" screen that reads it only ever renders while award is set.
+    if (!award) return;
+    const expiresAtMs = new Date(award.expires_at).getTime();
+    function tick() {
+      const ms = expiresAtMs - Date.now();
+      setRemainingMs(Math.max(0, ms));
+      if (ms <= 0) {
+        clearInterval(intervalId);
+        setAward(null);
+        setExpiredNotice(true);
+        loadStatus(true);
+      }
+    }
+    tick();
+    const intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [award, loadStatus]);
 
   const endGame = useCallback(async () => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -106,8 +171,18 @@ export default function DiscountDropPage() {
         setPhase("ready");
         return;
       }
-      setResult(data);
-      setPhase("result");
+      setExpiredNotice(false);
+      if (data.discountPercent > 0 && data.award) {
+        setNoDiscountScore(null);
+        setAward(data.award);
+        setPhase("claim");
+      } else {
+        setAward(null);
+        setNoDiscountScore(data.score);
+        setPhase("no-discount");
+      }
+      // Refresh mission/cooldown state for later, without letting it
+      // clobber the "claim"/"no-discount" screen we just set above.
       loadStatus(false);
       fetch("/api/get-listed/discount-drop/leaderboard")
         .then((r) => r.json())
@@ -148,14 +223,21 @@ export default function DiscountDropPage() {
       const res = await fetch("/api/get-listed/discount-drop/start", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        if (data.error === "mission_incomplete") {
-          setStatus((s) => (s ? { ...s, mission: data.mission, canPlay: false } : s));
+        if (data.error === "mission_incomplete" || data.error === "cooldown_active") {
+          setStatus((s) => (s ? { ...s, mission: data.mission ?? s.mission, nextAttemptAt: data.nextAttemptAt ?? s.nextAttemptAt, cooldownActive: data.error === "cooldown_active", canPlay: false } : s));
           setPhase("gate");
+          return;
+        }
+        if (res.status === 409) {
+          // Server says an award is already active — resync to show it
+          // instead of a generic error.
+          loadStatus(true);
           return;
         }
         setError(data.error ?? "Could not start the game.");
         return;
       }
+      setExpiredNotice(false);
       attemptIdRef.current = data.attemptId;
       scheduleRef.current = data.schedule;
       durationRef.current = data.durationMs;
@@ -231,23 +313,33 @@ export default function DiscountDropPage() {
 
       {phase === "gate" && status && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-8 text-center">
-          {status.attemptsUsed >= status.maxAttempts ? (
+          {expiredNotice && (
+            <div className="flex flex-col gap-1">
+              <p className="font-display text-lg font-black uppercase text-ink">Discount expired</p>
+              <p className="text-sm text-muted">Your discount window has ended.</p>
+            </div>
+          )}
+          {status.mission && !status.mission.complete ? (
             <>
-              <p className="text-sm text-ink">You&apos;ve used both of your attempts.</p>
-              <p className="text-sm text-muted">Your best verified result still counts — check the leaderboard below.</p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-ink">Vote on {status.mission?.required ?? 3} different Arena duels to unlock a second attempt.</p>
+              <p className="text-sm text-ink">
+                {expiredNotice ? "Complete the requirement to unlock another attempt." : `Vote on ${status.mission.required} different Arena duels to unlock another Discount Drop attempt.`}
+              </p>
               <p className="text-sm text-muted">
-                Progress: {status.mission?.votedDuels ?? 0} / {status.mission?.required ?? 3}
+                Progress: {status.mission.votedDuels} / {status.mission.required}
               </p>
               <Link
                 href="/#duels"
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-sm"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-sm"
               >
-                Go vote in the Arena
+                Vote on {status.mission.required} duels
               </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-ink">You&apos;ve completed the requirement — come back soon for another attempt.</p>
+              {status.nextAttemptAt && (
+                <p className="text-sm text-muted">Next attempt unlocks {new Date(status.nextAttemptAt).toLocaleString()}</p>
+              )}
             </>
           )}
         </div>
@@ -292,35 +384,45 @@ export default function DiscountDropPage() {
         </div>
       )}
 
-      {phase === "result" && result && (
+      {phase === "claim" && award && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-accent bg-accent-soft/10 p-8 text-center">
           <Trophy className="h-8 w-8 text-accent" />
-          <h2 className="font-display text-2xl font-black uppercase text-ink">
-            {result.discountPercent > 0 ? `You unlocked ${result.discountPercent}% off` : "No discount this time"}
-          </h2>
-          <p className="text-sm text-muted">Score: {result.score} / 100</p>
-          {result.discountPercent > 0 && result.award && (
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                onClick={() => router.push(`/get-listed?discountAward=${result.award!.id}`)}
-                className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-md"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Use My Discount
-              </button>
-              <button
-                onClick={() => shareOnX(result.discountPercent)}
-                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold text-ink shadow-sm"
-              >
-                <Share2 className="h-4 w-4" />
-                Share on X
-              </button>
-            </div>
-          )}
+          <h2 className="font-display text-2xl font-black uppercase text-ink">You unlocked {award.discount_percent}% off</h2>
+          <p className="text-sm text-muted">Score: {award.score} / 100</p>
+          <p className="text-sm text-ink">Use your discount before it expires.</p>
+          <p className="font-display text-lg font-bold text-accent" aria-live="polite">
+            Discount expires in {formatCountdown(remainingMs ?? 0)}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => router.push(`/get-listed?discountAward=${award.id}`)}
+              className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-md"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Use My Discount
+            </button>
+            <button
+              onClick={() => shareOnX(award.discount_percent)}
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold text-ink shadow-sm"
+            >
+              <Share2 className="h-4 w-4" />
+              Share on X
+            </button>
+          </div>
           <a href="#leaderboard" className="text-xs font-semibold text-accent hover:underline">
             View Leaderboard
           </a>
-          <p className="text-xs text-muted">Discounts expire 30 minutes after they&apos;re earned.</p>
+        </div>
+      )}
+
+      {phase === "no-discount" && noDiscountScore !== null && (
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-accent bg-accent-soft/10 p-8 text-center">
+          <Trophy className="h-8 w-8 text-accent" />
+          <h2 className="font-display text-2xl font-black uppercase text-ink">No discount this time</h2>
+          <p className="text-sm text-muted">Score: {noDiscountScore} / 100</p>
+          <a href="#leaderboard" className="text-xs font-semibold text-accent hover:underline">
+            View Leaderboard
+          </a>
         </div>
       )}
 

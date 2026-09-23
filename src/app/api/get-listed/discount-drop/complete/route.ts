@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { validateAndScore } from "@/lib/discount-drop/scoring";
 import { discountPercentForScore, AWARD_EXPIRY_MS } from "@/lib/discount-drop/config";
+import { getActiveAward } from "@/lib/discount-drop/awards";
 import type { ChallengeEvent } from "@/lib/discount-drop/schedule";
 
 /**
@@ -105,6 +106,21 @@ export async function POST(req: NextRequest) {
       discountPercent: 0,
       award: null,
       validationStatus: result.validationStatus,
+    });
+  }
+
+  // Never let a user hold two simultaneously-active awards. In practice
+  // this branch shouldn't be reachable — the replay cooldown after a
+  // completed attempt is always far longer than a 2-minute award window —
+  // but it's cheap insurance against a future shorter cooldown config or
+  // any other path that could otherwise let attempts overlap.
+  const existingActiveAward = await getActiveAward(admin, user.id);
+  if (existingActiveAward) {
+    return NextResponse.json({
+      score: result.score,
+      discountPercent: existingActiveAward.discount_percent,
+      validationStatus: result.validationStatus,
+      award: existingActiveAward,
     });
   }
 

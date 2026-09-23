@@ -223,6 +223,13 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
+      {justReturnedFromCheckout && campaign.status === "active" && (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-accent bg-accent-soft/10 p-6 text-center shadow-sm">
+          <h2 className="font-display text-lg font-black uppercase text-ink">Payment confirmed</h2>
+          <p className="text-sm text-muted">Your Get Listed campaign is active.</p>
+        </div>
+      )}
+
       {campaign.status === "awaiting_payment" && (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-6 text-center shadow-sm">
           {order && order.payment_status === "pending" ? (

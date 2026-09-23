@@ -20,14 +20,31 @@ export const DISCOUNT_TIERS: Array<{ min: number; max: number; percent: number }
 
 export const MAX_DISCOUNT_PERCENT = 60;
 
-export const AWARD_EXPIRY_MS = 30 * 60 * 1000;
+/** How long a single earned discount stays claimable before it expires. */
+export const AWARD_EXPIRY_MS = 2 * 60 * 1000;
 
-/** Free attempts everyone gets, before the mission gate applies. */
+/**
+ * Free attempts everyone gets before the replay gate (mission + cooldown)
+ * applies. This is NOT a lifetime cap — Discount Drop is repeatable
+ * indefinitely; after the free attempt(s), every further attempt requires
+ * BOTH the mission and the cooldown below, checked fresh each time.
+ */
 export const FREE_ATTEMPTS = 1;
-/** Total attempts ever allowed per user (free + mission-unlocked). */
-export const MAX_ATTEMPTS = 2;
-/** Distinct duels a user must have voted in to unlock attempt #2. */
-export const MISSION_REQUIRED_DUELS = 3;
+
+/**
+ * Distinct duels a user must vote on (since their last completed attempt)
+ * to unlock another Discount Drop attempt.
+ */
+export const MISSION_REQUIRED_DUELS = 5;
+
+/**
+ * Minimum time since a user's last completed attempt before they're even
+ * eligible to unlock another one, regardless of mission progress — the
+ * backstop against farming attempts by voting on 5 duels back-to-back.
+ * Configurable independently of everything else; changing this doesn't
+ * require touching the game, scoring, or mission logic at all.
+ */
+export const REPLAY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export function discountPercentForScore(score: number): number {
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
