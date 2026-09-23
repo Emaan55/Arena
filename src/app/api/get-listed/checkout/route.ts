@@ -70,23 +70,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This campaign isn't awaiting payment." }, { status: 409 });
   }
 
-  // Re-verify the attached discount is still genuinely usable at the
-  // moment of checkout, not just at campaign-creation time — an award
-  // that expired while the campaign sat unpaid should not still discount
-  // the price indefinitely.
+  // The discount was already validated (ownership, "available", not
+  // expired) at the moment it was attached to this campaign — see
+  // POST /api/get-listed/campaigns and, before that, POST .../claim, which
+  // is what actually "claims" it and extends its expiry to a realistic
+  // checkout-completion window. Re-checking expires_at again here would
+  // race that same short claim window against however long the user takes
+  // to fill out the campaign form and reach checkout (including retrying
+  // payment later on an already-created campaign), so this only checks
+  // that the award hasn't since been redeemed/cancelled — not the clock.
   let discountPercent = 0;
   if (campaign.discount_award_id) {
     const { data: award } = await admin
       .from("discount_awards")
-      .select("id, status, expires_at, discount_percent")
+      .select("id, status, discount_percent")
       .eq("id", campaign.discount_award_id)
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!award || award.status !== "available" || new Date(award.expires_at).getTime() <= Date.now()) {
-      logSecurityEvent("get_listed_checkout_discount_expired", { ip, userId: user.id, campaignId });
+    if (!award || award.status !== "available") {
+      logSecurityEvent("get_listed_checkout_discount_unavailable", { ip, userId: user.id, campaignId });
       return NextResponse.json(
-        { error: "Your discount has expired. Play Discount Drop again to earn a new discount." },
+        { error: "This discount is no longer available." },
         { status: 409 },
       );
     }

@@ -20,8 +20,23 @@ export const DISCOUNT_TIERS: Array<{ min: number; max: number; percent: number }
 
 export const MAX_DISCOUNT_PERCENT = 60;
 
-/** How long a single earned discount stays claimable before it expires. */
+/**
+ * How long a freshly-earned discount stays claimable before it expires
+ * if the user does nothing — this is the "decide whether to use it"
+ * window shown as a countdown on the result screen.
+ */
 export const AWARD_EXPIRY_MS = 2 * 60 * 1000;
+
+/**
+ * Once the user actually clicks "Use My Discount" (see
+ * /api/get-listed/discount-drop/claim), the award's expiry is extended to
+ * this much longer window instead — enough real-world time to fill out a
+ * Get Listed campaign and complete a LemonSqueezy checkout, which
+ * realistically takes several minutes, not seconds. The discount is
+ * "claimed" the moment this fires; it should not keep racing the original
+ * short decide-to-claim countdown after that.
+ */
+export const CLAIM_EXPIRY_MS = 30 * 60 * 1000;
 
 /**
  * Free attempts everyone gets before the replay gate (mission + cooldown)

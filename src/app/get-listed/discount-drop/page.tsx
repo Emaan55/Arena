@@ -264,6 +264,36 @@ export default function DiscountDropPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  // This IS the claim — it extends the award's expiry server-side to a
+  // realistic checkout-completion window before navigating away, so
+  // filling out the Get Listed form doesn't race the short decide-to-claim
+  // countdown that was only ever meant to cover this button click.
+  async function useDiscount() {
+    if (!award) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/get-listed/discount-drop/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ awardId: award.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          setAward(null);
+          setExpiredNotice(true);
+          loadStatus(true);
+          return;
+        }
+        setError(data.error ?? "Could not claim your discount.");
+        return;
+      }
+      router.push(`/get-listed?discountAward=${award.id}`);
+    } catch {
+      setError("Network error — please try again.");
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
@@ -395,7 +425,7 @@ export default function DiscountDropPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
-              onClick={() => router.push(`/get-listed?discountAward=${award.id}`)}
+              onClick={useDiscount}
               className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-accent-ink shadow-md"
             >
               <CheckCircle2 className="h-4 w-4" />
