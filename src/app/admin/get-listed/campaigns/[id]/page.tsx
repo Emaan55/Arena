@@ -6,10 +6,18 @@ import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
-import type { Campaign, CampaignStatus, Submission, SubmissionStatus } from "@/types/database";
+import type { Campaign, CampaignStatus, Order, Submission, SubmissionStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
 
 type CampaignWithOwner = Campaign & { owner_email: string | null };
+
+const ORDER_STATUS_STYLE: Record<Order["payment_status"], string> = {
+  pending: "bg-surface-2 text-muted",
+  paid: "bg-[#16a34a]/10 text-[#16a34a]",
+  failed: "bg-danger/10 text-danger",
+  refunded: "bg-danger/10 text-danger",
+  cancelled: "bg-surface-2 text-muted",
+};
 
 const CAMPAIGN_STATUSES: CampaignStatus[] = ["draft", "awaiting_payment", "active", "in_progress", "completed", "cancelled"];
 const SUBMISSION_STATUSES: SubmissionStatus[] = ["pending", "submitted", "accepted", "rejected"];
@@ -20,10 +28,16 @@ export default function AdminCampaignDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<CampaignWithOwner | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const [newSub, setNewSub] = useState({ directoryName: "", directoryUrl: "", status: "pending" as SubmissionStatus, listingUrl: "", notes: "" });
   const [adding, setAdding] = useState(false);
+
+  const [reconcile, setReconcile] = useState({ paymentReference: "", reason: "", adminName: "" });
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileError, setReconcileError] = useState<string | null>(null);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
 
   async function load() {
     if (!secret) return;
@@ -40,6 +54,33 @@ export default function AdminCampaignDetailPage() {
     const data = await res.json();
     setCampaign(data.campaign);
     setSubmissions(data.submissions ?? []);
+    setOrders(data.orders ?? []);
+  }
+
+  async function reconcilePayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!secret) return;
+    setReconcileError(null);
+    setReconciling(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/reconcile-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify(reconcile),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReconcileError(data.error ?? "Could not reconcile payment.");
+        return;
+      }
+      setReconcile({ paymentReference: "", reason: "", adminName: "" });
+      setReconcileOpen(false);
+      await load();
+    } catch {
+      setReconcileError("Network error — please try again.");
+    } finally {
+      setReconciling(false);
+    }
   }
 
   useEffect(() => {
@@ -145,6 +186,90 @@ export default function AdminCampaignDetailPage() {
           </div>
         </div>
         <p className="text-sm text-muted">{campaign.description}</p>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-bold text-ink">Payments</h2>
+          <button
+            onClick={() => setReconcileOpen((v) => !v)}
+            className="rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+          >
+            Reconcile Payment &amp; Activate
+          </button>
+        </div>
+
+        {orders.length === 0 ? (
+          <p className="text-sm text-muted">No orders yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-surface-2 uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Final</th>
+                  <th className="px-3 py-2">Discount</th>
+                  <th className="px-3 py-2">Provider order id</th>
+                  <th className="px-3 py-2">Paid at</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-surface">
+                {orders.map((o) => (
+                  <tr key={o.id}>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-0.5 font-semibold ${ORDER_STATUS_STYLE[o.payment_status]}`}>
+                        {o.payment_status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-ink">${(o.final_amount / 100).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-muted">
+                      {o.discount_percent > 0 ? `${o.discount_percent}% (-$${(o.discount_amount / 100).toFixed(2)})` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-muted">{o.provider_order_id ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted">{o.paid_at ? new Date(o.paid_at).toLocaleString() : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {reconcileOpen && (
+          <form onSubmit={reconcilePayment} className="flex flex-col gap-2 rounded-xl border border-border bg-bg p-4">
+            <p className="text-xs text-muted">
+              Use only when payment succeeded externally and the LemonSqueezy webhook was missed or delayed. This
+              activates the campaign and redeems any attached discount exactly like the webhook would.
+            </p>
+            <input
+              required
+              value={reconcile.paymentReference}
+              onChange={(e) => setReconcile((r) => ({ ...r, paymentReference: e.target.value }))}
+              placeholder="Payment reference (LemonSqueezy order id / receipt id)"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+            />
+            <input
+              required
+              value={reconcile.reason}
+              onChange={(e) => setReconcile((r) => ({ ...r, reason: e.target.value }))}
+              placeholder="Reason (e.g. webhook never arrived, confirmed paid via LS dashboard)"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+            />
+            <input
+              value={reconcile.adminName}
+              onChange={(e) => setReconcile((r) => ({ ...r, adminName: e.target.value }))}
+              placeholder="Your name (optional)"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+            />
+            {reconcileError && <p className="text-sm text-danger">{reconcileError}</p>}
+            <button
+              type="submit"
+              disabled={reconciling}
+              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
+            >
+              {reconciling ? "Reconciling…" : "Confirm & Activate"}
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">

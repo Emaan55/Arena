@@ -32,9 +32,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: ownerData } = await admin.auth.admin.getUserById(campaign.owner_id);
 
+  const { data: orders } = await admin
+    .from("orders")
+    .select("*")
+    .eq("campaign_id", id)
+    .order("created_at", { ascending: false });
+
   return NextResponse.json({
     campaign: { ...campaign, owner_email: ownerData?.user?.email ?? null },
     submissions: submissions ?? [],
+    orders: orders ?? [],
   });
 }
 

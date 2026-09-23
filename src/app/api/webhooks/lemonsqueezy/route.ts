@@ -4,6 +4,8 @@ import { verifyWebhookSignature } from "@/lib/lemonsqueezy";
 import { applyBoost, applyDefend, applyRevive } from "@/lib/arena";
 import { createSponsorship } from "@/lib/sponsorship";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
+import { isGetListedOrdersSchemaReady } from "@/lib/get-listed/orders";
+import { logSecurityEvent } from "@/lib/security-log";
 import type { PaymentType } from "@/types/database";
 
 interface LemonSqueezyWebhookPayload {
@@ -16,8 +18,99 @@ interface LemonSqueezyWebhookPayload {
     attributes?: {
       status?: string;
       total?: number;
+      customer_id?: number | string;
+      first_order_item?: { variant_id?: number | string };
     };
   };
+}
+
+/**
+ * Get Listed orders are a distinct payment type from boost/revive/defend/
+ * sponsor (the `payments` table above) — they use their own `orders` table
+ * and their own atomic finalize_get_listed_order() Postgres function (see
+ * migration 0018) so that "mark paid" + "activate the campaign" + "redeem
+ * the discount award" happen in one transaction. Reusing the `payments`
+ * table's simpler single-insert idempotency guard wouldn't be enough here,
+ * since a webhook confirming a Get Listed order has three things to do
+ * atomically, not one.
+ */
+async function handleGetListedOrder(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  payload: LemonSqueezyWebhookPayload,
+  custom: Record<string, string>,
+) {
+  const orderId = custom.order_id;
+  if (!orderId) return;
+
+  if (!(await isGetListedOrdersSchemaReady(admin))) {
+    logSecurityEvent("get_listed_webhook_schema_not_ready", { orderId });
+    return;
+  }
+
+  const providerOrderId = payload.data?.id;
+  if (!providerOrderId) return;
+
+  // Defense in depth: the amount actually charged should match what we
+  // authorized at checkout (custom_price). We still trust our own stored
+  // final_amount as the source of truth for what to activate — LemonSqueezy
+  // charged exactly what our checkout call specified — but a mismatch here
+  // would mean something is wrong upstream and is worth knowing about.
+  const { data: orderBefore } = await admin.from("orders").select("final_amount, campaign_id").eq("id", orderId).maybeSingle();
+  if (!orderBefore) {
+    logSecurityEvent("get_listed_webhook_unknown_order", { orderId, providerOrderId });
+    return;
+  }
+  const chargedTotal = payload.data?.attributes?.total;
+  if (typeof chargedTotal === "number" && chargedTotal !== orderBefore.final_amount) {
+    logSecurityEvent("get_listed_webhook_amount_mismatch", {
+      orderId,
+      providerOrderId,
+      expected: orderBefore.final_amount,
+      actual: chargedTotal,
+    });
+  }
+
+  const { data: finalized, error } = await admin.rpc("finalize_get_listed_order", {
+    p_order_id: orderId,
+    p_provider_order_id: providerOrderId,
+    p_provider_customer_id: payload.data?.attributes?.customer_id != null ? String(payload.data.attributes.customer_id) : null,
+    p_provider_variant_id:
+      payload.data?.attributes?.first_order_item?.variant_id != null
+        ? String(payload.data.attributes.first_order_item.variant_id)
+        : null,
+  });
+
+  if (error) {
+    logSecurityEvent("get_listed_finalize_error", { orderId, providerOrderId, message: error.message });
+    return;
+  }
+  if (!finalized) {
+    // Already processed by an earlier delivery of this same webhook, or
+    // the order wasn't pending for some other reason — either way, no
+    // further action, exactly the idempotency guarantee the spec asks for.
+    return;
+  }
+
+  logSecurityEvent("get_listed_order_paid", { orderId, providerOrderId, campaignId: finalized.campaign_id });
+}
+
+async function handleGetListedRefund(admin: ReturnType<typeof createAdminSupabaseClient>, providerOrderId: string) {
+  if (!(await isGetListedOrdersSchemaReady(admin))) return;
+
+  // Only a currently-paid order can be refunded — never overwrites a
+  // pending/failed/cancelled row, and a retried refund webhook for an
+  // already-refunded order is a no-op here too.
+  const { data: updated } = await admin
+    .from("orders")
+    .update({ payment_status: "refunded", updated_at: new Date().toISOString() })
+    .eq("provider_order_id", providerOrderId)
+    .eq("payment_status", "paid")
+    .select("id, campaign_id")
+    .maybeSingle();
+
+  if (updated) {
+    logSecurityEvent("get_listed_order_refunded", { orderId: updated.id, campaignId: updated.campaign_id });
+  }
 }
 
 /**
@@ -43,14 +136,27 @@ export async function POST(req: NextRequest) {
   }
 
   const eventName = payload.meta?.event_name;
-  const status = payload.data?.attributes?.status;
   const orderId = payload.data?.id;
   const custom = payload.meta?.custom_data;
+
+  const admin = createAdminSupabaseClient();
+
+  if (eventName === "order_refunded" && orderId) {
+    await handleGetListedRefund(admin, orderId);
+    return NextResponse.json({ received: true });
+  }
+
+  const status = payload.data?.attributes?.status;
 
   // Only act on a confirmed, paid order carrying the custom data our
   // checkout attached. Anything else (test pings, other event types,
   // unpaid orders) is acknowledged with 200 but ignored.
   if (eventName !== "order_created" || status !== "paid" || !orderId || !custom) {
+    return NextResponse.json({ received: true });
+  }
+
+  if (custom.type === "get_listed") {
+    await handleGetListedOrder(admin, payload, custom);
     return NextResponse.json({ received: true });
   }
 
@@ -79,8 +185,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
   }
-
-  const admin = createAdminSupabaseClient();
 
   const { error: insertError } = await admin.from("payments").insert({
     lemonsqueezy_order_id: orderId,

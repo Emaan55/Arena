@@ -38,5 +38,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .eq("campaign_id", campaign.id)
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({ campaign, submissions: submissions ?? [] });
+  // Most recent order (if the orders table exists yet — see migration
+  // 0018) so the client can tell "never started checkout" apart from
+  // "checkout started, still awaiting the webhook" without guessing from
+  // campaign.status alone.
+  const { data: order } = await admin
+    .from("orders")
+    .select("*")
+    .eq("campaign_id", campaign.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return NextResponse.json({ campaign, submissions: submissions ?? [], order: order ?? null });
 }

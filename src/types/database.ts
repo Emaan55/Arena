@@ -22,6 +22,8 @@ export type CampaignStatus = "draft" | "awaiting_payment" | "active" | "in_progr
 export type SubmissionStatus = "pending" | "submitted" | "accepted" | "rejected";
 export type GameValidationStatus = "pending" | "valid" | "suspicious" | "rejected";
 export type DiscountAwardStatus = "available" | "redeemed" | "expired" | "cancelled";
+export type OrderProvider = "lemonsqueezy";
+export type OrderPaymentStatus = "pending" | "paid" | "failed" | "refunded" | "cancelled";
 
 // These are `type` (not `interface`) deliberately: interfaces don't satisfy
 // the `Record<string, unknown>` structural constraint that supabase-js's
@@ -229,6 +231,42 @@ export type DiscountAward = {
   redeemed_at: string | null;
 };
 
+// Phase 3 "Get Listed" payments — see migration 0018. Amounts are in cents
+// (matching LemonSqueezy's own units); package_key/base_amount are a
+// snapshot of what this specific order charged, never a second source of
+// truth for current pricing (that's still lib/get-listed/packages.ts).
+export type Order = {
+  id: string;
+  campaign_id: string;
+  owner_id: string;
+  provider: OrderProvider;
+  provider_order_id: string | null;
+  provider_customer_id: string | null;
+  provider_variant_id: string | null;
+  package_key: string;
+  base_amount: number;
+  discount_percent: number;
+  discount_amount: number;
+  final_amount: number;
+  currency: string;
+  payment_status: OrderPaymentStatus;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Audit trail for the admin-only "Reconcile Payment & Activate" action —
+// see migration 0018 and POST /api/admin/get-listed/campaigns/[id]/reconcile-payment.
+export type PaymentReconciliation = {
+  id: string;
+  order_id: string;
+  campaign_id: string;
+  admin_identifier: string;
+  reason: string;
+  payment_reference: string;
+  created_at: string;
+};
+
 // Recorded once, server-side, at email/password sign-up time — see
 // migration 0017 and POST /api/auth/sign-up.
 export type TermsAcceptance = {
@@ -316,6 +354,18 @@ export interface Database {
         Update: Partial<TermsAcceptance>;
         Relationships: Relationships;
       };
+      orders: {
+        Row: Order;
+        Insert: Partial<Order>;
+        Update: Partial<Order>;
+        Relationships: Relationships;
+      };
+      payment_reconciliations: {
+        Row: PaymentReconciliation;
+        Insert: Partial<PaymentReconciliation>;
+        Update: Partial<PaymentReconciliation>;
+        Relationships: Relationships;
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -338,6 +388,15 @@ export interface Database {
       cast_vote_authenticated: {
         Args: { p_match_id: string; p_user_id: string; p_side: VoteSide };
         Returns: Match;
+      };
+      finalize_get_listed_order: {
+        Args: {
+          p_order_id: string;
+          p_provider_order_id: string;
+          p_provider_customer_id?: string | null;
+          p_provider_variant_id?: string | null;
+        };
+        Returns: Order | null;
       };
     };
   };

@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "crypto";
 import type { PaymentType } from "@/types/database";
 import type { SponsorDuration } from "./sponsorship-constants";
+import type { GetListedPackageKey } from "./get-listed/packages";
 
 const LS_API_BASE = "https://api.lemonsqueezy.com/v1";
 
@@ -33,10 +34,31 @@ export function getSponsorVariantId(days: SponsorDuration): string {
   return value;
 }
 
+const GET_LISTED_VARIANT_ENV_KEYS: Record<GetListedPackageKey, string> = {
+  starter: "LEMONSQUEEZY_GETLISTED_STARTER_VARIANT_ID",
+  growth: "LEMONSQUEEZY_GETLISTED_GROWTH_VARIANT_ID",
+  scale: "LEMONSQUEEZY_GETLISTED_SCALE_VARIANT_ID",
+};
+
+export function getGetListedVariantId(packageKey: GetListedPackageKey): string {
+  const key = GET_LISTED_VARIANT_ENV_KEYS[packageKey];
+  const value = process.env[key];
+  if (!value) throw new Error(`Missing env var ${key} — Get Listed payments aren't configured yet.`);
+  return value;
+}
+
 interface CreateCheckoutParams {
   variantId: string;
   custom: Record<string, string>;
   redirectUrl: string;
+  /**
+   * Overrides the variant's configured price for this specific checkout,
+   * in cents — LemonSqueezy's own mechanism for a server-computed price
+   * that isn't a fixed catalog amount (e.g. a package price after an
+   * arbitrary Discount Drop percentage). Omitted entirely for flows that
+   * charge the variant's plain listed price.
+   */
+  customPriceCents?: number;
 }
 
 /**
@@ -49,6 +71,7 @@ export async function createCheckout({
   variantId,
   custom,
   redirectUrl,
+  customPriceCents,
 }: CreateCheckoutParams): Promise<string> {
   const apiKey = process.env.LEMONSQUEEZY_API_KEY;
   const storeId = process.env.LEMONSQUEEZY_STORE_ID;
@@ -67,6 +90,7 @@ export async function createCheckout({
       data: {
         type: "checkouts",
         attributes: {
+          ...(customPriceCents !== undefined ? { custom_price: customPriceCents } : {}),
           checkout_data: { custom },
           product_options: { redirect_url: redirectUrl },
         },

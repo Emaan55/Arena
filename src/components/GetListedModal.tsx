@@ -82,8 +82,38 @@ export function GetListedModal({
         setError(data.error ?? "Could not create campaign.");
         return;
       }
+
+      const campaignId = data.campaign.id as string;
+
+      // Straight into checkout — the campaign only ever sits in
+      // "awaiting_payment" until LemonSqueezy's webhook confirms payment
+      // (see /api/webhooks/lemonsqueezy), never activated from here.
+      const checkoutRes = await fetch("/api/get-listed/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId }),
+      });
+      const checkoutData = await checkoutRes.json();
+      if (!checkoutRes.ok || !checkoutData.url) {
+        handleClose();
+        router.push(`/get-listed/campaigns/${campaignId}`);
+        return;
+      }
+
       handleClose();
-      router.push(`/get-listed/campaigns/${data.campaign.id}`);
+      if (window.LemonSqueezy?.Url) {
+        window.LemonSqueezy.Setup?.({
+          eventHandler: (event) => {
+            if (event.event === "Checkout.Success") {
+              setTimeout(() => router.push(`/get-listed/campaigns/${campaignId}`), 1500);
+            }
+          },
+        });
+        window.LemonSqueezy.Url.Open(checkoutData.url);
+      } else {
+        window.open(checkoutData.url, "_blank", "noopener,noreferrer");
+        router.push(`/get-listed/campaigns/${campaignId}`);
+      }
     } catch {
       setError("Network error — please try again.");
     } finally {
