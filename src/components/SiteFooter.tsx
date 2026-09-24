@@ -78,6 +78,9 @@ export function SiteFooter() {
           <a href="https://nicklaunches.com/" target="_blank" rel="noopener">
             <img src="https://nicklaunches.com/badges/featured.png" alt="Featured on Nick Launches" width="244" height="56" loading="lazy" />
           </a>
+          <a href="https://www.betterlaunch.co/product/the-arena" target="_blank" rel="noopener">
+            <img src="https://www.betterlaunch.co/badge-live-light.svg" alt="The Arena on Better Launch" width="200" height="56" loading="lazy" />
+          </a>
         </div>
       </div>
 
