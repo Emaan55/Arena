@@ -76,7 +76,7 @@ export function SubmitForm({
       setXHandle("");
       setSuccess(true);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +140,7 @@ export function SubmitForm({
       <input
         value={xHandle}
         onChange={(e) => setXHandle(e.target.value)}
-        placeholder="X handle (optional) — @yourhandle"
+        placeholder="X handle (optional): @yourhandle"
         className="rounded-lg border border-border bg-bg px-3 py-2 text-ink placeholder:text-muted transition-colors duration-150 ease-out focus:border-accent focus:outline-none"
       />
       <p className="-mt-1 text-xs text-muted">Connect your product to its founder.</p>
@@ -204,7 +204,7 @@ export function SubmitForm({
         disabled={submitting}
         className="mt-1 rounded-lg bg-accent px-4 py-2.5 font-display font-bold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-60"
       >
-        {submitting ? "Entering the arena…" : "Enter the arena — it's free"}
+        {submitting ? "Entering the arena…" : "Enter the arena, it's free"}
       </button>
     </form>
   );

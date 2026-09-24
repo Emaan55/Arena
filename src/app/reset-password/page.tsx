@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
       await supabase.auth.signOut();
       setDone(true);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setSubmitting(false);
     }

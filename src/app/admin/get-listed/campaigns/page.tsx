@@ -44,7 +44,7 @@ export default function AdminGetListedCampaignsPage() {
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-bold text-ink">Get Listed — Campaigns</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Get Listed Campaigns</h1>
         <Link href="/admin/get-listed/queue" className="text-sm text-accent hover:underline">
           Submission queue →
         </Link>
@@ -75,7 +75,7 @@ export default function AdminGetListedCampaignsPage() {
                       {c.startup_name}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-muted">{c.owner_email ?? "—"}</td>
+                  <td className="px-4 py-2 text-muted">{c.owner_email ?? "-"}</td>
                   <td className="px-4 py-2">
                     {GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label ?? c.package_key}
                   </td>

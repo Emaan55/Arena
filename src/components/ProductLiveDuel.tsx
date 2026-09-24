@@ -80,7 +80,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
       setVotedSide(side);
       router.refresh();
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setVoting(false);
     }

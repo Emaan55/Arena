@@ -66,7 +66,7 @@ export function PayButton({
         window.open(data.url, "_blank", "noopener,noreferrer");
       }
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setLoading(false);
     }

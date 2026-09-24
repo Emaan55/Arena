@@ -66,7 +66,7 @@ export function parseBattleFields(body: Record<string, unknown>): BattleFieldsRe
     if (!normalized) {
       return {
         ok: false,
-        error: "Enter a valid X handle (letters, numbers, underscore — max 15 characters).",
+        error: "Enter a valid X handle (letters, numbers, underscore, max 15 characters).",
       };
     }
     x_handle = normalized;
@@ -135,7 +135,7 @@ export function parseBattleFieldsPatch(body: Record<string, unknown>): BattleFie
       if (!normalized) {
         return {
           ok: false,
-          error: "Enter a valid X handle (letters, numbers, underscore — max 15 characters).",
+          error: "Enter a valid X handle (letters, numbers, underscore, max 15 characters).",
         };
       }
       patch.x_handle = normalized;

@@ -77,7 +77,7 @@ export default function AdminCampaignDetailPage() {
       setReconcileOpen(false);
       await load();
     } catch {
-      setReconcileError("Network error — please try again.");
+      setReconcileError("Network error, please try again.");
     } finally {
       setReconciling(false);
     }
@@ -166,7 +166,7 @@ export default function AdminCampaignDetailPage() {
         <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <div>
             <span className="block text-xs uppercase tracking-wide text-muted">Owner</span>
-            <span className="text-ink">{campaign.owner_email ?? "—"}</span>
+            <span className="text-ink">{campaign.owner_email ?? "-"}</span>
           </div>
           <div>
             <span className="block text-xs uppercase tracking-wide text-muted">Package</span>
@@ -223,10 +223,10 @@ export default function AdminCampaignDetailPage() {
                     </td>
                     <td className="px-3 py-2 text-ink">${(o.final_amount / 100).toFixed(2)}</td>
                     <td className="px-3 py-2 text-muted">
-                      {o.discount_percent > 0 ? `${o.discount_percent}% (-$${(o.discount_amount / 100).toFixed(2)})` : "—"}
+                      {o.discount_percent > 0 ? `${o.discount_percent}% (-$${(o.discount_amount / 100).toFixed(2)})` : "-"}
                     </td>
-                    <td className="px-3 py-2 text-muted">{o.provider_order_id ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted">{o.paid_at ? new Date(o.paid_at).toLocaleString() : "—"}</td>
+                    <td className="px-3 py-2 text-muted">{o.provider_order_id ?? "-"}</td>
+                    <td className="px-3 py-2 text-muted">{o.paid_at ? new Date(o.paid_at).toLocaleString() : "-"}</td>
                   </tr>
                 ))}
               </tbody>

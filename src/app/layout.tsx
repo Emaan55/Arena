@@ -39,12 +39,12 @@ const plexMono = IBM_Plex_Mono({
 // (verified live: thearena.lol -> 308 -> https://www.thearena.lol/), not in
 // this app's code, so no in-app redirect is needed for that.
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.thearena.lol").replace(/\/+$/, "");
-const SITE_TITLE = "THE ARENA — Where Products Compete";
+const SITE_TITLE = "THE ARENA: Where Products Compete";
 const SITE_DESCRIPTION = "Where products compete. You decide.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "The Arena — Win three duels. Become champion.",
+  title: "The Arena: Win three duels. Become champion.",
   description:
     "Submit your product for free and battle head-to-head against other products in your category. First to 100 votes wins. Win 3 in a row, become the Champion.",
   alternates: {

@@ -55,7 +55,7 @@ export default function SignInPage() {
       }
       router.push(next);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setSubmitting(false);
     }

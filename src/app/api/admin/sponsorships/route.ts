@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     founderXHandle = normalizeXHandle(record.founderXHandle);
     if (!founderXHandle) {
       return NextResponse.json(
-        { error: "Enter a valid X handle (letters, numbers, underscore — max 15 characters)." },
+        { error: "Enter a valid X handle (letters, numbers, underscore, max 15 characters)." },
         { status: 400 },
       );
     }

@@ -146,7 +146,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
       markVoted(matchId, side);
       if (data.state) setState(data.state);
     } catch {
-      setVoteError("Network error — please try again.");
+      setVoteError("Network error, please try again.");
     } finally {
       inFlight.current = false;
       setPendingVotes((prev) => {
@@ -272,7 +272,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
               <div className="flex flex-col gap-4">
                 <h2 className="font-display text-xl font-bold text-ink">Unique Products</h2>
                 <p className="-mt-2 text-sm text-muted">
-                  No rival showed up within 7 days — these products haven&apos;t won anything yet
+                  No rival showed up within 7 days, these products haven&apos;t won anything yet
                   and stay off the leaderboard, but they&apos;re still open to a challenge.
                 </p>
                 <div className="flex flex-col gap-3">
@@ -366,7 +366,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
             <p className="text-sm text-muted">
               The Arena is a free, head-to-head battle platform for products. Submit yours,
               get paired against a rival in your category, and let real votes decide who
-              wins. Win three duels in a row and your name is added to the Hall of Fame —
+              wins. Win three duels in a row and your name is added to the Hall of Fame,
               permanently.
             </p>
           </div>

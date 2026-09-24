@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-16">
       <h1 className="font-display text-2xl font-bold text-ink">Terms of Service</h1>
-      <p className="text-xs text-muted">Version {TERMS_VERSION} — placeholder text, pending legal review.</p>
+      <p className="text-xs text-muted">Version {TERMS_VERSION}, placeholder text, pending legal review.</p>
       <div className="flex flex-col gap-4 text-sm text-muted">
         <p>
           By creating an account or using THE ARENA, you agree to use the platform honestly: no manipulating votes,

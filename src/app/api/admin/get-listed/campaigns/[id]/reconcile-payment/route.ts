@@ -115,7 +115,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Could not finalize payment." }, { status: 500 });
   }
   if (!finalized) {
-    return NextResponse.json({ error: "This order was already paid — nothing to reconcile." }, { status: 409 });
+    return NextResponse.json({ error: "This order was already paid, nothing to reconcile." }, { status: 409 });
   }
 
   await admin.from("payment_reconciliations").insert({

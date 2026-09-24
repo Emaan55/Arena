@@ -25,7 +25,7 @@ const SECTIONS = [
     href: "/admin/get-listed/queue",
     icon: ListChecks,
     title: "Get Listed queue",
-    description: "Every paid, not-yet-complete campaign — oldest first, for whoever is doing submissions.",
+    description: "Every paid, not-yet-complete campaign, oldest first, for whoever is doing submissions.",
   },
   {
     href: "/admin/sponsorships",
@@ -57,7 +57,7 @@ export default function AdminIndexPage() {
       }
       unlock(value);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setChecking(false);
     }

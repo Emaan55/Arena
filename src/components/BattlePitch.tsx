@@ -24,7 +24,7 @@ export function BattlePitch({
       {battlePitch && <p className="text-sm font-medium leading-snug text-ink">{battlePitch}</p>}
       {whyUs && (
         <p className="text-xs leading-snug text-muted">
-          <span className="font-semibold text-ink">Why us — </span>
+          <span className="font-semibold text-ink">Why us: </span>
           {whyUs}
         </p>
       )}

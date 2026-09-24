@@ -115,7 +115,7 @@ export function GetListedModal({
         router.push(`/get-listed/campaigns/${campaignId}`);
       }
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -137,9 +137,9 @@ export function GetListedModal({
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2 className="font-display text-lg font-bold text-ink">Set up your {pkg.label} campaign</h2>
+              <h2 className="font-display text-lg font-bold text-ink">Set up your {pkg.arenaName} campaign</h2>
               <p className="text-sm text-muted">
-                {pkg.target} manual submissions —{" "}
+                {pkg.target} manual submissions:{" "}
                 {discountedPrice !== null ? (
                   <>
                     <span className="line-through">${pkg.priceUsd}</span>{" "}
@@ -215,7 +215,7 @@ export function GetListedModal({
                 onChange={(e) => setForm((f) => ({ ...f, termsAccepted: e.target.checked }))}
                 className="mt-0.5"
               />
-              I understand this package covers manual submissions, not guaranteed live listings — each directory
+              I understand this package covers manual submissions, not guaranteed live listings. Each directory
               controls its own approval, review time, and policies.
             </label>
 
@@ -226,7 +226,7 @@ export function GetListedModal({
               disabled={submitting}
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
             >
-              {submitting ? "Creating…" : `Get Listed — $${discountedPrice ?? pkg.priceUsd}`}
+              {submitting ? "Creating…" : `Get Listed for $${discountedPrice ?? pkg.priceUsd}`}
             </button>
           </form>
         )}

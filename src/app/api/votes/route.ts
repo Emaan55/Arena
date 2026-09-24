@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`vote:ip:${ip}`, 30, 60 * 1000)) {
     logSecurityEvent("rate_limited_ip", { ip });
-    return NextResponse.json({ error: "Slow down — too many votes." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many votes." }, { status: 429 });
   }
 
   let body: unknown;
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   // but a compromised/scripted account could still burst requests.
   if (!rateLimit(`vote:user:${user.id}`, 30, 60 * 1000)) {
     logSecurityEvent("rate_limited_user", { ip, matchId });
-    return NextResponse.json({ error: "Slow down — too many votes." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many votes." }, { status: 429 });
   }
 
   const { data: match, error } = await admin.rpc("cast_vote_authenticated", {

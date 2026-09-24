@@ -19,7 +19,7 @@ import { GAME_DURATION_MS } from "@/lib/discount-drop/config";
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`discount-drop:start:${ip}`, 10, 60 * 1000)) {
-    return NextResponse.json({ error: "Slow down — too many requests." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many requests." }, { status: 429 });
   }
 
   const supabaseAuth = await createRouteHandlerSupabaseClient();
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   if (!rateLimit(`discount-drop:start:user:${user.id}`, 10, 60 * 1000)) {
     logSecurityEvent("discount_drop_rate_limited", { ip, userId: user.id });
-    return NextResponse.json({ error: "Slow down — too many requests." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many requests." }, { status: 429 });
   }
 
   const admin = createAdminSupabaseClient();

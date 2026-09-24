@@ -3,18 +3,58 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
+import { ClipboardList, Gamepad2, ShieldCheck, Send, CheckCircle2, Zap, ArrowRight, Target, Swords } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
 import { GetListedHeroArt } from "@/components/GetListedHeroArt";
+import { CrownIcon } from "@/components/icons";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 
 const PACKAGE_ORDER: GetListedPackageKey[] = ["starter", "growth", "scale"];
 
+/**
+ * Display-only Arena identity for each package (names, copy, icon). The
+ * actual pricing, submission target, and packageKey sent to the backend
+ * all still come from GET_LISTED_PACKAGES / GetListedModal, exactly as
+ * before, so this never has to stay in sync with a second source of truth.
+ */
+const PACKAGE_COPY: Record<
+  GetListedPackageKey,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    hook: string;
+    description: string;
+    taglineLines: [string, string];
+    featured?: boolean;
+  }
+> = {
+  starter: {
+    icon: Target,
+    hook: "Make your first move.",
+    description: "Built for early-stage founders who want their product discovered.",
+    taglineLines: ["Start the fight.", "Get discovered."],
+  },
+  growth: {
+    icon: Swords,
+    hook: "Build momentum.",
+    description: "Built for products ready to expand their reach and get in front of more relevant directories.",
+    taglineLines: ["More reach.", "More opportunities."],
+    featured: true,
+  },
+  scale: {
+    icon: CrownIcon,
+    hook: "Go for maximum reach.",
+    description: "Built for established products that want a broader directory presence and more exposure.",
+    taglineLines: ["Own your presence.", "Expand your reach."],
+  },
+};
+
+const PACKAGE_FEATURES = ["Relevant directories", "Manual submission", "Submission tracking", "Final campaign report"];
+
 const STEPS = [
   { title: "Choose a package", body: "Pick how many directories you want your product manually submitted to." },
-  { title: "We do the work", body: "Our team hand-submits your product to relevant, real directories — no bots." },
+  { title: "We do the work", body: "Our team hand-submits your product to relevant, real directories, no bots." },
   { title: "Track your report", body: "Every submission is logged with its status, so you always know where things stand." },
-  { title: "Get listed", body: "Approved submissions go live on the directory's own timeline — outside our control." },
+  { title: "Get listed", body: "Approved submissions go live on the directory's own timeline, outside our control." },
 ];
 
 const FAQ = [
@@ -24,7 +64,7 @@ const FAQ = [
   },
   {
     q: "How long does it take?",
-    a: "It varies by directory — some review in days, others take weeks. Your campaign report shows the real status of every submission as it changes.",
+    a: "It varies by directory: some review in days, others take weeks. Your campaign report shows the real status of every submission as it changes.",
   },
   {
     q: "What counts as a submission?",
@@ -32,7 +72,7 @@ const FAQ = [
   },
   {
     q: "What is Discount Drop?",
-    a: "An optional 45-second reaction game — hit the targets, avoid the decoys — that can unlock up to 60% off your package. Your score is verified server-side, so the discount is always based on real performance. Playing is never required to get listed.",
+    a: "An optional 45-second reaction game (hit the targets, avoid the decoys) that can unlock up to 60% off your package. Your score is verified server-side, so the discount is always based on real performance. Playing is never required to get listed.",
   },
 ];
 
@@ -138,50 +178,127 @@ export default function GetListedPage() {
 
       {/* Packages */}
       <section id="packages" className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Packages</h2>
-            <p className="text-sm text-muted">One-time price. No subscriptions.</p>
+        <div className="mx-auto flex max-w-6xl flex-col gap-10">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+              <Zap className="h-3.5 w-3.5 text-accent" />
+              Choose your Arena
+            </span>
+            <h2 className="font-display text-3xl font-black uppercase tracking-tight text-ink sm:text-4xl">
+              Get your product in the Arena
+            </h2>
+            <p className="max-w-xl text-sm text-muted sm:text-base">
+              Choose your level of exposure. Every package includes manual directory submissions, relevant
+              directories, submission tracking, and a final report.
+            </p>
             {discountAward && (
               <span className="mt-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-ink">
-                {discountAward.discountPercent}% off ready — pick a package below to apply it
+                {discountAward.discountPercent}% off ready. Pick a package below to apply it.
               </span>
             )}
           </div>
+
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {PACKAGE_ORDER.map((key) => {
+            {PACKAGE_ORDER.map((key, i) => {
               const pkg = GET_LISTED_PACKAGES[key];
-              const featured = key === "growth";
+              const copy = PACKAGE_COPY[key];
+              const Icon = copy.icon;
+              const featured = copy.featured === true;
+              const discountedPrice = discountAward
+                ? Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))
+                : null;
+
               return (
                 <div
                   key={key}
-                  className={`flex flex-col gap-4 rounded-2xl border p-6 shadow-sm ${featured ? "border-accent bg-accent-soft/10" : "border-border bg-surface"}`}
+                  className={`relative flex flex-col gap-5 overflow-hidden rounded-2xl border p-6 sm:p-7 ${
+                    featured
+                      ? "border-accent/40 bg-black text-white shadow-lg sm:-translate-y-3"
+                      : key === "scale"
+                        ? "border-accent/40 bg-surface text-ink shadow-sm"
+                        : "border-border bg-surface text-ink shadow-sm"
+                  }`}
                 >
-                  {featured && (
-                    <span className="w-fit rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-ink">
-                      Most popular
-                    </span>
-                  )}
-                  <h3 className="font-display text-xl font-bold text-ink">{pkg.label}</h3>
-                  <div className="flex items-baseline gap-2">
-                    {discountAward ? (
-                      <>
-                        <span className="text-lg text-muted line-through">${pkg.priceUsd}</span>
-                        <span className="font-display text-3xl font-black text-accent">
-                          ${Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-display text-3xl font-black text-ink">${pkg.priceUsd}</span>
+                  <span
+                    className={`absolute right-4 top-4 font-mono text-[10px] uppercase tracking-widest ${
+                      featured ? "text-white/30" : "text-muted/60"
+                    }`}
+                  >
+                    Round {i + 1}
+                  </span>
+
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                        featured ? "bg-white/10 text-accent" : "bg-accent-soft/20 text-accent"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    {featured && (
+                      <span className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
+                        <Zap className="h-3 w-3" />
+                        Most popular
+                      </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted">{pkg.target} manual directory submissions</p>
+
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="font-display text-2xl font-black uppercase tracking-tight">{pkg.arenaName}</h3>
+                    <p className="text-sm font-semibold">{copy.hook}</p>
+                    <p className={`text-sm ${featured ? "text-white/60" : "text-muted"}`}>{copy.description}</p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full border px-3 py-1 text-xs font-semibold ${
+                      featured ? "border-white/20 text-white/80" : "border-border text-muted"
+                    }`}
+                  >
+                    {pkg.target}+ submissions
+                  </span>
+
+                  <div className={`flex flex-col gap-1 border-t pt-4 ${featured ? "border-white/10" : "border-border"}`}>
+                    <div className="flex items-baseline gap-2">
+                      {discountedPrice !== null ? (
+                        <>
+                          <span className={`text-lg line-through ${featured ? "text-white/40" : "text-muted"}`}>
+                            ${pkg.priceUsd}
+                          </span>
+                          <span className="font-display text-4xl font-black text-accent">${discountedPrice}</span>
+                        </>
+                      ) : (
+                        <span className="font-display text-4xl font-black">${pkg.priceUsd}</span>
+                      )}
+                    </div>
+                    {discountAward && (
+                      <span className="text-xs font-bold uppercase tracking-wide text-accent">
+                        {discountAward.discountPercent}% off
+                      </span>
+                    )}
+                  </div>
+
+                  <ul className="flex flex-col gap-2">
+                    {PACKAGE_FEATURES.map((feature) => (
+                      <li key={feature} className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
                   <button
                     onClick={() => setActivePackage(key)}
-                    className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-bold uppercase tracking-wide text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                   >
-                    Get Listed
+                    {discountAward ? `Use ${discountAward.discountPercent}% discount` : "Enter the Arena"}
+                    <ArrowRight className="h-4 w-4" />
                   </button>
+
+                  <p className={`text-center text-xs leading-relaxed ${featured ? "text-white/40" : "text-muted"}`}>
+                    {copy.taglineLines[0]}
+                    <br />
+                    {copy.taglineLines[1]}
+                  </p>
                 </div>
               );
             })}
@@ -200,7 +317,7 @@ export default function GetListedPage() {
           </span>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Discount Drop</h2>
           <p className="text-sm text-muted">
-            A 45-second reaction game — hit the targets, avoid the decoys — that can unlock up to 60% off your
+            A 45-second reaction game (hit the targets, avoid the decoys) that can unlock up to 60% off your
             package. Every score is verified server-side. Playing is never required; every package above is always
             available at full price.
           </p>
@@ -243,7 +360,7 @@ export default function GetListedPage() {
             <p className="text-sm text-muted">
               <strong className="text-ink">This package covers manual submission work, not guaranteed live
               listings.</strong> Third-party directories control their own approval decisions, review times,
-              policies, and rejections — we can&apos;t influence or speed those up.
+              policies, and rejections. We can&apos;t influence or speed those up.
             </p>
           </div>
           <div className="flex flex-col gap-4">

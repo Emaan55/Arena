@@ -303,7 +303,7 @@ export function SponsoredSection({
                         <p className="p-3 text-center text-xs text-muted">Loading…</p>
                       ) : arenaProducts.length === 0 ? (
                         <p className="p-3 text-center text-xs text-muted">
-                          No Arena products found — try External Product instead.
+                          No Arena products found, try External Product instead.
                         </p>
                       ) : (
                         arenaProducts.map((p) => (
@@ -403,7 +403,7 @@ export function SponsoredSection({
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-xs font-semibold text-ink">{reviewName}</span>
                       <span className="text-[10px] text-muted">
-                        {reviewCategory} · {duration} days — {SPONSOR_PRICE_LABELS[duration]}
+                        {reviewCategory} · {duration} days, {SPONSOR_PRICE_LABELS[duration]}
                       </span>
                     </div>
                   </div>
@@ -511,7 +511,7 @@ export function SponsoredSection({
                 <div className="flex flex-col gap-0.5">
                   <h2 className="font-display text-base font-bold text-ink">This spot is open</h2>
                   <p className="text-xs text-muted">
-                    Be the first featured sponsor — your product goes live here the moment you sponsor it.
+                    Be the first featured sponsor. Your product goes live here the moment you sponsor it.
                   </p>
                 </div>
               </div>

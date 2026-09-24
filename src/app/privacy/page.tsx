@@ -8,11 +8,11 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-16">
       <h1 className="font-display text-2xl font-bold text-ink">Privacy Policy</h1>
-      <p className="text-xs text-muted">Version {PRIVACY_VERSION} — placeholder text, pending legal review.</p>
+      <p className="text-xs text-muted">Version {PRIVACY_VERSION}, placeholder text, pending legal review.</p>
       <div className="flex flex-col gap-4 text-sm text-muted">
         <p>
           THE ARENA stores your email address and authentication details via Supabase Auth to identify your account.
-          If you sign up with a password, only Supabase ever handles that password — we never see or store it
+          If you sign up with a password, only Supabase ever handles that password. We never see or store it
           ourselves.
         </p>
         <p>

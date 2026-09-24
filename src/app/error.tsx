@@ -20,7 +20,7 @@ export default function GlobalError({
         Something went wrong in the arena
       </h1>
       <p className="max-w-sm text-sm text-muted">
-        That&apos;s on us, not you. Try again in a moment — if it keeps happening, the
+        That&apos;s on us, not you. Try again in a moment. If it keeps happening, the
         underlying service may be temporarily unavailable.
       </p>
       <button

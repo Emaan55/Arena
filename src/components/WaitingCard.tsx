@@ -62,7 +62,7 @@ export function WaitingCard({
           <XHandleLink handle={product.x_handle} />
           {variant === "unique" && (
             <p className="text-xs leading-snug text-muted">
-              No rival showed up within 7 days — still open to a challenge, no win awarded.
+              No rival showed up within 7 days, still open to a challenge, no win awarded.
             </p>
           )}
         </div>

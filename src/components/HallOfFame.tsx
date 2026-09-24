@@ -19,7 +19,7 @@ export function HallOfFame({
   if (champions.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
-        No champions crowned yet — win 3 duels in a row to claim the throne.
+        No champions crowned yet, win 3 duels in a row to claim the throne.
       </p>
     );
   }

@@ -189,7 +189,7 @@ export default function DiscountDropPage() {
         .then((d) => setLeaderboard(d.leaderboard ?? []))
         .catch(() => {});
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
       setPhase("ready");
     }
   }, [loadStatus]);
@@ -246,7 +246,7 @@ export default function DiscountDropPage() {
       setPhase("playing");
       tickRef.current = setInterval(tick, 50);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     }
   }
 
@@ -290,7 +290,7 @@ export default function DiscountDropPage() {
       }
       router.push(`/get-listed?discountAward=${award.id}`);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     }
   }
 
@@ -332,7 +332,7 @@ export default function DiscountDropPage() {
         </span>
         <h1 className="font-display text-3xl font-black uppercase text-ink">Hit the targets. Unlock a discount.</h1>
         <p className="max-w-md text-sm text-muted">
-          45 seconds. Tap the cyan targets, avoid the red decoys. Speed and accuracy decide your discount — up to 60%
+          45 seconds. Tap the cyan targets, avoid the red decoys. Speed and accuracy decide your discount, up to 60%
           off.
         </p>
       </div>
@@ -366,7 +366,7 @@ export default function DiscountDropPage() {
             </>
           ) : (
             <>
-              <p className="text-sm text-ink">You&apos;ve completed the requirement — come back soon for another attempt.</p>
+              <p className="text-sm text-ink">You&apos;ve completed the requirement. Come back soon for another attempt.</p>
               {status.nextAttemptAt && (
                 <p className="text-sm text-muted">Next attempt unlocks {new Date(status.nextAttemptAt).toLocaleString()}</p>
               )}
@@ -383,7 +383,7 @@ export default function DiscountDropPage() {
           >
             Start
           </button>
-          <p className="text-xs text-muted">One attempt starts now — make it count.</p>
+          <p className="text-xs text-muted">One attempt starts now, make it count.</p>
         </div>
       )}
 
@@ -398,7 +398,7 @@ export default function DiscountDropPage() {
               <button
                 key={event.id}
                 onClick={() => handleHit(event)}
-                aria-label={event.type === "target" ? "Target" : "Decoy — avoid"}
+                aria-label={event.type === "target" ? "Target" : "Decoy, avoid"}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full shadow-lg transition-transform active:scale-90 ${
                   event.type === "target" ? "bg-accent shadow-[0_0_20px_rgba(0,180,216,0.6)]" : "bg-danger shadow-[0_0_20px_rgba(255,59,48,0.5)]"
                 }`}
@@ -462,7 +462,7 @@ export default function DiscountDropPage() {
           Discount Drop Leaderboard
         </h2>
         {leaderboard.length === 0 ? (
-          <p className="text-sm text-muted">No verified runs yet — be the first.</p>
+          <p className="text-sm text-muted">No verified runs yet, be the first.</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-left text-sm">

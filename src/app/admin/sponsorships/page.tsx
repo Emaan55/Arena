@@ -33,7 +33,7 @@ interface AdminData {
 }
 
 function formatDate(iso: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
@@ -155,7 +155,7 @@ export default function AdminSponsorshipsPage() {
       }
       setData(json);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     }
   }, []);
 
@@ -360,7 +360,7 @@ export default function AdminSponsorshipsPage() {
             </button>
           </div>
         ) : (
-          <p className="text-sm text-muted">No active sponsor — the next queued product will be promoted automatically.</p>
+          <p className="text-sm text-muted">No active sponsor. The next queued product will be promoted automatically.</p>
         )}
       </section>
 
@@ -418,7 +418,7 @@ export default function AdminSponsorshipsPage() {
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <h2 className="font-display text-sm font-bold text-ink">Add a sponsor (free — founder only)</h2>
+        <h2 className="font-display text-sm font-bold text-ink">Add a sponsor (free, founder only)</h2>
 
         <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface-2 p-1">
           <button

@@ -20,7 +20,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`auth:sign-up:${ip}`, 8, 60 * 1000)) {
-    return NextResponse.json({ error: "Slow down — too many attempts." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many attempts." }, { status: 429 });
   }
 
   let body: unknown;

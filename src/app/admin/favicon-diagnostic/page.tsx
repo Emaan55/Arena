@@ -25,8 +25,8 @@ interface DiagnosticResult {
 const STATUS_LABEL: Record<DiagnosticResult["status"], string> = {
   pending: "Pending",
   success: "Resolved",
-  temporary_failure: "Temporary failure — will retry",
-  not_found: "No favicon found — will retry",
+  temporary_failure: "Temporary failure, will retry",
+  not_found: "No favicon found, will retry",
 };
 
 /**
@@ -90,7 +90,7 @@ export default function FaviconDiagnosticPage() {
       }
       setResult(json);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export default function FaviconDiagnosticPage() {
         <h1 className="font-display text-2xl font-bold text-ink">Favicon Diagnostic</h1>
         <p className="text-sm text-muted">
           Runs the real discovery pipeline against any URL and shows exactly which strategy
-          succeeded or why every one failed — no guessing.
+          succeeded or why every one failed, no guessing.
         </p>
       </div>
 
@@ -189,7 +189,7 @@ export default function FaviconDiagnosticPage() {
                     <span className="text-xs font-semibold text-ink">{a.strategy}</span>
                     <span className="break-all text-xs text-muted">{a.url}</span>
                     <span className="text-xs text-muted">
-                      status={a.status ?? "—"} · type={a.contentType ?? "—"} · redirects={a.redirects} · {a.reason}
+                      status={a.status ?? "-"} · type={a.contentType ?? "-"} · redirects={a.redirects} · {a.reason}
                       {a.retryable ? " (retryable)" : ""}
                     </span>
                   </div>

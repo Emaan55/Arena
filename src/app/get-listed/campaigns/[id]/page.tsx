@@ -101,7 +101,7 @@ export default function CampaignDetailPage() {
         window.open(data.url, "_blank", "noopener,noreferrer");
       }
     } catch {
-      setPayError("Network error — please try again.");
+      setPayError("Network error, please try again.");
     } finally {
       setPaying(false);
     }
@@ -178,7 +178,7 @@ export default function CampaignDetailPage() {
                   )}
                 </>
               ) : (
-                `$${pkg?.priceUsd ?? "—"}`
+                `$${pkg?.priceUsd ?? "-"}`
               )}
             </span>
           </div>
@@ -237,7 +237,7 @@ export default function CampaignDetailPage() {
               <h2 className="font-display text-lg font-bold text-ink">Payment processing…</h2>
               <p className="max-w-md text-sm text-muted">
                 {justReturnedFromCheckout
-                  ? "We're confirming your payment with LemonSqueezy. This page will update automatically — no need to refresh."
+                  ? "We're confirming your payment with LemonSqueezy. This page will update automatically, no need to refresh."
                   : "A checkout is already in progress for this campaign. If you completed payment, this page will update automatically."}
               </p>
             </>
@@ -268,7 +268,7 @@ export default function CampaignDetailPage() {
         <h2 className="font-display text-lg font-bold text-ink">Submissions</h2>
         {submissions.length === 0 ? (
           <p className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">
-            No submissions recorded yet — your report will update as our team works through your campaign.
+            No submissions recorded yet. Your report will update as our team works through your campaign.
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border">
@@ -304,10 +304,10 @@ export default function CampaignDetailPage() {
                           View
                         </a>
                       ) : (
-                        <span className="text-muted">—</span>
+                        <span className="text-muted">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-muted">{s.notes || "—"}</td>
+                    <td className="px-4 py-2 text-muted">{s.notes || "-"}</td>
                   </tr>
                 ))}
               </tbody>

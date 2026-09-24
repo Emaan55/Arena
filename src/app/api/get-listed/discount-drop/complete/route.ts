@@ -22,7 +22,7 @@ import type { ChallengeEvent } from "@/lib/discount-drop/schedule";
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`discount-drop:complete:${ip}`, 10, 60 * 1000)) {
-    return NextResponse.json({ error: "Slow down — too many requests." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many requests." }, { status: 429 });
   }
 
   const supabaseAuth = await createRouteHandlerSupabaseClient();

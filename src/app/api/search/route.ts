@@ -11,7 +11,7 @@ const RESULT_LIMIT = 20;
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`search:${ip}`, 60, 60 * 1000)) {
-    return NextResponse.json({ error: "Slow down — too many searches." }, { status: 429 });
+    return NextResponse.json({ error: "Slow down, too many searches." }, { status: 429 });
   }
 
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY_LEN);

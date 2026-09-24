@@ -110,7 +110,7 @@ function BoostMove({
         productId={productId}
         matchId={matchId}
         onPaid={onPaid}
-        label={`${BOOST_PRICE_LABEL} — Boost ${name}`}
+        label={`${BOOST_PRICE_LABEL}: Boost ${name}`}
         className={`w-full rounded-lg px-3 py-2 text-xs font-semibold shadow-none transition-all duration-150 ease-out active:scale-95 ${
           nearLoss
             ? "border border-danger bg-danger/10 text-danger hover:bg-danger hover:text-danger-ink"
@@ -118,7 +118,7 @@ function BoostMove({
         }`}
       />
       <p className="text-[10px] leading-snug text-muted">
-        Boost changes the vote count — it doesn&apos;t guarantee the win.
+        Boost changes the vote count. It doesn&apos;t guarantee the win.
       </p>
     </div>
   );
@@ -313,7 +313,7 @@ export function MatchCard({
   const aNearLoss = match.votes_b === NEAR_LOSS_THRESHOLD && match.votes_a < VOTES_TO_WIN;
   const bNearLoss = match.votes_a === NEAR_LOSS_THRESHOLD && match.votes_b < VOTES_TO_WIN;
 
-  const shareText = `${match.product_a.name} vs ${match.product_b.name} is heating up in ${match.category} on The Arena — cast your vote!`;
+  const shareText = `${match.product_a.name} vs ${match.product_b.name} is heating up in ${match.category} on The Arena, cast your vote!`;
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/?join=${encodeURIComponent(match.category)}`

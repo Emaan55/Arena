@@ -76,7 +76,7 @@ export default function AdminGetListedQueuePage() {
                   <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                 </div>
                 <span className="text-xs text-muted">
-                  {c.submission_count}/{c.submission_target} submissions · {c.owner_email ?? "—"}
+                  {c.submission_count}/{c.submission_target} submissions · {c.owner_email ?? "-"}
                 </span>
               </Link>
             );

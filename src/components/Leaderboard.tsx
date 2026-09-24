@@ -50,7 +50,7 @@ export function Leaderboard({ products }: { products: Product[] }) {
 
       {products.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          No active win streaks yet — submit a product and start fighting.
+          No active win streaks yet, submit a product and start fighting.
         </div>
       ) : (
         <ul className="flex flex-col gap-3">

@@ -6,7 +6,7 @@ export default function NotFound() {
       <span className="text-3xl">🔍</span>
       <h1 className="font-display text-2xl font-semibold text-ink">Nothing here</h1>
       <p className="max-w-sm text-sm text-muted">
-        This product or page doesn&apos;t exist — maybe it was never submitted, or the
+        This product or page doesn&apos;t exist. Maybe it was never submitted, or the
         link is off.
       </p>
       <Link

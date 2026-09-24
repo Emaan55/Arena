@@ -226,7 +226,7 @@ export async function markStaleWaitingProductsUnique(admin: AdminClient) {
     await admin.from("products").update({ status: "unique" }).eq("id", product.id);
     await logActivity(
       admin,
-      `🦄 ${product.name} found no challenger in ${product.category} after 7 days — marked as a Unique Product (still open to a challenge, no win awarded)`,
+      `🦄 ${product.name} found no challenger in ${product.category} after 7 days, marked as a Unique Product (still open to a challenge, no win awarded)`,
     );
   }
 }

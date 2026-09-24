@@ -58,7 +58,7 @@ export function ProductEditor({
   if (!editable) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface-2 p-4 text-sm text-muted sm:p-5">
-        The 24-hour editing window for this product has closed — Battle Pitch, Why Us,
+        The 24-hour editing window for this product has closed. Battle Pitch, Why Us,
         differentiators, and the X handle are now locked in for the rest of the competition.
       </div>
     );
@@ -90,7 +90,7 @@ export function ProductEditor({
       setSuccess(true);
       router.refresh();
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setSaving(false);
     }
