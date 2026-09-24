@@ -70,6 +70,15 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-border">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-6 py-5 sm:justify-start md:px-10">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
+          <a href="https://www.scrolllaunch.com/products/the-arena?ref=badge" target="_blank" rel="noopener">
+            <img src="https://www.scrolllaunch.com/api/badge/the-arena" alt="Featured on ScrollLaunch" width="220" height="48" loading="lazy" />
+          </a>
+        </div>
+      </div>
+
+      <div className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col-reverse items-center gap-3 px-6 py-6 text-center sm:flex-row sm:justify-between sm:text-left md:px-10">
           <p className="text-xs text-muted">© 2026 THE ARENA. Better products. Bigger opportunities.</p>
           <a
