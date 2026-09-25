@@ -3,11 +3,21 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, RotateCcw, ExternalLink } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
-import type { Campaign, CampaignStatus, Order, Submission, SubmissionStatus } from "@/types/database";
-import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
+import {
+  CATEGORIES,
+  type AdminAuditLog,
+  type Campaign,
+  type CampaignStatus,
+  type Category,
+  type Order,
+  type Submission,
+  type SubmissionStatus,
+} from "@/types/database";
+import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
+import type { AdminPaymentStatus, SubmissionSummary } from "@/lib/get-listed/admin";
 
 type CampaignWithOwner = Campaign & { owner_email: string | null };
 
@@ -19,8 +29,66 @@ const ORDER_STATUS_STYLE: Record<Order["payment_status"], string> = {
   cancelled: "bg-surface-2 text-muted",
 };
 
+const PAYMENT_LABEL: Record<AdminPaymentStatus, string> = {
+  no_order: "No order",
+  pending: "Pending",
+  paid: "Paid",
+  failed: "Failed",
+  refunded: "Refunded",
+  cancelled: "Cancelled",
+};
+
+const PAYMENT_STYLE: Record<AdminPaymentStatus, string> = {
+  no_order: "bg-surface-2 text-muted",
+  pending: "bg-surface-2 text-muted",
+  paid: "bg-[#16a34a]/10 text-[#16a34a]",
+  failed: "bg-danger/10 text-danger",
+  refunded: "bg-danger/10 text-danger",
+  cancelled: "bg-surface-2 text-muted",
+};
+
 const CAMPAIGN_STATUSES: CampaignStatus[] = ["draft", "awaiting_payment", "active", "in_progress", "completed", "cancelled"];
 const SUBMISSION_STATUSES: SubmissionStatus[] = ["pending", "submitted", "accepted", "rejected"];
+
+const ACTION_LABEL: Record<string, string> = {
+  status_changed: "Fulfillment status changed",
+  campaign_edited: "Campaign edited",
+  campaign_deleted: "Campaign deleted",
+  campaign_restored: "Campaign restored",
+  submission_added: "Submission added",
+  submission_edited: "Submission edited",
+  submission_status_changed: "Submission status changed",
+  payment_reconciled: "Payment reconciled manually",
+  payment_received: "Payment received",
+};
+
+function describeAudit(entry: AdminAuditLog): string {
+  const meta = (entry.metadata ?? {}) as Record<string, unknown>;
+  switch (entry.action) {
+    case "status_changed":
+      return `${meta.from} → ${meta.to}`;
+    case "campaign_edited":
+      return Array.isArray(meta.changed_fields) ? `Changed: ${meta.changed_fields.join(", ")}` : "";
+    case "campaign_deleted":
+      return typeof meta.reason === "string" && meta.reason ? `Reason: ${meta.reason}` : "";
+    case "submission_added":
+      return typeof meta.directory === "string" ? `${meta.directory} (${meta.status ?? "pending"})` : "";
+    case "submission_edited":
+    case "submission_status_changed":
+      return [
+        typeof meta.directory === "string" ? meta.directory : null,
+        Array.isArray(meta.changed_fields) ? `changed: ${meta.changed_fields.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+    case "payment_reconciled":
+      return typeof meta.payment_reference === "string" ? `Reference: ${meta.payment_reference}` : "";
+    case "payment_received":
+      return typeof meta.provider_order_id === "string" ? `LemonSqueezy order ${meta.provider_order_id}` : "";
+    default:
+      return "";
+  }
+}
 
 export default function AdminCampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -29,7 +97,14 @@ export default function AdminCampaignDetailPage() {
   const [campaign, setCampaign] = useState<CampaignWithOwner | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [auditLog, setAuditLog] = useState<AdminAuditLog[]>([]);
+  const [paymentStatus, setPaymentStatus] = useState<AdminPaymentStatus>("no_order");
+  const [summary, setSummary] = useState<SubmissionSummary | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // One shared "acting as" name, used for every mutating action on this
+  // page rather than re-asking per action — see admin_audit_logs.
+  const [adminName, setAdminName] = useState("");
 
   const [newSub, setNewSub] = useState({ directoryName: "", directoryUrl: "", status: "pending" as SubmissionStatus, listingUrl: "", notes: "" });
   const [adding, setAdding] = useState(false);
@@ -38,6 +113,24 @@ export default function AdminCampaignDetailPage() {
   const [reconciling, setReconciling] = useState(false);
   const [reconcileError, setReconcileError] = useState<string | null>(null);
   const [reconcileOpen, setReconcileOpen] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    startupName: "",
+    websiteUrl: "",
+    description: "",
+    category: "" as Category | "",
+    xUrl: "",
+    linkedinUrl: "",
+    otherUrl: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function load() {
     if (!secret) return;
@@ -55,6 +148,144 @@ export default function AdminCampaignDetailPage() {
     setCampaign(data.campaign);
     setSubmissions(data.submissions ?? []);
     setOrders(data.orders ?? []);
+    setAuditLog(data.auditLog ?? []);
+    setPaymentStatus(data.paymentStatus ?? "no_order");
+    setSummary(data.submissionSummary ?? null);
+    setEditForm({
+      startupName: data.campaign.startup_name,
+      websiteUrl: data.campaign.website_url,
+      description: data.campaign.description,
+      category: data.campaign.category,
+      xUrl: data.campaign.x_url ?? "",
+      linkedinUrl: data.campaign.linkedin_url ?? "",
+      otherUrl: data.campaign.other_url ?? "",
+    });
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching admin data on unlock/navigation, not a render-driven derivation
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secret, params.id]);
+
+  if (!secret) return <AdminUnlockForm onUnlock={unlock} error={error} />;
+  if (error) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-danger">{error}</main>;
+  if (!campaign) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-muted">Loading…</main>;
+
+  const isDeleted = Boolean(campaign.deleted_at);
+
+  async function addSubmission(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSub.directoryName.trim() || !secret) return;
+    setAdding(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/submissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ ...newSub, adminName }),
+      });
+      if (res.ok) {
+        setNewSub({ directoryName: "", directoryUrl: "", status: "pending", listingUrl: "", notes: "" });
+        await load();
+      }
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function updateSubmission(id: string, patch: Partial<{ status: SubmissionStatus; listingUrl: string; notes: string; directoryUrl: string }>) {
+    if (!secret) return;
+    await fetch(`/api/admin/get-listed/submissions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+      body: JSON.stringify({ ...patch, adminName }),
+    });
+    await load();
+  }
+
+  async function updateCampaignStatus(status: CampaignStatus) {
+    if (!secret) return;
+    setStatusError(null);
+    const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+      body: JSON.stringify({ status, adminName }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setStatusError(data.error ?? "Could not update status.");
+      return;
+    }
+    await load();
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!secret) return;
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({
+          startupName: editForm.startupName,
+          websiteUrl: editForm.websiteUrl,
+          description: editForm.description,
+          category: editForm.category,
+          xUrl: editForm.xUrl,
+          linkedinUrl: editForm.linkedinUrl,
+          otherUrl: editForm.otherUrl,
+          adminName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditError(data.error ?? "Could not save changes.");
+        return;
+      }
+      setEditOpen(false);
+      await load();
+    } catch {
+      setEditError("Network error, please try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function deleteCampaign() {
+    if (!secret) return;
+    setDeleteError(null);
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ adminName, reason: deleteReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteError(data.error ?? "Could not delete campaign.");
+        return;
+      }
+      setDeleteOpen(false);
+      setDeleteReason("");
+      await load();
+    } catch {
+      setDeleteError("Network error, please try again.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  async function restoreCampaign() {
+    if (!secret) return;
+    await fetch(`/api/admin/get-listed/campaigns/${params.id}/restore`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+      body: JSON.stringify({ adminName }),
+    });
+    await load();
   }
 
   async function reconcilePayment(e: React.FormEvent) {
@@ -66,7 +297,7 @@ export default function AdminCampaignDetailPage() {
       const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/reconcile-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-        body: JSON.stringify(reconcile),
+        body: JSON.stringify({ ...reconcile, adminName: reconcile.adminName || adminName }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -83,62 +314,11 @@ export default function AdminCampaignDetailPage() {
     }
   }
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching admin data on unlock/navigation, not a render-driven derivation
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secret, params.id]);
-
-  if (!secret) return <AdminUnlockForm onUnlock={unlock} error={error} />;
-  if (error) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-danger">{error}</main>;
-  if (!campaign) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-muted">Loading…</main>;
-
-  async function addSubmission(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newSub.directoryName.trim() || !secret) return;
-    setAdding(true);
-    try {
-      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/submissions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-        body: JSON.stringify(newSub),
-      });
-      if (res.ok) {
-        setNewSub({ directoryName: "", directoryUrl: "", status: "pending", listingUrl: "", notes: "" });
-        await load();
-      }
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  async function updateSubmission(id: string, patch: Partial<{ status: SubmissionStatus; listingUrl: string; notes: string }>) {
-    if (!secret) return;
-    await fetch(`/api/admin/get-listed/submissions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-      body: JSON.stringify(patch),
-    });
-    await load();
-  }
-
-  async function updateCampaignStatus(status: CampaignStatus) {
-    if (!secret) return;
-    setStatusError(null);
-    const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-      body: JSON.stringify({ status }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setStatusError(data.error ?? "Could not update status.");
-      return;
-    }
-    await load();
-  }
-
-  const pkg = GET_LISTED_PACKAGES[campaign.package_key as keyof typeof GET_LISTED_PACKAGES];
+  const pkg = GET_LISTED_PACKAGES[campaign.package_key as GetListedPackageKey];
+  // Historical package snapshot — prefer the most relevant order's actual
+  // charged amount over recomputing from current config, since pricing can
+  // change over time and this campaign already paid whatever it paid.
+  const relevantOrder = orders.find((o) => o.payment_status === "paid") ?? orders[0] ?? null;
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-12">
@@ -147,45 +327,268 @@ export default function AdminCampaignDetailPage() {
         All campaigns
       </Link>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-xl font-bold text-ink">{campaign.startup_name}</h1>
-          <select
-            value={campaign.status}
-            onChange={(e) => updateCampaignStatus(e.target.value as CampaignStatus)}
-            className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-ink"
+      <input
+        value={adminName}
+        onChange={(e) => setAdminName(e.target.value)}
+        placeholder="Your name (attributed on the activity log below)"
+        className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted"
+      />
+
+      {isDeleted && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-danger bg-danger/5 p-4">
+          <div>
+            <p className="text-sm font-bold uppercase text-danger">This campaign is deleted</p>
+            <p className="text-xs text-muted">
+              Deleted by {campaign.deleted_by ?? "unknown"} on {campaign.deleted_at && new Date(campaign.deleted_at).toLocaleString()}.
+              Payment and submission history are preserved.
+            </p>
+          </div>
+          <button
+            onClick={restoreCampaign}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink"
           >
-            {CAMPAIGN_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Restore campaign
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-xl font-bold text-ink">{campaign.startup_name}</h1>
+            <p className="text-xs text-muted">
+              ID {campaign.id} · Created {new Date(campaign.created_at).toLocaleString()} · Updated{" "}
+              {new Date(campaign.updated_at).toLocaleString()}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${PAYMENT_STYLE[paymentStatus]}`}>
+              Payment: {PAYMENT_LABEL[paymentStatus]}
+            </span>
+            <select
+              value={campaign.status}
+              disabled={isDeleted}
+              onChange={(e) => updateCampaignStatus(e.target.value as CampaignStatus)}
+              className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-ink disabled:opacity-50"
+            >
+              {CAMPAIGN_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {statusError && <p className="text-sm text-danger">{statusError}</p>}
-        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <div>
-            <span className="block text-xs uppercase tracking-wide text-muted">Owner</span>
-            <span className="text-ink">{campaign.owner_email ?? "-"}</span>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/get-listed/campaigns/${campaign.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View customer report
+          </a>
+          <button
+            onClick={() => setEditOpen((v) => !v)}
+            disabled={isDeleted}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editOpen ? "Cancel edit" : "Edit campaign"}
+          </button>
+          {!isDeleted && (
+            <button
+              onClick={() => setDeleteOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-danger/40 bg-bg px-3 py-1.5 text-xs font-semibold text-danger hover:border-danger"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete campaign
+            </button>
+          )}
+        </div>
+
+        {deleteOpen && (
+          <div className="flex flex-col gap-2 rounded-xl border border-danger/40 bg-danger/5 p-4">
+            <p className="text-sm font-semibold text-ink">Delete this campaign?</p>
+            <p className="text-xs text-muted">
+              This will hide the campaign from the active campaign list. Payment and fulfillment history will be
+              preserved, and it can be restored later.
+            </p>
+            <input
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Reason (optional)"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+            />
+            {deleteError && <p className="text-sm text-danger">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteOpen(false)}
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-ink"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteCampaign}
+                disabled={deleteBusy}
+                className="rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-danger-ink disabled:opacity-50"
+              >
+                {deleteBusy ? "Deleting…" : "Delete Campaign"}
+              </button>
+            </div>
           </div>
-          <div>
-            <span className="block text-xs uppercase tracking-wide text-muted">Package</span>
-            <span className="text-ink">{pkg?.label ?? campaign.package_key} (${pkg?.priceUsd})</span>
+        )}
+
+        {editOpen ? (
+          <form onSubmit={saveEdit} className="flex flex-col gap-2 rounded-xl border border-border bg-bg p-4">
+            <input
+              required
+              value={editForm.startupName}
+              onChange={(e) => setEditForm((f) => ({ ...f, startupName: e.target.value }))}
+              placeholder="Startup name"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            />
+            <input
+              required
+              value={editForm.websiteUrl}
+              onChange={(e) => setEditForm((f) => ({ ...f, websiteUrl: e.target.value }))}
+              placeholder="Website URL"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            />
+            <textarea
+              required
+              rows={3}
+              value={editForm.description}
+              onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Description"
+              className="resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            />
+            <select
+              value={editForm.category}
+              onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value as Category }))}
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <input
+                value={editForm.xUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, xUrl: e.target.value }))}
+                placeholder="X URL (optional)"
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+              />
+              <input
+                value={editForm.linkedinUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, linkedinUrl: e.target.value }))}
+                placeholder="LinkedIn URL (optional)"
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+              />
+              <input
+                value={editForm.otherUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, otherUrl: e.target.value }))}
+                placeholder="Other URL (optional)"
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+              />
+            </div>
+            {editError && <p className="text-sm text-danger">{editError}</p>}
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="w-fit rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
+            >
+              {editSaving ? "Saving…" : "Save changes"}
+            </button>
+          </form>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Owner</span>
+              <span className="text-ink">{campaign.owner_email ?? "-"}</span>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Category</span>
+              <span className="text-ink">{campaign.category}</span>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Website</span>
+              <a href={campaign.website_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                Visit
+              </a>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Links</span>
+              <span className="flex gap-2 text-xs text-accent">
+                {campaign.x_url && <a href={campaign.x_url} target="_blank" rel="noreferrer" className="hover:underline">X</a>}
+                {campaign.linkedin_url && <a href={campaign.linkedin_url} target="_blank" rel="noreferrer" className="hover:underline">LinkedIn</a>}
+                {campaign.other_url && <a href={campaign.other_url} target="_blank" rel="noreferrer" className="hover:underline">Other</a>}
+                {!campaign.x_url && !campaign.linkedin_url && !campaign.other_url && <span className="text-muted">-</span>}
+              </span>
+            </div>
+            <p className="col-span-2 text-sm text-muted sm:col-span-4">{campaign.description}</p>
           </div>
-          <div>
-            <span className="block text-xs uppercase tracking-wide text-muted">Progress</span>
-            <span className="text-ink">
-              {submissions.length}/{campaign.submission_target}
-            </span>
-          </div>
-          <div>
-            <span className="block text-xs uppercase tracking-wide text-muted">Website</span>
-            <a href={campaign.website_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-              Visit
-            </a>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <h2 className="font-display text-base font-bold text-ink">Package</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Package</span>
+              <span className="text-ink">{pkg?.label ?? campaign.package_key}</span>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Target</span>
+              <span className="text-ink">{campaign.submission_target} submissions</span>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Amount charged</span>
+              <span className="text-ink">
+                {relevantOrder ? `$${(relevantOrder.final_amount / 100).toFixed(2)}` : `~$${pkg?.priceUsd ?? "-"} (estimate, no order yet)`}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs uppercase tracking-wide text-muted">Currency</span>
+              <span className="text-ink">{relevantOrder?.currency ?? "USD"}</span>
+            </div>
           </div>
         </div>
-        <p className="text-sm text-muted">{campaign.description}</p>
+
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <h2 className="font-display text-base font-bold text-ink">Submission summary</h2>
+          {summary && (
+            <div className="grid grid-cols-3 gap-3 text-center text-xs">
+              <div className="rounded-lg bg-surface-2 py-2">
+                <span className="block font-display text-lg font-bold text-ink">{summary.submitted}</span>
+                Submitted
+              </div>
+              <div className="rounded-lg bg-surface-2 py-2">
+                <span className="block font-display text-lg font-bold text-[#16a34a]">{summary.accepted}</span>
+                Accepted
+              </div>
+              <div className="rounded-lg bg-surface-2 py-2">
+                <span className="block font-display text-lg font-bold text-muted">{summary.pending}</span>
+                Pending
+              </div>
+              <div className="rounded-lg bg-surface-2 py-2">
+                <span className="block font-display text-lg font-bold text-danger">{summary.rejected}</span>
+                Rejected
+              </div>
+              <div className="col-span-2 rounded-lg bg-accent-soft/20 py-2">
+                <span className="block font-display text-lg font-bold text-accent">{summary.remaining}</span>
+                Remaining of {summary.target}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -193,7 +596,8 @@ export default function AdminCampaignDetailPage() {
           <h2 className="font-display text-base font-bold text-ink">Payments</h2>
           <button
             onClick={() => setReconcileOpen((v) => !v)}
-            className="rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+            disabled={isDeleted}
+            className="rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent disabled:opacity-50"
           >
             Reconcile Payment &amp; Activate
           </button>
@@ -254,12 +658,6 @@ export default function AdminCampaignDetailPage() {
               placeholder="Reason (e.g. webhook never arrived, confirmed paid via LS dashboard)"
               className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
             />
-            <input
-              value={reconcile.adminName}
-              onChange={(e) => setReconcile((r) => ({ ...r, adminName: e.target.value }))}
-              placeholder="Your name (optional)"
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
-            />
             {reconcileError && <p className="text-sm text-danger">{reconcileError}</p>}
             <button
               type="submit"
@@ -277,21 +675,24 @@ export default function AdminCampaignDetailPage() {
         <form onSubmit={addSubmission} className="grid grid-cols-1 gap-2 sm:grid-cols-5">
           <input
             required
+            disabled={isDeleted}
             value={newSub.directoryName}
             onChange={(e) => setNewSub((s) => ({ ...s, directoryName: e.target.value }))}
             placeholder="Directory name"
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted sm:col-span-2"
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted sm:col-span-2 disabled:opacity-50"
           />
           <input
+            disabled={isDeleted}
             value={newSub.directoryUrl}
             onChange={(e) => setNewSub((s) => ({ ...s, directoryUrl: e.target.value }))}
             placeholder="Directory URL"
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted"
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted disabled:opacity-50"
           />
           <select
+            disabled={isDeleted}
             value={newSub.status}
             onChange={(e) => setNewSub((s) => ({ ...s, status: e.target.value as SubmissionStatus }))}
-            className="rounded-lg border border-border bg-bg px-2 py-2 text-sm text-ink"
+            className="rounded-lg border border-border bg-bg px-2 py-2 text-sm text-ink disabled:opacity-50"
           >
             {SUBMISSION_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -301,7 +702,7 @@ export default function AdminCampaignDetailPage() {
           </select>
           <button
             type="submit"
-            disabled={adding}
+            disabled={adding || isDeleted}
             className="flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
@@ -315,48 +716,93 @@ export default function AdminCampaignDetailPage() {
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-2">Directory</th>
+              <th className="px-4 py-2">Directory URL</th>
               <th className="px-4 py-2">Status</th>
               <th className="px-4 py-2">Listing URL</th>
+              <th className="px-4 py-2">Submitted</th>
               <th className="px-4 py-2">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-surface">
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td className="px-4 py-2 text-ink">{s.directory_name}</td>
-                <td className="px-4 py-2">
-                  <select
-                    value={s.status}
-                    onChange={(e) => updateSubmission(s.id, { status: e.target.value as SubmissionStatus })}
-                    className="rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink"
-                  >
-                    {SUBMISSION_STATUSES.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-2">
-                  <input
-                    defaultValue={s.listing_url ?? ""}
-                    onBlur={(e) => e.target.value !== (s.listing_url ?? "") && updateSubmission(s.id, { listingUrl: e.target.value })}
-                    placeholder="https://…"
-                    className="w-full rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink placeholder:text-muted"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <input
-                    defaultValue={s.notes ?? ""}
-                    onBlur={(e) => e.target.value !== (s.notes ?? "") && updateSubmission(s.id, { notes: e.target.value })}
-                    placeholder="Notes"
-                    className="w-full rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink placeholder:text-muted"
-                  />
+            {submissions.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
+                  No submissions yet. Start by adding the first directory submission above.
                 </td>
               </tr>
-            ))}
+            ) : (
+              submissions.map((s) => (
+                <tr key={s.id}>
+                  <td className="px-4 py-2 text-ink">{s.directory_name}</td>
+                  <td className="px-4 py-2">
+                    <input
+                      disabled={isDeleted}
+                      defaultValue={s.directory_url ?? ""}
+                      onBlur={(e) => e.target.value !== (s.directory_url ?? "") && updateSubmission(s.id, { directoryUrl: e.target.value })}
+                      placeholder="https://…"
+                      className="w-full rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink placeholder:text-muted disabled:opacity-50"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <select
+                      disabled={isDeleted}
+                      value={s.status}
+                      onChange={(e) => updateSubmission(s.id, { status: e.target.value as SubmissionStatus })}
+                      className="rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink disabled:opacity-50"
+                    >
+                      {SUBMISSION_STATUSES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      disabled={isDeleted}
+                      defaultValue={s.listing_url ?? ""}
+                      onBlur={(e) => e.target.value !== (s.listing_url ?? "") && updateSubmission(s.id, { listingUrl: e.target.value })}
+                      placeholder="https://…"
+                      className="w-full rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink placeholder:text-muted disabled:opacity-50"
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "-"}</td>
+                  <td className="px-4 py-2">
+                    <input
+                      disabled={isDeleted}
+                      defaultValue={s.notes ?? ""}
+                      onBlur={(e) => e.target.value !== (s.notes ?? "") && updateSubmission(s.id, { notes: e.target.value })}
+                      placeholder="Notes"
+                      className="w-full rounded-lg border border-border bg-bg px-2 py-1 text-xs text-ink placeholder:text-muted disabled:opacity-50"
+                    />
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <h2 className="font-display text-base font-bold text-ink">Activity</h2>
+        {auditLog.length === 0 ? (
+          <p className="text-sm text-muted">No activity recorded yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2 text-sm">
+            {auditLog.map((entry) => (
+              <li key={entry.id} className="flex flex-col gap-0.5 border-b border-border pb-2 last:border-0 last:pb-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-ink">{ACTION_LABEL[entry.action] ?? entry.action}</span>
+                  <span className="text-xs text-muted">{new Date(entry.created_at).toLocaleString()}</span>
+                </div>
+                <span className="text-xs text-muted">
+                  {entry.admin_identifier ? `By ${entry.admin_identifier}` : "System (webhook)"}
+                  {describeAudit(entry) && ` : ${describeAudit(entry)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </main>
   );

@@ -187,6 +187,11 @@ export type Campaign = {
   // time — see migration 0016. Null for a full-price campaign.
   discount_award_id: string | null;
   discount_percent: number | null;
+  // Soft delete (migration 0019) — null means active/visible. A deleted
+  // campaign keeps every submission/order/reconciliation row untouched;
+  // deleting only hides it from the default admin list.
+  deleted_at: string | null;
+  deleted_by: string | null;
 };
 
 export type Submission = {
@@ -264,6 +269,21 @@ export type PaymentReconciliation = {
   admin_identifier: string;
   reason: string;
   payment_reference: string;
+  created_at: string;
+};
+
+// Unified admin activity timeline for Get Listed campaigns (migration
+// 0019) — status changes, edits, delete/restore, submission add/edit, and
+// payment reconciliation all log here. `admin_identifier` is null for a
+// system-generated entry (e.g. a real LemonSqueezy webhook payment), never
+// for an actual admin action.
+export type AdminAuditLog = {
+  id: string;
+  campaign_id: string;
+  submission_id: string | null;
+  admin_identifier: string | null;
+  action: string;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -364,6 +384,12 @@ export interface Database {
         Row: PaymentReconciliation;
         Insert: Partial<PaymentReconciliation>;
         Update: Partial<PaymentReconciliation>;
+        Relationships: Relationships;
+      };
+      admin_audit_logs: {
+        Row: AdminAuditLog;
+        Insert: Partial<AdminAuditLog>;
+        Update: Partial<AdminAuditLog>;
         Relationships: Relationships;
       };
     };

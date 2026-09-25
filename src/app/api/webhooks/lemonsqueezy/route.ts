@@ -5,6 +5,7 @@ import { applyBoost, applyDefend, applyRevive } from "@/lib/arena";
 import { createSponsorship } from "@/lib/sponsorship";
 import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import { isGetListedOrdersSchemaReady } from "@/lib/get-listed/orders";
+import { logAdminAction } from "@/lib/get-listed/audit";
 import { logSecurityEvent } from "@/lib/security-log";
 import type { PaymentType } from "@/types/database";
 
@@ -92,6 +93,14 @@ async function handleGetListedOrder(
   }
 
   logSecurityEvent("get_listed_order_paid", { orderId, providerOrderId, campaignId: finalized.campaign_id });
+  // admin_identifier omitted (not "admin") — this is the real payment
+  // webhook confirming payment, not a human admin action, and the
+  // activity timeline should say so.
+  await logAdminAction(admin, {
+    campaignId: finalized.campaign_id,
+    action: "payment_received",
+    metadata: { provider_order_id: providerOrderId },
+  });
 }
 
 async function handleGetListedRefund(admin: ReturnType<typeof createAdminSupabaseClient>, providerOrderId: string) {

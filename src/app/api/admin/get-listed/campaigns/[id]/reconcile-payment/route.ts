@@ -4,6 +4,7 @@ import { isAuthorizedAdmin } from "@/lib/admin-auth";
 import { isGetListedPackageKey } from "@/lib/get-listed/packages";
 import { computeGetListedPricing } from "@/lib/get-listed/pricing";
 import { isGetListedOrdersSchemaReady } from "@/lib/get-listed/orders";
+import { logAdminAction } from "@/lib/get-listed/audit";
 
 const REASON_MAX = 500;
 const REFERENCE_MAX = 200;
@@ -124,6 +125,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     admin_identifier: adminName || "admin",
     reason,
     payment_reference: paymentReference,
+  });
+  await logAdminAction(admin, {
+    campaignId: campaign.id,
+    action: "payment_reconciled",
+    adminIdentifier: adminName || "admin",
+    metadata: { reason, payment_reference: paymentReference },
   });
 
   const { data: updatedCampaign } = await admin.from("campaigns").select("*").eq("id", campaignId).single();

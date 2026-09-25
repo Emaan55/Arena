@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/get-listed/audit";
 import type { SubmissionStatus } from "@/types/database";
 
 const VALID_STATUSES: SubmissionStatus[] = ["pending", "submitted", "accepted", "rejected"];
@@ -45,11 +46,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const notes = typeof record.notes === "string" && record.notes.trim().length <= NOTES_MAX
     ? record.notes.trim() || null
     : null;
+  const adminName = typeof record.adminName === "string" ? record.adminName.trim().slice(0, 80) : "";
 
   const admin = createAdminSupabaseClient();
-  const { data: campaign } = await admin.from("campaigns").select("id").eq("id", campaignId).maybeSingle();
+  // "*" rather than naming deleted_at explicitly — see the identical
+  // comment in campaigns/[id]/route.ts: naming a column that doesn't exist
+  // yet (migration 0019 not applied) would error this whole query out.
+  const { data: campaign } = await admin.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
   if (!campaign) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+  }
+  if (campaign.deleted_at) {
+    return NextResponse.json({ error: "This campaign is deleted. Restore it before adding submissions." }, { status: 409 });
   }
 
   const { data: submission, error } = await admin
@@ -73,6 +81,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   await admin.from("campaigns").update({ updated_at: new Date().toISOString() }).eq("id", campaignId);
+  await logAdminAction(admin, {
+    campaignId,
+    submissionId: submission.id,
+    action: "submission_added",
+    adminIdentifier: adminName || "admin",
+    metadata: { directory: directoryName, status },
+  });
 
   return NextResponse.json({ submission }, { status: 201 });
 }
