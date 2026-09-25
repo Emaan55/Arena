@@ -81,6 +81,9 @@ export function SiteFooter() {
           <a href="https://www.betterlaunch.co/product/the-arena" target="_blank" rel="nofollow noopener">
             <img src="https://www.betterlaunch.co/badge-week-light.svg" alt="Product of the week on Better Launch" width="176" height="48" loading="lazy" />
           </a>
+          <a href="https://www.foundrlist.com/product/thearena?utm_source=badge&utm_medium=embed" target="_blank" rel="noopener">
+            <img src="https://www.foundrlist.com/api/badge/thearena" alt="Featured on FoundrList" width="150" height="48" loading="lazy" />
+          </a>
         </div>
       </div>
 
