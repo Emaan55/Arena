@@ -71,6 +71,11 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ["/og-image.png"],
   },
+  // DirecTree site-ownership verification, requested to appear as a plain
+  // <meta name="directree-verify"> tag in <head>, not a visible badge.
+  other: {
+    "directree-verify": "c990f5a701581a90dcc67dac359f9502",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
