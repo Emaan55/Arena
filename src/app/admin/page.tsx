@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight } from "lucide-react";
+import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight, BarChart3 } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
 
@@ -26,6 +26,12 @@ const SECTIONS = [
     icon: ListChecks,
     title: "Get Listed queue",
     description: "Every paid, not-yet-complete campaign, oldest first, for whoever is doing submissions.",
+  },
+  {
+    href: "/admin/get-listed/analytics",
+    icon: BarChart3,
+    title: "Get Listed analytics",
+    description: "Revenue, campaign, fulfillment, and package breakdowns.",
   },
   {
     href: "/admin/sponsorships",

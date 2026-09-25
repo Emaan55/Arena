@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
+import { downloadAdminFile } from "@/lib/download-admin-file";
 import type { Campaign, CampaignStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 import type { AdminPaymentStatus } from "@/lib/get-listed/admin";
@@ -131,6 +132,23 @@ export default function AdminGetListedCampaignsPage() {
     };
   }
 
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function exportCsv() {
+    if (!secret) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ q, payment, fulfillment, package: pkg, sort });
+      await downloadAdminFile(`/api/admin/get-listed/campaigns/export?${params.toString()}`, secret, "get-listed-campaigns.csv");
+    } catch {
+      setExportError("Could not export CSV.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (!secret) return <AdminUnlockForm onUnlock={unlock} error={error} />;
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -140,10 +158,24 @@ export default function AdminGetListedCampaignsPage() {
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-ink">Get Listed Campaigns</h1>
-        <Link href="/admin/get-listed/queue" className="text-sm text-accent hover:underline">
-          Submission queue →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/get-listed/analytics" className="text-sm text-accent hover:underline">
+            Analytics
+          </Link>
+          <Link href="/admin/get-listed/queue" className="text-sm text-accent hover:underline">
+            Submission queue →
+          </Link>
+          <button
+            onClick={exportCsv}
+            disabled={exporting}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </button>
+        </div>
       </div>
+      {exportError && <p className="text-sm text-danger">{exportError}</p>}
 
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

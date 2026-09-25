@@ -102,7 +102,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       submissionId: id,
       action: statusChanged ? "submission_status_changed" : "submission_edited",
       adminIdentifier: adminName || "admin",
-      metadata: { directory: existing.directory_name, changed_fields: changedFields },
+      metadata: {
+        directory: existing.directory_name,
+        changed_fields: changedFields,
+        // Only present when status actually changed — lets a customer-safe
+        // timeline phrase this meaningfully ("Product Hunt accepted")
+        // without needing to re-derive it from the submission row later.
+        ...(statusChanged ? { from_status: existing.status, to_status: update.status } : {}),
+      },
     });
   }
 

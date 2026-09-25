@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Pencil, Trash2, RotateCcw, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, RotateCcw, ExternalLink, Download } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
+import { downloadAdminFile } from "@/lib/download-admin-file";
 import {
   CATEGORIES,
   type AdminAuditLog,
@@ -131,6 +132,22 @@ export default function AdminCampaignDetailPage() {
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function exportCsv() {
+    if (!secret) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadAdminFile(`/api/admin/get-listed/campaigns/${params.id}/export`, secret, "submissions.csv");
+    } catch {
+      setExportError("Could not export CSV.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function load() {
     if (!secret) return;
@@ -381,17 +398,32 @@ export default function AdminCampaignDetailPage() {
           </div>
         </div>
         {statusError && <p className="text-sm text-danger">{statusError}</p>}
+        {exportError && <p className="text-sm text-danger">{exportError}</p>}
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/admin/get-listed/campaigns/${campaign.id}/report`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+          >
+            Preview report
+          </Link>
           <a
             href={`/get-listed/campaigns/${campaign.id}`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+            className="flex items-center gap-1 text-xs text-muted hover:text-accent"
           >
-            <ExternalLink className="h-3.5 w-3.5" />
-            View customer report
+            <ExternalLink className="h-3 w-3" />
+            Open live page
           </a>
+          <button
+            onClick={exportCsv}
+            disabled={exporting}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </button>
           <button
             onClick={() => setEditOpen((v) => !v)}
             disabled={isDeleted}
