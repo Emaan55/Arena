@@ -13,43 +13,63 @@ import { AdminUnlockForm } from "@/components/AdminUnlockForm";
  * new surface with its own data or permissions. Unlocking here uses the
  * same sessionStorage key every other admin page reads (useAdminSecret),
  * so following any link below lands already unlocked there too.
+ *
+ * Grouped by business line rather than one flat list: Get Listed (the
+ * paid directory-submission service) and Sponsorships (the paid banner
+ * slot) are two separate products with separate data, so they get their
+ * own headings instead of being mixed into a single grid.
  */
-const SECTIONS = [
+const GROUPS = [
   {
-    href: "/admin/get-listed/campaigns",
-    icon: ClipboardList,
-    title: "Get Listed campaigns",
-    description: "View customer campaigns, payment status, and manage submission progress.",
+    title: "Get Listed",
+    sections: [
+      {
+        href: "/admin/get-listed/campaigns",
+        icon: ClipboardList,
+        title: "Campaigns",
+        description: "View customer campaigns, payment status, and manage submission progress.",
+      },
+      {
+        href: "/admin/get-listed/queue",
+        icon: ListChecks,
+        title: "Queue",
+        description: "Every paid, not-yet-complete campaign, oldest first, for whoever is doing submissions.",
+      },
+      {
+        href: "/admin/get-listed/analytics",
+        icon: BarChart3,
+        title: "Analytics",
+        description: "Revenue, campaign, fulfillment, and package breakdowns.",
+      },
+      {
+        href: "/admin/get-listed/directories",
+        icon: BookOpen,
+        title: "Directory Library",
+        description: "Reusable directories for submissions, with performance stats per directory.",
+      },
+    ],
   },
   {
-    href: "/admin/get-listed/queue",
-    icon: ListChecks,
-    title: "Get Listed queue",
-    description: "Every paid, not-yet-complete campaign, oldest first, for whoever is doing submissions.",
-  },
-  {
-    href: "/admin/get-listed/analytics",
-    icon: BarChart3,
-    title: "Get Listed analytics",
-    description: "Revenue, campaign, fulfillment, and package breakdowns.",
-  },
-  {
-    href: "/admin/get-listed/directories",
-    icon: BookOpen,
-    title: "Directory Library",
-    description: "Reusable directories for submissions, with performance stats per directory.",
-  },
-  {
-    href: "/admin/sponsorships",
-    icon: Megaphone,
     title: "Sponsorships",
-    description: "Active and queued sponsorship slots, plus adding a free or external sponsor.",
+    sections: [
+      {
+        href: "/admin/sponsorships",
+        icon: Megaphone,
+        title: "Sponsorship Admin",
+        description: "Active and queued sponsorship banner slots, plus adding a free or external sponsor.",
+      },
+    ],
   },
   {
-    href: "/admin/favicon-diagnostic",
-    icon: ImageIcon,
-    title: "Favicon diagnostic",
-    description: "Inspect and retry favicon discovery for a specific product URL.",
+    title: "Other tools",
+    sections: [
+      {
+        href: "/admin/favicon-diagnostic",
+        icon: ImageIcon,
+        title: "Favicon diagnostic",
+        description: "Inspect and retry favicon discovery for a specific product URL.",
+      },
+    ],
   },
 ] as const;
 
@@ -101,24 +121,31 @@ export default function AdminIndexPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {SECTIONS.map(({ href, icon: Icon, title, description }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft/20 text-accent">
-                <Icon className="h-5 w-5" />
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-accent" />
+      <div className="flex flex-col gap-8">
+        {GROUPS.map((group) => (
+          <div key={group.title} className="flex flex-col gap-3">
+            <h2 className="font-display text-xs font-bold uppercase tracking-wide text-muted">{group.title}</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {group.sections.map(({ href, icon: Icon, title, description }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft/20 text-accent">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-accent" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-display text-base font-bold text-ink">{title}</h3>
+                    <p className="text-sm text-muted">{description}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
-            <div className="flex flex-col gap-1">
-              <h2 className="font-display text-base font-bold text-ink">{title}</h2>
-              <p className="text-sm text-muted">{description}</p>
-            </div>
-          </Link>
+          </div>
         ))}
       </div>
     </main>
