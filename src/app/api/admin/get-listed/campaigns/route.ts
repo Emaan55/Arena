@@ -7,6 +7,7 @@ import {
   type AdminCampaignFulfillmentFilter,
   type AdminCampaignPaymentFilter,
   type AdminCampaignSort,
+  type AdminCampaignWorkFilter,
 } from "@/lib/get-listed/admin";
 
 const PAGE_SIZE_DEFAULT = 25;
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
   const paymentFilter = (url.searchParams.get("payment") ?? "all") as AdminCampaignPaymentFilter;
   const fulfillmentFilter = (url.searchParams.get("fulfillment") ?? "all") as AdminCampaignFulfillmentFilter;
   const packageFilter = url.searchParams.get("package") ?? "all";
+  const workFilter = (url.searchParams.get("work") ?? "all") as AdminCampaignWorkFilter;
   const sort = (url.searchParams.get("sort") ?? "newest") as AdminCampaignSort;
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
   const pageSize = Math.min(PAGE_SIZE_MAX, Math.max(1, Number(url.searchParams.get("pageSize")) || PAGE_SIZE_DEFAULT));
@@ -43,6 +45,7 @@ export async function GET(req: NextRequest) {
     payment: paymentFilter,
     fulfillment: fulfillmentFilter,
     packageKey: packageFilter,
+    work: workFilter,
     sort,
   });
 
@@ -65,7 +68,7 @@ export async function GET(req: NextRequest) {
   // `annotated` directly when no filter/search is active instead of paying
   // for a second identical query.
   const wantDeleted = softDeleteReady && fulfillmentFilter === "deleted";
-  const noFilterActive = !q && paymentFilter === "all" && fulfillmentFilter === "all" && packageFilter === "all";
+  const noFilterActive = !q && paymentFilter === "all" && fulfillmentFilter === "all" && packageFilter === "all" && workFilter === "all";
   const submissionStats = { total: 0, accepted: 0, pending: 0, rejected: 0 };
   if (!wantDeleted) {
     const allActive = noFilterActive ? annotated : (await getAnnotatedCampaigns(admin, {})).rows;

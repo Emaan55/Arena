@@ -13,6 +13,7 @@ import {
   type Campaign,
   type CampaignStatus,
   type Category,
+  type Directory,
   type Order,
   type Submission,
   type SubmissionStatus,
@@ -57,8 +58,10 @@ const ACTION_LABEL: Record<string, string> = {
   campaign_deleted: "Campaign deleted",
   campaign_restored: "Campaign restored",
   submission_added: "Submission added",
+  submission_added_from_library: "Submission added from Directory Library",
   submission_edited: "Submission edited",
   submission_status_changed: "Submission status changed",
+  bulk_submission_update: "Bulk submission update",
   payment_reconciled: "Payment reconciled manually",
   payment_received: "Payment received",
 };
@@ -73,7 +76,12 @@ function describeAudit(entry: AdminAuditLog): string {
     case "campaign_deleted":
       return typeof meta.reason === "string" && meta.reason ? `Reason: ${meta.reason}` : "";
     case "submission_added":
+    case "submission_added_from_library":
       return typeof meta.directory === "string" ? `${meta.directory} (${meta.status ?? "pending"})` : "";
+    case "bulk_submission_update":
+      return typeof meta.to_status === "string" && typeof meta.count === "number"
+        ? `${meta.count} submission${meta.count === 1 ? "" : "s"} marked ${meta.to_status}`
+        : "";
     case "submission_edited":
     case "submission_status_changed":
       return [
@@ -109,6 +117,13 @@ export default function AdminCampaignDetailPage() {
 
   const [newSub, setNewSub] = useState({ directoryName: "", directoryUrl: "", status: "pending" as SubmissionStatus, listingUrl: "", notes: "" });
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [libraryDirectories, setLibraryDirectories] = useState<Directory[]>([]);
+  const [selectedDirectoryId, setSelectedDirectoryId] = useState("");
+
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const [reconcile, setReconcile] = useState({ paymentReference: "", reason: "", adminName: "" });
   const [reconciling, setReconciling] = useState(false);
@@ -185,28 +200,84 @@ export default function AdminCampaignDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secret, params.id]);
 
+  useEffect(() => {
+    if (!secret) return;
+    fetch(`/api/admin/get-listed/directories?status=active&pageSize=100`, { headers: { "x-admin-secret": secret } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setLibraryDirectories(data?.directories ?? []))
+      .catch(() => {});
+  }, [secret]);
+
   if (!secret) return <AdminUnlockForm onUnlock={unlock} error={error} />;
   if (error) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-danger">{error}</main>;
   if (!campaign) return <main className="mx-auto max-w-2xl px-6 py-24 text-center text-sm text-muted">Loading…</main>;
 
   const isDeleted = Boolean(campaign.deleted_at);
 
+  function pickDirectory(directoryId: string) {
+    setSelectedDirectoryId(directoryId);
+    const directory = libraryDirectories.find((d) => d.id === directoryId);
+    if (directory) {
+      setNewSub((s) => ({ ...s, directoryName: directory.name, directoryUrl: directory.submission_url || directory.website_url }));
+    }
+  }
+
   async function addSubmission(e: React.FormEvent) {
     e.preventDefault();
     if (!newSub.directoryName.trim() || !secret) return;
+    setAddError(null);
     setAdding(true);
     try {
       const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-        body: JSON.stringify({ ...newSub, adminName }),
+        body: JSON.stringify({ ...newSub, directoryId: selectedDirectoryId || null, adminName }),
       });
-      if (res.ok) {
-        setNewSub({ directoryName: "", directoryUrl: "", status: "pending", listingUrl: "", notes: "" });
-        await load();
+      const data = await res.json();
+      if (!res.ok) {
+        setAddError(data.error ?? "Could not add submission.");
+        return;
       }
+      setNewSub({ directoryName: "", directoryUrl: "", status: "pending", listingUrl: "", notes: "" });
+      setSelectedDirectoryId("");
+      await load();
+    } catch {
+      setAddError("Network error, please try again.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  function toggleSubmissionSelected(id: string) {
+    setSelectedSubmissionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runBulkAction(action: "mark_submitted" | "mark_accepted" | "mark_rejected") {
+    if (!secret || selectedSubmissionIds.size === 0) return;
+    setBulkError(null);
+    setBulkBusy(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/submissions/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ submissionIds: Array.from(selectedSubmissionIds), action, adminName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBulkError(data.error ?? "Could not update submissions.");
+        return;
+      }
+      setSelectedSubmissionIds(new Set());
+      await load();
+    } catch {
+      setBulkError("Network error, please try again.");
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -704,6 +775,21 @@ export default function AdminCampaignDetailPage() {
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
         <h2 className="font-display text-base font-bold text-ink">Add submission</h2>
+        {libraryDirectories.length > 0 && (
+          <select
+            disabled={isDeleted}
+            value={selectedDirectoryId}
+            onChange={(e) => pickDirectory(e.target.value)}
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink disabled:opacity-50"
+          >
+            <option value="">Choose from Directory Library (optional)…</option>
+            {libraryDirectories.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        )}
         <form onSubmit={addSubmission} className="grid grid-cols-1 gap-2 sm:grid-cols-5">
           <input
             required
@@ -741,12 +827,51 @@ export default function AdminCampaignDetailPage() {
             Add
           </button>
         </form>
+        {addError && <p className="text-sm text-danger">{addError}</p>}
       </div>
+
+      {selectedSubmissionIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent bg-accent-soft/10 p-3">
+          <span className="text-xs font-semibold text-ink">{selectedSubmissionIds.size} selected</span>
+          <button
+            onClick={() => runBulkAction("mark_submitted")}
+            disabled={bulkBusy}
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+          >
+            Mark submitted
+          </button>
+          <button
+            onClick={() => runBulkAction("mark_accepted")}
+            disabled={bulkBusy}
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-[#16a34a] disabled:opacity-50"
+          >
+            Mark accepted
+          </button>
+          <button
+            onClick={() => runBulkAction("mark_rejected")}
+            disabled={bulkBusy}
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-danger disabled:opacity-50"
+          >
+            Mark rejected
+          </button>
+          <button onClick={() => setSelectedSubmissionIds(new Set())} className="text-xs text-muted hover:text-ink">
+            Clear selection
+          </button>
+          {bulkError && <p className="text-sm text-danger">{bulkError}</p>}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
             <tr>
+              <th className="w-8 px-4 py-2">
+                <input
+                  type="checkbox"
+                  checked={submissions.length > 0 && selectedSubmissionIds.size === submissions.length}
+                  onChange={(e) => setSelectedSubmissionIds(e.target.checked ? new Set(submissions.map((s) => s.id)) : new Set())}
+                />
+              </th>
               <th className="px-4 py-2">Directory</th>
               <th className="px-4 py-2">Directory URL</th>
               <th className="px-4 py-2">Status</th>
@@ -758,13 +883,16 @@ export default function AdminCampaignDetailPage() {
           <tbody className="divide-y divide-border bg-surface">
             {submissions.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted">
                   No submissions yet. Start by adding the first directory submission above.
                 </td>
               </tr>
             ) : (
               submissions.map((s) => (
                 <tr key={s.id}>
+                  <td className="px-4 py-2">
+                    <input type="checkbox" checked={selectedSubmissionIds.has(s.id)} onChange={() => toggleSubmissionSelected(s.id)} />
+                  </td>
                   <td className="px-4 py-2 text-ink">{s.directory_name}</td>
                   <td className="px-4 py-2">
                     <input

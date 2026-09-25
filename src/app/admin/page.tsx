@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight, BarChart3 } from "lucide-react";
+import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight, BarChart3, BookOpen } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
 
@@ -32,6 +32,12 @@ const SECTIONS = [
     icon: BarChart3,
     title: "Get Listed analytics",
     description: "Revenue, campaign, fulfillment, and package breakdowns.",
+  },
+  {
+    href: "/admin/get-listed/directories",
+    icon: BookOpen,
+    title: "Directory Library",
+    description: "Reusable directories for submissions, with performance stats per directory.",
   },
   {
     href: "/admin/sponsorships",

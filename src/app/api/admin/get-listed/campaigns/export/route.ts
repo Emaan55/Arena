@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
-import { getAnnotatedCampaigns, type AdminCampaignFulfillmentFilter, type AdminCampaignPaymentFilter, type AdminCampaignSort } from "@/lib/get-listed/admin";
+import {
+  getAnnotatedCampaigns,
+  type AdminCampaignFulfillmentFilter,
+  type AdminCampaignPaymentFilter,
+  type AdminCampaignSort,
+  type AdminCampaignWorkFilter,
+} from "@/lib/get-listed/admin";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 import { toCsv, csvResponse } from "@/lib/csv";
 
@@ -26,6 +32,7 @@ export async function GET(req: NextRequest) {
     payment: (url.searchParams.get("payment") ?? "all") as AdminCampaignPaymentFilter,
     fulfillment: (url.searchParams.get("fulfillment") ?? "all") as AdminCampaignFulfillmentFilter,
     packageKey: url.searchParams.get("package") ?? "all",
+    work: (url.searchParams.get("work") ?? "all") as AdminCampaignWorkFilter,
     sort: (url.searchParams.get("sort") ?? "newest") as AdminCampaignSort,
   });
 

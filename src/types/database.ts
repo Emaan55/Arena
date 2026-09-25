@@ -205,6 +205,35 @@ export type Submission = {
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
+  // Optional link back to the Directory Library entry this was created
+  // from (migration 0020) — purely for prefill/stats/duplicate-detection.
+  // directory_name/directory_url above are always the authoritative
+  // snapshot; they never change if the library entry is edited later.
+  directory_id: string | null;
+};
+
+// Get Listed Phase 3 "Directory Library" (migration 0020) — a reusable
+// catalog the admin picks from when adding a submission, instead of
+// retyping the same directory's name/URL every time. `notes` here is
+// admin-only operational guidance about the directory itself (submission
+// requirements, known issues), never a customer-visible field and never
+// the same thing as a submission's own campaign-specific notes.
+export type DirectoryStatus = "active" | "inactive";
+
+export type Directory = {
+  id: string;
+  name: string;
+  website_url: string;
+  submission_url: string | null;
+  category: string | null;
+  status: DirectoryStatus;
+  notes: string | null;
+  typical_review_time: string | null;
+  difficulty: string | null;
+  free_or_paid: string | null;
+  last_checked_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 // Phase 2 "Discount Drop" — see migration 0016 and lib/discount-drop/*.
@@ -279,7 +308,9 @@ export type PaymentReconciliation = {
 // for an actual admin action.
 export type AdminAuditLog = {
   id: string;
-  campaign_id: string;
+  // Null for a Directory Library action (migration 0020) — those are
+  // library-wide, not scoped to any one campaign.
+  campaign_id: string | null;
   submission_id: string | null;
   admin_identifier: string | null;
   action: string;
@@ -390,6 +421,12 @@ export interface Database {
         Row: AdminAuditLog;
         Insert: Partial<AdminAuditLog>;
         Update: Partial<AdminAuditLog>;
+        Relationships: Relationships;
+      };
+      directories: {
+        Row: Directory;
+        Insert: Partial<Directory>;
+        Update: Partial<Directory>;
         Relationships: Relationships;
       };
     };

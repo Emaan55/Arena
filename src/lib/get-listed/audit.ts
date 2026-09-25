@@ -23,11 +23,14 @@ export async function isAdminAuditSchemaReady(admin: AdminClient): Promise<boole
  * entry — e.g. a real LemonSqueezy webhook payment — so the timeline can
  * visibly distinguish "an admin did this" from "the payment system did
  * this" instead of defaulting every unattributed action to a fake name.
+ *
+ * `campaignId` is nullable for a Directory Library action (migration
+ * 0020, Phase 3) — those are library-wide, not scoped to any campaign.
  */
 export async function logAdminAction(
   admin: AdminClient,
   params: {
-    campaignId: string;
+    campaignId: string | null;
     submissionId?: string | null;
     action: string;
     metadata?: Record<string, unknown> | null;

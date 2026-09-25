@@ -80,6 +80,7 @@ export default function AdminGetListedCampaignsPage() {
   const [payment, setPayment] = useState("all");
   const [fulfillment, setFulfillment] = useState("all");
   const [pkg, setPkg] = useState("all");
+  const [work, setWork] = useState("all");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
 
@@ -92,6 +93,7 @@ export default function AdminGetListedCampaignsPage() {
       payment,
       fulfillment,
       package: pkg,
+      work,
       sort,
       page: String(page),
       pageSize: String(PAGE_SIZE),
@@ -110,7 +112,7 @@ export default function AdminGetListedCampaignsPage() {
         setSoftDeleteReady(data.softDeleteReady !== false);
       })
       .catch(() => setRows([]));
-  }, [secret, q, payment, fulfillment, pkg, sort, page, reject]);
+  }, [secret, q, payment, fulfillment, pkg, work, sort, page, reject]);
 
   useEffect(() => {
     load();
@@ -140,7 +142,7 @@ export default function AdminGetListedCampaignsPage() {
     setExportError(null);
     setExporting(true);
     try {
-      const params = new URLSearchParams({ q, payment, fulfillment, package: pkg, sort });
+      const params = new URLSearchParams({ q, payment, fulfillment, package: pkg, work, sort });
       await downloadAdminFile(`/api/admin/get-listed/campaigns/export?${params.toString()}`, secret, "get-listed-campaigns.csv");
     } catch {
       setExportError("Could not export CSV.");
@@ -152,7 +154,7 @@ export default function AdminGetListedCampaignsPage() {
   if (!secret) return <AdminUnlockForm onUnlock={unlock} error={error} />;
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasActiveFilter = q || payment !== "all" || fulfillment !== "all" || pkg !== "all";
+  const hasActiveFilter = q || payment !== "all" || fulfillment !== "all" || pkg !== "all" || work !== "all";
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-12">
@@ -161,6 +163,9 @@ export default function AdminGetListedCampaignsPage() {
         <div className="flex items-center gap-4">
           <Link href="/admin/get-listed/analytics" className="text-sm text-accent hover:underline">
             Analytics
+          </Link>
+          <Link href="/admin/get-listed/directories" className="text-sm text-accent hover:underline">
+            Directory Library
           </Link>
           <Link href="/admin/get-listed/queue" className="text-sm text-accent hover:underline">
             Submission queue →
@@ -243,6 +248,19 @@ export default function AdminGetListedCampaignsPage() {
               {p.label}
             </option>
           ))}
+        </select>
+        <select
+          value={work}
+          onChange={(e) => resetPageOn(setWork)(e.target.value)}
+          className="rounded-lg border border-border bg-surface px-2 py-2 text-sm text-ink"
+        >
+          <option value="all">All work status</option>
+          <option value="needs_work">Needs work</option>
+          <option value="no_submissions">No submissions yet</option>
+          <option value="target_not_reached">Target not reached</option>
+          <option value="waiting_responses">Waiting for responses</option>
+          <option value="target_reached">Target reached</option>
+          <option value="completed">Completed</option>
         </select>
         <select
           value={sort}

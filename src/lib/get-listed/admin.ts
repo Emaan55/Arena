@@ -99,6 +99,44 @@ export type AdminCampaignFulfillmentFilter = CampaignStatus | "all" | "deleted";
 export type AdminCampaignPaymentFilter = AdminPaymentStatus | "all";
 export type AdminCampaignSort = "newest" | "oldest" | "updated" | "progress_high" | "progress_low";
 
+/**
+ * A work-queue view over the exact same fields every other filter already
+ * uses (payment_status, submission_count/target, pending_count, status) —
+ * never a second fulfillment-status system, just a different way of
+ * bucketing the one that already exists. "needs_work" is the broadest
+ * bucket (paid, not finished, something left to do); the others are more
+ * specific slices of it.
+ */
+export type AdminCampaignWorkFilter =
+  | "all"
+  | "needs_work"
+  | "no_submissions"
+  | "target_not_reached"
+  | "waiting_responses"
+  | "target_reached"
+  | "completed";
+
+function matchesWorkFilter(c: AnnotatedCampaign, filter: AdminCampaignWorkFilter): boolean {
+  const notFinished = c.status !== "completed" && c.status !== "cancelled";
+  switch (filter) {
+    case "needs_work":
+      return c.payment_status === "paid" && notFinished && (c.submission_count < c.submission_target || c.pending_count > 0);
+    case "no_submissions":
+      return c.payment_status === "paid" && c.submission_count === 0;
+    case "target_not_reached":
+      return c.payment_status === "paid" && c.submission_count < c.submission_target;
+    case "waiting_responses":
+      return c.pending_count > 0;
+    case "target_reached":
+      return c.submission_target > 0 && c.submission_count >= c.submission_target;
+    case "completed":
+      return c.status === "completed";
+    case "all":
+    default:
+      return true;
+  }
+}
+
 export type AnnotatedCampaign = Campaign & {
   owner_email: string | null;
   submission_count: number;
@@ -137,6 +175,7 @@ export async function getAnnotatedCampaigns(
     payment?: AdminCampaignPaymentFilter;
     fulfillment?: AdminCampaignFulfillmentFilter;
     packageKey?: string;
+    work?: AdminCampaignWorkFilter;
     sort?: AdminCampaignSort;
   },
 ): Promise<AnnotatedCampaignsResult> {
@@ -144,6 +183,7 @@ export async function getAnnotatedCampaigns(
   const paymentFilter = params.payment ?? "all";
   const fulfillmentFilter = params.fulfillment ?? "all";
   const packageFilter = params.packageKey ?? "all";
+  const workFilter = params.work ?? "all";
   const sort = params.sort ?? "newest";
 
   const softDeleteReady = await isCampaignSoftDeleteReady(admin);
@@ -218,6 +258,10 @@ export async function getAnnotatedCampaigns(
 
   if (paymentFilter !== "all" && (paymentFilter === "no_order" || PAYMENT_VALUES.includes(paymentFilter as OrderPaymentStatus))) {
     annotated = annotated.filter((c) => c.payment_status === paymentFilter);
+  }
+
+  if (workFilter !== "all") {
+    annotated = annotated.filter((c) => matchesWorkFilter(c, workFilter));
   }
 
   if (qLower) {
