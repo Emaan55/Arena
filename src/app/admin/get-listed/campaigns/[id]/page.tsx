@@ -20,6 +20,7 @@ import {
 } from "@/types/database";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
 import type { AdminPaymentStatus, SubmissionSummary } from "@/lib/get-listed/admin";
+import { parseRawSubmissions } from "@/lib/get-listed/import-parser";
 
 type CampaignWithOwner = Campaign & { owner_email: string | null };
 
@@ -59,6 +60,7 @@ const ACTION_LABEL: Record<string, string> = {
   campaign_restored: "Campaign restored",
   submission_added: "Submission added",
   submission_added_from_library: "Submission added from Directory Library",
+  submission_bulk_imported: "Submissions imported",
   submission_edited: "Submission edited",
   submission_status_changed: "Submission status changed",
   bulk_submission_update: "Bulk submission update",
@@ -81,6 +83,14 @@ function describeAudit(entry: AdminAuditLog): string {
     case "bulk_submission_update":
       return typeof meta.to_status === "string" && typeof meta.count === "number"
         ? `${meta.count} submission${meta.count === 1 ? "" : "s"} marked ${meta.to_status}`
+        : "";
+    case "submission_bulk_imported":
+      return typeof meta.count === "number"
+        ? `${meta.count} imported${
+            typeof meta.skipped_duplicates === "number" && meta.skipped_duplicates > 0
+              ? `, ${meta.skipped_duplicates} duplicate${meta.skipped_duplicates === 1 ? "" : "s"} skipped`
+              : ""
+          }`
         : "";
     case "submission_edited":
     case "submission_status_changed":
@@ -120,6 +130,16 @@ export default function AdminCampaignDetailPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [libraryDirectories, setLibraryDirectories] = useState<Directory[]>([]);
   const [selectedDirectoryId, setSelectedDirectoryId] = useState("");
+
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skippedDuplicates: string[];
+    invalid: { line: number; raw: string; error: string }[];
+    totalParsed: number;
+  } | null>(null);
 
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -245,6 +265,32 @@ export default function AdminCampaignDetailPage() {
       setAddError("Network error, please try again.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function importSubmissions() {
+    if (!secret || !importText.trim()) return;
+    setImportError(null);
+    setImportResult(null);
+    setImporting(true);
+    try {
+      const res = await fetch(`/api/admin/get-listed/campaigns/${params.id}/submissions/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ rawText: importText, adminName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setImportError(data.error ?? "Could not import submissions.");
+        return;
+      }
+      setImportResult(data);
+      if (data.imported > 0) setImportText("");
+      await load();
+    } catch {
+      setImportError("Network error, please try again.");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -401,6 +447,9 @@ export default function AdminCampaignDetailPage() {
       setReconciling(false);
     }
   }
+
+  const importPreviewRows = importText.trim() ? parseRawSubmissions(importText) : [];
+  const importValidCount = importPreviewRows.filter((r) => r.valid).length;
 
   const pkg = GET_LISTED_PACKAGES[campaign.package_key as GetListedPackageKey];
   // Historical package snapshot — prefer the most relevant order's actual
@@ -773,8 +822,82 @@ export default function AdminCampaignDetailPage() {
         )}
       </div>
 
+      <div className="flex flex-col gap-3 rounded-2xl border-2 border-accent bg-surface p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-base font-bold text-ink">Import submissions</h2>
+          <span className="rounded-full bg-accent-soft/20 px-2 py-0.5 text-xs font-semibold text-accent">Fastest way to log directories</span>
+        </div>
+        <p className="text-xs text-muted">
+          Paste rows copied from a spreadsheet, CSV, or plain text, one directory per line. Tab, comma, or pipe
+          separated columns work: <span className="font-mono">Directory | URL | Status | Listing URL</span>. Status
+          and both URLs are optional.
+        </p>
+        <textarea
+          disabled={isDeleted}
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+          placeholder={
+            "Product Hunt | https://producthunt.com | accepted | https://producthunt.com/posts/example\n" +
+            "Uneed | https://uneed.best | submitted\n" +
+            "Microlaunch | https://microlaunch.net | pending"
+          }
+          rows={8}
+          className="resize-y rounded-lg border border-border bg-bg px-3 py-2 font-mono text-xs text-ink placeholder:text-muted disabled:opacity-50"
+        />
+        {importPreviewRows.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted">
+              {importValidCount} of {importPreviewRows.length} row{importPreviewRows.length === 1 ? "" : "s"} ready to
+              import{importPreviewRows.length > importValidCount ? `, ${importPreviewRows.length - importValidCount} need fixing` : ""}.
+            </p>
+            <div className="max-h-56 overflow-auto rounded-xl border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surface-2 uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-3 py-1.5">Directory</th>
+                    <th className="px-3 py-1.5">URL</th>
+                    <th className="px-3 py-1.5">Status</th>
+                    <th className="px-3 py-1.5">Listing URL</th>
+                    <th className="px-3 py-1.5">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border bg-surface">
+                  {importPreviewRows.slice(0, 50).map((r) => (
+                    <tr key={r.lineNumber} className={r.valid ? "" : "bg-danger/5"}>
+                      <td className="px-3 py-1.5 text-ink">{r.directoryName || "-"}</td>
+                      <td className="px-3 py-1.5 text-muted">{r.directoryUrl ?? "-"}</td>
+                      <td className="px-3 py-1.5 text-muted">{r.status}</td>
+                      <td className="px-3 py-1.5 text-muted">{r.listingUrl ?? "-"}</td>
+                      <td className="px-3 py-1.5 text-danger">{r.error ?? r.warning ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {importError && <p className="text-sm text-danger">{importError}</p>}
+        {importResult && (
+          <p className="text-sm text-ink">
+            Imported {importResult.imported}.
+            {importResult.skippedDuplicates.length > 0 &&
+              ` Skipped ${importResult.skippedDuplicates.length} duplicate${importResult.skippedDuplicates.length === 1 ? "" : "s"} (${importResult.skippedDuplicates
+                .slice(0, 5)
+                .join(", ")}${importResult.skippedDuplicates.length > 5 ? ", ..." : ""}).`}
+            {importResult.invalid.length > 0 && ` ${importResult.invalid.length} row${importResult.invalid.length === 1 ? "" : "s"} skipped for errors.`}
+          </p>
+        )}
+        <button
+          onClick={importSubmissions}
+          disabled={importing || isDeleted || importValidCount === 0}
+          className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
+        >
+          {importing ? "Importing…" : `Import ${importValidCount || ""} submission${importValidCount === 1 ? "" : "s"}`}
+        </button>
+      </div>
+
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <h2 className="font-display text-base font-bold text-ink">Add submission</h2>
+        <h2 className="font-display text-base font-bold text-ink">Add a single submission</h2>
         {libraryDirectories.length > 0 && (
           <select
             disabled={isDeleted}
