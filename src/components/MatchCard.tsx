@@ -358,6 +358,13 @@ function SideCard({
         onToggle={() => setReviewsOpen((v) => !v)}
       />
 
+      {/* Absorbs whatever extra height the grid row's equal-height stretch
+          adds (e.g. one side has a Battle Pitch and the other doesn't) —
+          without this, that leftover space sits as an awkward gap below
+          the Boost box instead of being invisible. Pins the vote button
+          and Boost move to the bottom of both cards instead. */}
+      <div className="flex-1" />
+
       {/* Always the same slot/height on both sides — the label and style
           change with vote state, but the button itself never disappears,
           so the two cards in a duel never drift out of alignment. */}
