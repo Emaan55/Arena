@@ -118,6 +118,15 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     width: 200,
     height: 54,
   },
+  {
+    href: "https://vibecodinglist.com/projects/the-arena-where-products-compete?utm_source=vcl_badge&utm_medium=builder_site&utm_campaign=listed_badge&utm_content=the-arena-where-products-compete",
+    rel: "noopener",
+    src: "https://vibecodinglist.com/assets/embed-widget/featured-on-badge-light.png",
+    alt: "Featured on VibeCodingList",
+    width: 200,
+    height: 51,
+    lazy: true,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
