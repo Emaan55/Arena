@@ -91,6 +91,15 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     alt: "Featured on neeed.directory",
     width: 139,
   },
+  {
+    href: "https://tools.launchllama.co/products/the-arena?utm_source=badge&utm_medium=referral",
+    rel: "noopener noreferrer",
+    src: "https://tools.launchllama.co/featured-badge.png?v=2",
+    alt: "Featured on Launch Llama Tools",
+    width: 200,
+    height: 52,
+    lazy: true,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
