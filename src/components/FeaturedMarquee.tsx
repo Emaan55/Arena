@@ -110,6 +110,14 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     width: 176,
     height: 32,
   },
+  {
+    href: "https://aihuntlist.com/tool/the-arena",
+    rel: "noopener noreferrer",
+    src: "https://aihuntlist.com/badge-light.svg",
+    alt: "Featured on aihuntlist.com",
+    width: 200,
+    height: 54,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
