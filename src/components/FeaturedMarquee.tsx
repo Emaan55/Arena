@@ -144,6 +144,15 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     height: 54,
     lazy: true,
   },
+  {
+    href: "https://saasavenue.com/products/thearena",
+    rel: "noopener",
+    src: "https://saasavenue.com/assets/images/badge.png",
+    alt: "SaaS Avenue",
+    width: 199,
+    height: 54,
+    lazy: true,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
