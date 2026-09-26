@@ -99,6 +99,9 @@ export function SiteFooter() {
               loading="lazy"
             />
           </a>
+          <a href="https://neeed.directory" target="_blank" rel="noopener">
+            <img src="https://neeed.directory/badges/neeed-badge-light.svg" alt="Featured on neeed.directory" width="139" />
+          </a>
         </div>
       </div>
 
