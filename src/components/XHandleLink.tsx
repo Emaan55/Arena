@@ -1,3 +1,5 @@
+"use client";
+
 import { xProfileUrl } from "@/lib/x-handle";
 
 /**
