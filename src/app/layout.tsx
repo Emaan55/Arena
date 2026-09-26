@@ -71,10 +71,11 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ["/og-image.png"],
   },
-  // DirecTree site-ownership verification, requested to appear as a plain
-  // <meta name="directree-verify"> tag in <head>, not a visible badge.
+  // Site-ownership verification tags for directory listings, each requested
+  // to appear as a plain <meta> tag in <head>, not a visible badge.
   other: {
     "directree-verify": "c990f5a701581a90dcc67dac359f9502",
+    "saasrocket-verify": "saasrocket-verify=4dbfb871bef34f37a0eec188e06b9772864c6fe216aa5ee9ab818238b9523a96",
   },
 };
 
