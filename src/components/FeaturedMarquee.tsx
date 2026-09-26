@@ -127,6 +127,14 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     height: 51,
     lazy: true,
   },
+  {
+    href: "https://aitoolfame.com/item/the-arena",
+    rel: "noopener noreferrer",
+    src: "https://aitoolfame.com/badge-light.svg",
+    alt: "Featured on aitoolfame.com",
+    width: 190,
+    height: 54,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
