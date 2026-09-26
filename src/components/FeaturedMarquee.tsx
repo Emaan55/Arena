@@ -135,6 +135,15 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     width: 190,
     height: 54,
   },
+  {
+    href: "https://startupbenchmarks.com/product/thearena",
+    rel: "noopener",
+    src: "https://startupbenchmarks.com/assets/images/badge.png",
+    alt: "Startup Benchmarks",
+    width: 265,
+    height: 54,
+    lazy: true,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
