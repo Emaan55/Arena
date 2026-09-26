@@ -90,6 +90,15 @@ export function SiteFooter() {
           <a href="https://www.aidirectori.es/ai-tools/the-arena" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn.aidirectori.es/ai-tools/badges/light-mode.png" alt="AI Directories Badge" width="220" height="48" loading="lazy" />
           </a>
+          <a href="https://verifieddr.com/website/thearena-lol" target="_blank" rel="noopener">
+            <img
+              src="https://verifieddr.com/badge/thearena-lol.svg?metric=truedr"
+              alt="Verified DR - Verified Domain Rating for thearena.lol"
+              width="220"
+              height="68"
+              loading="lazy"
+            />
+          </a>
         </div>
       </div>
 
