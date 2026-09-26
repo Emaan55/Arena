@@ -84,6 +84,9 @@ export function SiteFooter() {
           <a href="https://www.foundrlist.com/product/thearena?utm_source=badge&utm_medium=embed" target="_blank" rel="noopener">
             <img src="https://www.foundrlist.com/api/badge/thearena" alt="Featured on FoundrList" width="150" height="48" loading="lazy" />
           </a>
+          <a href="https://daniellaunches.com" target="_blank" rel="noopener">
+            <img src="https://daniellaunches.com/badge-light.svg" alt="Featured on DanielLaunches" width="220" height="48" loading="lazy" />
+          </a>
         </div>
       </div>
 
