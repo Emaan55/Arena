@@ -358,13 +358,6 @@ function SideCard({
         onToggle={() => setReviewsOpen((v) => !v)}
       />
 
-      {/* Absorbs whatever extra height the grid row's equal-height stretch
-          adds (e.g. one side has a Battle Pitch and the other doesn't) —
-          without this, that leftover space sits as an awkward gap below
-          the Boost box instead of being invisible. Pins the vote button
-          and Boost move to the bottom of both cards instead. */}
-      <div className="flex-1" />
-
       {/* Always the same slot/height on both sides — the label and style
           change with vote state, but the button itself never disappears,
           so the two cards in a duel never drift out of alignment. */}
@@ -429,12 +422,15 @@ function SideCard({
 /**
  * Hexagonal "VS" marker between the two duel cards, with thin gradient
  * lines running to the top/bottom edges of the row — stacks flush between
- * the cards on mobile (`min-h`) and stretches to their full height on
- * desktop (`flex-1` inside an `items-stretch` grid row).
+ * the cards on mobile (`min-h`) and, on desktop, opts itself back into
+ * `self-stretch` to span the full row height even though the two product
+ * cards next to it deliberately don't (see the grid's `items-start`
+ * comment below) — the connector should always reach edge to edge
+ * regardless of which side has more content.
  */
 function VsDivider() {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:py-0">
+    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:self-stretch sm:py-0">
       <span className="min-h-6 w-px flex-1 bg-gradient-to-b from-transparent to-accent/60 sm:min-h-10" />
       <div className="relative h-12 w-11 shrink-0">
         <div className="absolute inset-0" style={{ clipPath: HEX_CLIP, background: "var(--accent)" }} />
@@ -495,8 +491,15 @@ export function MatchCard({
 
       {/* Two equal-weight, independently-bordered cards — never just one
           product's card — connected by a "VS" marker. Both sides render
-          through the same SideCard, so no matchup is ever hardcoded. */}
-      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch sm:gap-3">
+          through the same SideCard, so no matchup is ever hardcoded.
+          `items-start` deliberately does NOT stretch both cards to match
+          the taller one's height: one side often has real content the
+          other doesn't (a filled-in Battle Pitch, a win streak badge), and
+          forcing equal height just turns that gap into empty dead space
+          somewhere in the shorter card. Each card sizes to its own
+          content instead; the VS divider still spans the full row via its
+          own self-stretch below. */}
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
         <SideCard
           productId={match.product_a.id}
           matchId={match.id}
