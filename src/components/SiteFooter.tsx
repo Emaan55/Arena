@@ -88,7 +88,7 @@ export function SiteFooter() {
             <img src="https://daniellaunches.com/badge-light.svg" alt="Featured on DanielLaunches" width="220" height="48" loading="lazy" />
           </a>
           <a href="https://www.aidirectori.es/ai-tools/the-arena" target="_blank" rel="noopener noreferrer">
-            <img src="https://cdn.aidirectori.es/ai-tools/badges/light-mode.png" alt="AI Directories Badge" loading="lazy" />
+            <img src="https://cdn.aidirectori.es/ai-tools/badges/light-mode.png" alt="AI Directories Badge" width="220" height="48" loading="lazy" />
           </a>
         </div>
       </div>
