@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "./BrandLogo";
+import { FeaturedMarquee } from "./FeaturedMarquee";
 
 /**
  * Site-wide footer, mounted once in layout.tsx alongside SiteHeader.
@@ -69,41 +70,7 @@ export function SiteFooter() {
         </nav>
       </div>
 
-      <div className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-6 py-5 sm:justify-start md:px-10">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
-          <a href="https://www.scrolllaunch.com/products/the-arena?ref=badge" target="_blank" rel="noopener">
-            <img src="https://www.scrolllaunch.com/api/badge/the-arena" alt="Featured on ScrollLaunch" width="220" height="48" loading="lazy" />
-          </a>
-          <a href="https://nicklaunches.com/" target="_blank" rel="noopener">
-            <img src="https://nicklaunches.com/badges/featured.png" alt="Featured on Nick Launches" width="244" height="56" loading="lazy" />
-          </a>
-          <a href="https://www.betterlaunch.co/product/the-arena" target="_blank" rel="nofollow noopener">
-            <img src="https://www.betterlaunch.co/badge-week-light.svg" alt="Product of the week on Better Launch" width="176" height="48" loading="lazy" />
-          </a>
-          <a href="https://www.foundrlist.com/product/thearena?utm_source=badge&utm_medium=embed" target="_blank" rel="noopener">
-            <img src="https://www.foundrlist.com/api/badge/thearena" alt="Featured on FoundrList" width="150" height="48" loading="lazy" />
-          </a>
-          <a href="https://daniellaunches.com" target="_blank" rel="noopener">
-            <img src="https://daniellaunches.com/badge-light.svg" alt="Featured on DanielLaunches" width="220" height="48" loading="lazy" />
-          </a>
-          <a href="https://www.aidirectori.es/ai-tools/the-arena" target="_blank" rel="noopener noreferrer">
-            <img src="https://cdn.aidirectori.es/ai-tools/badges/light-mode.png" alt="AI Directories Badge" width="220" height="48" loading="lazy" />
-          </a>
-          <a href="https://verifieddr.com/website/thearena-lol" target="_blank" rel="noopener">
-            <img
-              src="https://verifieddr.com/badge/thearena-lol.svg?metric=truedr"
-              alt="Verified DR - Verified Domain Rating for thearena.lol"
-              width="220"
-              height="68"
-              loading="lazy"
-            />
-          </a>
-          <a href="https://neeed.directory" target="_blank" rel="noopener">
-            <img src="https://neeed.directory/badges/neeed-badge-light.svg" alt="Featured on neeed.directory" width="139" />
-          </a>
-        </div>
-      </div>
+      <FeaturedMarquee />
 
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col-reverse items-center gap-3 px-6 py-6 text-center sm:flex-row sm:justify-between sm:text-left md:px-10">

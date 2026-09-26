@@ -161,3 +161,19 @@ body {
     transform: scale(1.06) translate(-1%, -1%);
   }
 }
+
+/* Featured-badges marquee (src/components/FeaturedMarquee.tsx). The track
+   renders the badge list twice back to back and shifts left by exactly
+   half its own width, landing precisely on the start of the second copy —
+   seamless with no jump. That only lines up exactly if the spacing between
+   badges comes from a margin on each badge (baked into its own width) and
+   not a flex `gap` (a fixed number of gaps that doesn't split evenly at
+   the halfway point once there are two badge sets instead of one). */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
