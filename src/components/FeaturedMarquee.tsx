@@ -18,6 +18,7 @@ interface FeaturedBadge {
   width: number;
   height?: number;
   lazy?: boolean;
+  ariaLabel?: string;
 }
 
 const FEATURED_BADGES: FeaturedBadge[] = [
@@ -100,6 +101,15 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     height: 52,
     lazy: true,
   },
+  {
+    href: "https://mydentify.com/",
+    rel: "noopener",
+    src: "https://mydentify.com/badges/listed-on-mydentify.svg",
+    alt: "Listed on Mydentify",
+    ariaLabel: "Listed on Mydentify",
+    width: 176,
+    height: 32,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
@@ -108,6 +118,7 @@ function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplica
       href={badge.href}
       target="_blank"
       rel={badge.rel}
+      aria-label={badge.ariaLabel}
       aria-hidden={duplicate || undefined}
       tabIndex={duplicate ? -1 : undefined}
       className={`mr-10 flex shrink-0 items-center ${duplicate ? "motion-reduce:hidden" : ""}`}
