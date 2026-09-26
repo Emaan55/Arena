@@ -42,6 +42,10 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
   const [votedMap, setVotedMap] = useState<Record<string, VoteSide>>({});
   const [pendingVotes, setPendingVotes] = useState<Set<string>>(new Set());
   const [voteError, setVoteError] = useState<string | null>(null);
+  // Only set for the exact duel just voted on, this session — never
+  // persisted, never re-shown on a later visit or reload of an
+  // already-voted match (see castVote/markVoted below).
+  const [justVotedMatchId, setJustVotedMatchId] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<{ category: Category; from: string } | null>(null);
   const inFlight = useRef(false);
   const { user, loading: authLoading } = useAuthUser();
@@ -144,6 +148,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
         return;
       }
       markVoted(matchId, side);
+      setJustVotedMatchId(matchId);
       if (data.state) setState(data.state);
     } catch {
       setVoteError("Network error, please try again.");
@@ -301,6 +306,8 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
                       voting={pendingVotes.has(m.id)}
                       onVote={castVote}
                       onPaid={refreshState}
+                      showReviewPrompt={justVotedMatchId === m.id}
+                      onReviewDone={() => setJustVotedMatchId(null)}
                     />
                   ))}
                 </div>

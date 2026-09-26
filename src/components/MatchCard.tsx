@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Activity, Check, Swords } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Activity, Check, MessageSquare, Swords } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
@@ -124,6 +124,59 @@ function BoostMove({
   );
 }
 
+const REVIEW_BODY_MAX = 500;
+
+interface ReviewEntry {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}
+
+/**
+ * Collapsed by default: just the count, no request for the list until a
+ * viewer actually clicks it. The count itself is fetched once per card on
+ * mount (a single indexed count query — see /api/reviews) rather than
+ * threaded through the arena-state polling loop, so this feature stays
+ * fully self-contained and never touches ArenaState's shape.
+ */
+function ReviewsPanel({
+  count,
+  reviews,
+  loaded,
+  open,
+  onToggle,
+}: {
+  count: number;
+  reviews: ReviewEntry[];
+  loaded: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        onClick={onToggle}
+        disabled={!loaded || count === 0}
+        className="flex items-center gap-1.5 self-start text-xs font-medium text-muted transition-colors duration-150 ease-out hover:text-accent disabled:cursor-default disabled:hover:text-muted"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        {count} review{count === 1 ? "" : "s"}
+      </button>
+      {open && reviews.length > 0 && (
+        <ul className="flex max-h-48 flex-col gap-2 overflow-y-auto rounded-lg border border-border bg-surface-2 p-3">
+          {reviews.map((r) => (
+            <li key={r.id} className="flex flex-col gap-0.5 border-b border-border pb-2 text-xs last:border-0 last:pb-0">
+              <span className="font-semibold text-ink">{r.authorName}</span>
+              <span className="leading-snug text-muted">{r.body}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function SideCard({
   productId,
   matchId,
@@ -147,6 +200,8 @@ function SideCard({
   votedSide,
   onVote,
   onPaid,
+  showReviewPrompt,
+  onReviewDone,
 }: {
   productId: string;
   matchId: string;
@@ -170,9 +225,63 @@ function SideCard({
   votedSide?: VoteSide;
   onVote: (side: VoteSide) => void;
   onPaid?: () => void;
+  showReviewPrompt: boolean;
+  onReviewDone: () => void;
 }) {
   const isMyVote = votedSide === side;
   const pct = Math.min(100, (votes / VOTES_TO_WIN) * 100);
+
+  const [reviewCount, setReviewCount] = useState(0);
+  const [reviews, setReviews] = useState<ReviewEntry[]>([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/reviews?productId=${productId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setReviewCount(data.count ?? 0);
+        setReviews(data.reviews ?? []);
+        setReviewsLoaded(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  const [reviewDraft, setReviewDraft] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  async function submitReview() {
+    const trimmed = reviewDraft.trim();
+    if (!trimmed) return;
+    setSubmittingReview(true);
+    setReviewError(null);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId, productId, body: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReviewError(data.error ?? "Could not save your review.");
+        return;
+      }
+      setReviews((prev) => [{ id: data.review.id, body: data.review.body, authorName: "You", createdAt: data.review.created_at }, ...prev]);
+      setReviewCount((c) => c + 1);
+      setReviewDraft("");
+      onReviewDone();
+    } catch {
+      setReviewError("Network error, please try again.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
 
   const borderClass = isMyVote
     ? "border-accent"
@@ -186,15 +295,24 @@ function SideCard({
       style={isMyVote ? { boxShadow: "var(--glow-accent)" } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate font-display text-base font-bold text-ink sm:text-lg">{name}</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-              {category}
-            </span>
-            <XHandleLink handle={xHandle} />
-          </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="group flex min-w-0 items-center gap-3"
+          >
+            <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate font-display text-base font-bold text-ink group-hover:text-accent group-hover:underline sm:text-lg">
+                {name}
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                {category}
+              </span>
+            </div>
+          </a>
+          <XHandleLink handle={xHandle} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {isMyVote && (
@@ -217,15 +335,6 @@ function SideCard({
 
       <BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} />
 
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer nofollow"
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-ink shadow-none transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:text-accent active:scale-95"
-      >
-        Visit Product ↗
-      </a>
-
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between">
           <span key={votes} className="font-mono text-2xl font-bold text-ink [animation:slide-up-pop_150ms_ease-out]">
@@ -241,22 +350,60 @@ function SideCard({
         </div>
       </div>
 
-      {/* Once you've voted, only your own side keeps a button ("Voted") —
-          the side you didn't pick has nothing left to click, so it goes
-          straight to the Boost move instead of a disabled "Not selected"
-          button. */}
-      {(!disabled || isMyVote) && (
-        <button
-          onClick={() => onVote(side)}
-          disabled={disabled || voting}
-          className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
-            isMyVote
-              ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
+      <ReviewsPanel
+        count={reviewCount}
+        reviews={reviews}
+        loaded={reviewsLoaded}
+        open={reviewsOpen}
+        onToggle={() => setReviewsOpen((v) => !v)}
+      />
+
+      {/* Always the same slot/height on both sides — the label and style
+          change with vote state, but the button itself never disappears,
+          so the two cards in a duel never drift out of alignment. */}
+      <button
+        onClick={() => onVote(side)}
+        disabled={disabled || voting}
+        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
+          isMyVote
+            ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
+            : disabled
+              ? "border border-border bg-surface-2 text-muted shadow-none disabled:opacity-100"
               : "bg-accent text-accent-ink hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
-          }`}
-        >
-          {voting ? "Voting…" : isMyVote ? "✓ Voted" : "Vote for this side"}
-        </button>
+        }`}
+      >
+        {voting ? "Voting…" : isMyVote ? "✓ Voted" : disabled ? "Not selected" : "Vote for this side"}
+      </button>
+
+      {showReviewPrompt && isMyVote && (
+        <div className="flex flex-col gap-2 rounded-lg border border-accent/30 bg-accent-soft/5 p-3">
+          <span className="text-xs font-semibold text-ink">
+            Why did you vote for {name}? <span className="font-normal text-muted">(optional)</span>
+          </span>
+          <textarea
+            value={reviewDraft}
+            onChange={(e) => setReviewDraft(e.target.value.slice(0, REVIEW_BODY_MAX))}
+            rows={2}
+            placeholder="Share what stood out... (optional)"
+            className="resize-none rounded-lg border border-border bg-bg px-2.5 py-2 text-xs text-ink placeholder:text-muted"
+          />
+          {reviewError && <p className="text-xs text-danger">{reviewError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={onReviewDone}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted transition-colors duration-150 ease-out hover:text-ink"
+            >
+              Skip
+            </button>
+            <button
+              onClick={submitReview}
+              disabled={submittingReview || !reviewDraft.trim()}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink disabled:opacity-50"
+            >
+              {submittingReview ? "Submitting…" : "Submit review"}
+            </button>
+          </div>
+        </div>
       )}
 
       <BoostMove
@@ -302,12 +449,18 @@ export function MatchCard({
   voting = false,
   onVote,
   onPaid,
+  showReviewPrompt = false,
+  onReviewDone,
 }: {
   match: MatchWithProducts;
   votedSide?: VoteSide;
   voting?: boolean;
   onVote: (matchId: string, side: VoteSide) => void;
   onPaid?: () => void;
+  // True only in the same session, right after this exact duel's vote was
+  // cast — never persisted, never re-shown on a later visit or reload.
+  showReviewPrompt?: boolean;
+  onReviewDone?: () => void;
 }) {
   const disabled = votedSide !== undefined;
   const aNearLoss = match.votes_b === NEAR_LOSS_THRESHOLD && match.votes_a < VOTES_TO_WIN;
@@ -360,6 +513,8 @@ export function MatchCard({
           votedSide={votedSide}
           onVote={(side) => onVote(match.id, side)}
           onPaid={onPaid}
+          showReviewPrompt={showReviewPrompt}
+          onReviewDone={onReviewDone ?? (() => {})}
         />
         <VsDivider />
         <SideCard
@@ -385,6 +540,8 @@ export function MatchCard({
           votedSide={votedSide}
           onVote={(side) => onVote(match.id, side)}
           onPaid={onPaid}
+          showReviewPrompt={showReviewPrompt}
+          onReviewDone={onReviewDone ?? (() => {})}
         />
       </div>
       {disabled && (

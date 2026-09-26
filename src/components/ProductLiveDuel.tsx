@@ -37,6 +37,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
   const [votedSide, setVotedSide] = useState<VoteSide | undefined>(undefined);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const { user, loading: authLoading } = useAuthUser();
   const resumedVote = useRef(false);
 
@@ -78,6 +79,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
       }
       saveVote(matchId, side);
       setVotedSide(side);
+      setShowReviewPrompt(true);
       router.refresh();
     } catch {
       setError("Network error, please try again.");
@@ -110,6 +112,8 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
         voting={voting}
         onVote={handleVote}
         onPaid={() => router.refresh()}
+        showReviewPrompt={showReviewPrompt}
+        onReviewDone={() => setShowReviewPrompt(false)}
       />
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>

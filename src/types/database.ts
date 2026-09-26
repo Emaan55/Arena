@@ -98,6 +98,16 @@ export type Vote = {
   created_at: string;
 };
 
+// Optional, tied 1:1 to a vote (match_id + user_id) — see migration 0021.
+export type ProductReview = {
+  id: string;
+  match_id: string;
+  product_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+};
+
 export type Champion = {
   id: string;
   product_id: string;
@@ -349,6 +359,12 @@ export interface Database {
         Row: Vote;
         Insert: Partial<Vote>;
         Update: Partial<Vote>;
+        Relationships: Relationships;
+      };
+      product_reviews: {
+        Row: ProductReview;
+        Insert: Partial<ProductReview>;
+        Update: Partial<ProductReview>;
         Relationships: Relationships;
       };
       champions: {
