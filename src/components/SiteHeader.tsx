@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/#hall-of-fame", label: "Hall of Fame" },
   { href: "/#duels", label: "Explore" },
+  { href: "/live-battles", label: "Live Battles" },
   { href: "/#how-it-works", label: "How it Works" },
   { href: "/#about", label: "About" },
 ];

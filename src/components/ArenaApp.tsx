@@ -18,7 +18,6 @@ import { SponsoredSection } from "./SponsoredSection";
 import { StatsRow } from "./StatsRow";
 import { HowItWorks } from "./HowItWorks";
 import { Leaderboard } from "./Leaderboard";
-import { LiveBattlesLeaderboard } from "./LiveBattlesLeaderboard";
 import { WinStreakLeaderboard } from "./WinStreakLeaderboard";
 import { PowerMoves } from "./PowerMoves";
 import { ScrollReveal } from "./ScrollReveal";
@@ -343,18 +342,15 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
         </div>
       </section>
 
-      {/* Leaderboards: read-only rankings over the same match/product data
-          the duel cards above and Hall of Fame below already use — no new
-          tracking, no new tables. */}
+      {/* Win Streak: read-only ranking over the same product data the
+          sidebar Leaderboard and Hall of Fame already use — no new
+          tracking, no new tables. Live Battles moved to its own page
+          (/live-battles, linked from the navbar) rather than duplicating
+          a full leaderboard here too. */}
       <ScrollReveal>
         <section className="border-t border-border px-6 py-16 md:px-10">
-          <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-start">
-            <div className="flex-1">
-              <LiveBattlesLeaderboard matches={filtered.matches} />
-            </div>
-            <div className="flex-1">
-              <WinStreakLeaderboard products={filtered.topProducts} />
-            </div>
+          <div className="mx-auto max-w-3xl">
+            <WinStreakLeaderboard products={filtered.topProducts} />
           </div>
         </section>
       </ScrollReveal>
