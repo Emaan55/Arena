@@ -198,7 +198,17 @@ export async function resolveMatchIfComplete(admin: AdminClient, match: Match) {
  * There's no cron here — this runs lazily on every arena state fetch (page
  * load + the client's poll), which is frequent enough that the 7-day mark is
  * crossed within seconds of the deadline in practice, without needing any
- * scheduled-job infra.
+ * scheduled-job infra. That also means it's called extremely often and
+ * concurrently (every open tab's poll, every vote, every /api/products hit),
+ * so the SELECT-then-UPDATE below is never assumed to be exclusive: the
+ * UPDATE is itself the guard (`.eq("status", "active")`, matching the same
+ * atomic-guarded-update pattern resolveMatchIfComplete uses above), and the
+ * activity log entry is only written by whichever concurrent caller's
+ * UPDATE actually flipped the row. Every other simultaneous caller sees
+ * zero rows affected and does nothing — so the same transition can never
+ * log more than once, without needing a schema change to activity_log
+ * (which has no product/event-type column to key a uniqueness constraint
+ * on in the first place).
  */
 export async function markStaleWaitingProductsUnique(admin: AdminClient) {
   const cutoff = new Date(Date.now() - UNIQUE_PRODUCT_MS).toISOString();
@@ -223,7 +233,20 @@ export async function markStaleWaitingProductsUnique(admin: AdminClient) {
 
   for (const product of staleActive) {
     if (matchedIds.has(product.id)) continue; // shouldn't happen, but never touch a matched product
-    await admin.from("products").update({ status: "unique" }).eq("id", product.id);
+
+    const { data: updated } = await admin
+      .from("products")
+      .update({ status: "unique" })
+      .eq("id", product.id)
+      .eq("status", "active")
+      .select()
+      .maybeSingle();
+
+    // Another concurrent call already made this exact transition (and
+    // already logged it) between our SELECT above and this UPDATE —
+    // nothing left to do.
+    if (!updated) continue;
+
     await logActivity(
       admin,
       `🦄 ${product.name} found no challenger in ${product.category} after 7 days, marked as a Unique Product (still open to a challenge, no win awarded)`,
