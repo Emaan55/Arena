@@ -13,6 +13,7 @@ import { CrownIcon } from "@/components/icons";
 import { XHandleLink } from "@/components/XHandleLink";
 import { BattlePitch } from "@/components/BattlePitch";
 import { ProductEditor } from "@/components/ProductEditor";
+import { ArenaPerformance } from "@/components/ArenaPerformance";
 import { timeAgo } from "@/lib/format";
 import { STATUS_LABEL, STATUS_CLASS } from "@/lib/product-status";
 
@@ -81,6 +82,13 @@ export default async function ProductPage({
           differentiators={product.differentiators}
         />
       </div>
+
+      <ArenaPerformance
+        product={product}
+        currentMatch={currentMatch}
+        champion={champion}
+        mostRecentResult={history[0] ?? null}
+      />
 
       <ProductEditor product={product} defaultOpen={edit === "1"} />
 

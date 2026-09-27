@@ -9,8 +9,13 @@ export type ChampionWithProduct = Champion & { product: Product };
 export interface HomeStats {
   productsSubmitted: number;
   duelsFought: number;
-  championsCrowned: number;
-  votesCastToday: number;
+  totalVotes: number;
+  // Total duels ever created (active + resolved) — every one of them put
+  // two products in front of the voting public, so this is a direct,
+  // Arena-native proxy for "how much exposure has happened here," without
+  // any page-view/click tracking. Deliberately not the same number as
+  // duelsFought, which only counts *resolved* duels.
+  arenaExposure: number;
 }
 
 export interface ArenaState {
@@ -28,9 +33,6 @@ export interface ArenaState {
 export async function getArenaState(
   supabase: SupabaseClient<Database>,
 ): Promise<ArenaState> {
-  const startOfDayUtc = new Date();
-  startOfDayUtc.setUTCHours(0, 0, 0, 0);
-
   const [
     matchesRes,
     activeProductsRes,
@@ -41,7 +43,8 @@ export async function getArenaState(
     activityRes,
     productsCountRes,
     duelsFoughtCountRes,
-    votesTodayCountRes,
+    totalVotesCountRes,
+    totalMatchesCountRes,
   ] = await Promise.all([
     supabase
       .from("matches")
@@ -89,10 +92,8 @@ export async function getArenaState(
       .from("matches")
       .select("*", { count: "exact", head: true })
       .eq("status", "resolved"),
-    supabase
-      .from("votes")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startOfDayUtc.toISOString()),
+    supabase.from("votes").select("*", { count: "exact", head: true }),
+    supabase.from("matches").select("*", { count: "exact", head: true }),
   ]);
 
   const sponsorship = await getSponsorshipState(supabase);
@@ -122,8 +123,8 @@ export async function getArenaState(
     stats: {
       productsSubmitted: productsCountRes.count ?? 0,
       duelsFought: duelsFoughtCountRes.count ?? 0,
-      championsCrowned: champions.length,
-      votesCastToday: votesTodayCountRes.count ?? 0,
+      totalVotes: totalVotesCountRes.count ?? 0,
+      arenaExposure: totalMatchesCountRes.count ?? 0,
     },
     sponsorship,
   };

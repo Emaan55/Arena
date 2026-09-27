@@ -1,12 +1,12 @@
-import { Package, Swords, Crown, TrendingUp } from "lucide-react";
+import { Package, Swords, TrendingUp, Radar } from "lucide-react";
 import type { HomeStats } from "@/lib/arena-state";
 
 export function StatsRow({ stats }: { stats: HomeStats }) {
   const items = [
     { icon: Package, value: stats.productsSubmitted, label: "Products Submitted" },
     { icon: Swords, value: stats.duelsFought, label: "Duels Fought" },
-    { icon: Crown, value: stats.championsCrowned, label: "Champions Crowned" },
-    { icon: TrendingUp, value: stats.votesCastToday, label: "Votes Cast Today" },
+    { icon: TrendingUp, value: stats.totalVotes, label: "Total Votes" },
+    { icon: Radar, value: stats.arenaExposure, label: "Arena Exposure" },
   ];
 
   return (
