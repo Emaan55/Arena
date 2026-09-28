@@ -4,8 +4,7 @@ import { createCheckout, getVariantId } from "@/lib/lemonsqueezy";
 import { validateProductSubmission } from "@/lib/product-submission";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/fingerprint";
-
-const SUBMIT_PRICE_CENTS = 100;
+import { logSecurityEvent } from "@/lib/security-log";
 
 /**
  * Starts a $1 checkout for the "pay instead of earning it" submission
@@ -16,6 +15,14 @@ const SUBMIT_PRICE_CENTS = 100;
  * confirmed (see /api/webhooks/lemonsqueezy), the same "pay first, create
  * after webhook confirms" shape Get Listed and sponsorship checkouts
  * already use.
+ *
+ * No custom_price override here (unlike Get Listed's discount-adjusted
+ * pricing) — the LEMONSQUEEZY_SUBMIT_VARIANT_ID variant should just be
+ * configured at $1 directly in the LemonSqueezy dashboard, same as boost/
+ * revive/defend each are at their own fixed price. A custom_price override
+ * only works against a variant with "pay what you want" pricing enabled;
+ * sending one against a normal fixed-price variant is a likely cause of
+ * checkout creation failing outright.
  */
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -70,10 +77,15 @@ export async function POST(req: NextRequest) {
       variantId,
       custom,
       redirectUrl: `${siteUrl}/?paid=submit`,
-      customPriceCents: SUBMIT_PRICE_CENTS,
     });
     return NextResponse.json({ url });
-  } catch {
+  } catch (err) {
+    // The client only ever sees a generic message, but the real
+    // LemonSqueezy error (invalid variant, wrong store, pricing mismatch)
+    // is logged server-side so it's actually diagnosable.
+    logSecurityEvent("submit_checkout_creation_failed", {
+      reason: err instanceof Error ? err.message : "unknown",
+    });
     return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 502 });
   }
 }

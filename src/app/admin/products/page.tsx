@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
+import { ProductAvatar } from "@/components/ProductAvatar";
 import { CATEGORIES, type Category } from "@/types/database";
+
+interface ProductListItem {
+  id: string;
+  name: string;
+  category: string;
+  url: string;
+  logo_url: string | null;
+}
 
 const BATTLE_PITCH_MAX = 120;
 const WHY_US_MAX = 160;
@@ -32,6 +41,60 @@ export default function AdminSubmitProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<ProductListItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale search results when the query is cleared, not a render-driven derivation
+      setResults([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      setSearching(true);
+      fetch(`/api/products?q=${encodeURIComponent(query.trim())}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => setResults(data?.products ?? []))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  async function deleteProduct(id: string) {
+    if (!secret) return;
+    setDeletingId(id);
+    setDeleteError(null);
+    setDeleteNotice(null);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-secret": secret },
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        reject();
+        return;
+      }
+      if (!res.ok) {
+        setDeleteError(data.error ?? "Could not delete product.");
+        return;
+      }
+      setResults((prev) => prev.filter((p) => p.id !== id));
+      setDeleteNotice("Product removed from the arena.");
+    } catch {
+      setDeleteError("Network error, please try again.");
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  }
 
   async function handleUnlock(value: string) {
     setError(null);
@@ -195,6 +258,77 @@ export default function AdminSubmitProductPage() {
           {submitting ? "Submitting…" : "Submit for free"}
         </button>
       </form>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div>
+          <h2 className="font-display text-base font-bold text-ink">Remove a product</h2>
+          <p className="text-sm text-muted">
+            Permanently deletes it from the arena, including its matches, votes, and reviews. Blocked while
+            it&apos;s in an active duel.
+          </p>
+        </div>
+
+        <div className="relative flex items-center">
+          <Search className="pointer-events-none absolute left-3 h-4 w-4 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products by name…"
+            className="w-full rounded-lg border border-border bg-bg py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted"
+          />
+        </div>
+
+        {deleteError && <p className="text-sm text-danger">{deleteError}</p>}
+        {deleteNotice && <p className="text-sm text-ink">{deleteNotice}</p>}
+
+        {searching && <p className="text-xs text-muted">Searching…</p>}
+
+        {results.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {results.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg p-3"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <ProductAvatar name={p.name} logoUrl={p.logo_url} size="sm" />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-ink">{p.name}</span>
+                    <span className="text-xs text-muted">{p.category}</span>
+                  </div>
+                </div>
+
+                {confirmDeleteId === p.id ? (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-ink"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => deleteProduct(p.id)}
+                      disabled={deletingId === p.id}
+                      className="rounded-lg bg-danger px-2.5 py-1.5 text-xs font-semibold text-danger-ink disabled:opacity-50"
+                    >
+                      {deletingId === p.id ? "Deleting…" : "Confirm delete"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(p.id)}
+                    aria-label={`Delete ${p.name}`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/40 px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger hover:text-danger-ink"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }

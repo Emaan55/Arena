@@ -107,6 +107,19 @@ export function SubmitForm({
     setSuccess(null);
     setPaidPending(false);
     try {
+      // Re-check eligibility fresh right before submitting rather than
+      // trusting whatever was last fetched into freeProgress — the actual
+      // server-side gate (POST /api/products' claim_free_submission call)
+      // is what's authoritative either way, but this avoids even attempting
+      // a submission against visibly stale client state.
+      const statusRes = await fetch("/api/free-submission/status");
+      const statusData = statusRes.ok ? await statusRes.json() : null;
+      if (!statusData || statusData.availableFreeSubmissions < 1) {
+        setFreeProgress(statusData);
+        setError("You haven't earned a free submission yet. Vote on 5 duels and leave 2 reviews, or pay $1 to submit now.");
+        return;
+      }
+
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
