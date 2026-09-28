@@ -60,17 +60,21 @@ export async function POST(req: NextRequest) {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  // LemonSqueezy's custom_data validation rejects an empty-string value
+  // outright ("must be a string" — confirmed directly against their API),
+  // so optional fields are only included when they actually have a value,
+  // never sent as "". The webhook treats an absent key as null/empty.
   const custom: Record<string, string> = {
     type: "submit",
     name: f.name,
     url: f.url,
     category: f.category,
     pitch: f.pitch,
-    battle_pitch: f.battle_pitch ?? "",
-    why_us: f.why_us ?? "",
     differentiators: JSON.stringify(f.differentiators),
-    x_handle: f.x_handle ?? "",
   };
+  if (f.battle_pitch) custom.battle_pitch = f.battle_pitch;
+  if (f.why_us) custom.why_us = f.why_us;
+  if (f.x_handle) custom.x_handle = f.x_handle;
 
   try {
     const url = await createCheckout({
