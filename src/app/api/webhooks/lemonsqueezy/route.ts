@@ -7,7 +7,8 @@ import { isSponsorDuration } from "@/lib/sponsorship-constants";
 import { isGetListedOrdersSchemaReady } from "@/lib/get-listed/orders";
 import { logAdminAction } from "@/lib/get-listed/audit";
 import { logSecurityEvent } from "@/lib/security-log";
-import type { PaymentType } from "@/types/database";
+import { createArenaProduct } from "@/lib/product-submission";
+import type { Category, PaymentType } from "@/types/database";
 
 interface LemonSqueezyWebhookPayload {
   meta?: {
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
   }
 
   const type = custom.type as PaymentType | undefined;
-  const isKnownType = type === "boost" || type === "revive" || type === "defend" || type === "sponsor";
+  const isKnownType = type === "boost" || type === "revive" || type === "defend" || type === "sponsor" || type === "submit";
   if (!type || !isKnownType) {
     return NextResponse.json({ received: true });
   }
@@ -178,12 +179,13 @@ export async function POST(req: NextRequest) {
   const matchId = custom.match_id;
   const durationDays = custom.duration_days ? Number(custom.duration_days) : undefined;
   // An external sponsorship has no product_id at all — it's never added to
-  // the Arena. Every other type (boost/revive/defend, and an Arena-product
-  // sponsorship) requires one.
+  // the Arena. A paid submission has no product_id either — the product
+  // doesn't exist until it's created below. Every other type (boost/
+  // revive/defend, and an Arena-product sponsorship) requires one.
   const isExternalSponsor = type === "sponsor" && custom.is_external === "1";
   const productId = custom.product_id;
 
-  if (!isExternalSponsor && !productId) {
+  if (type !== "submit" && !isExternalSponsor && !productId) {
     return NextResponse.json({ received: true });
   }
   if (type === "sponsor") {
@@ -193,6 +195,9 @@ export async function POST(req: NextRequest) {
     if (isExternalSponsor && (!custom.external_name || !custom.external_url)) {
       return NextResponse.json({ received: true });
     }
+  }
+  if (type === "submit" && (!custom.name || !custom.url || !custom.category || !custom.pitch)) {
+    return NextResponse.json({ received: true });
   }
 
   const { error: insertError } = await admin.from("payments").insert({
@@ -243,6 +248,40 @@ export async function POST(req: NextRequest) {
       founderXHandle: custom.founder_x_handle || null,
       logoUrl: custom.logo_url || null,
     });
+  } else if (type === "submit") {
+    // The product doesn't exist yet — this webhook is what actually
+    // creates it, using the exact fields validated up front by
+    // /api/submit/checkout and carried through unmodified in custom_data.
+    let differentiators: string[] = [];
+    try {
+      const parsed = JSON.parse(custom.differentiators ?? "[]");
+      if (Array.isArray(parsed)) differentiators = parsed.filter((d): d is string => typeof d === "string");
+    } catch {
+      // malformed custom_data would be unusual (LemonSqueezy echoes back
+      // exactly what checkout sent) — fall back to no differentiators
+      // rather than failing an already-paid submission.
+    }
+
+    const result = await createArenaProduct(admin, {
+      name: custom.name,
+      url: custom.url,
+      category: custom.category as Category,
+      pitch: custom.pitch,
+      battle_pitch: custom.battle_pitch || null,
+      why_us: custom.why_us || null,
+      differentiators,
+      x_handle: custom.x_handle || null,
+    });
+
+    if (result.ok) {
+      await admin.from("payments").update({ product_id: result.product.id }).eq("lemonsqueezy_order_id", orderId);
+    } else {
+      // Payment is already recorded above; the product just couldn't be
+      // created (e.g. someone else submitted the same URL in the
+      // meantime). Rare enough to be a manual/support case rather than an
+      // automatic refund flow — logged so it's visible, never silently lost.
+      logSecurityEvent("submit_webhook_creation_failed", { orderId, reason: result.error });
+    }
   }
 
   return NextResponse.json({ received: true });

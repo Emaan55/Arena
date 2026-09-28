@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight, BarChart3, BookOpen } from "lucide-react";
+import { Loader2, Megaphone, ClipboardList, ListChecks, ImageIcon, ArrowRight, BarChart3, BookOpen, PlusCircle } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
 
@@ -63,6 +63,12 @@ const GROUPS = [
   {
     title: "Other tools",
     sections: [
+      {
+        href: "/admin/products",
+        icon: PlusCircle,
+        title: "Submit product (free)",
+        description: "Add a product to the arena directly, no payment or vote/review requirement.",
+      },
       {
         href: "/admin/favicon-diagnostic",
         icon: ImageIcon,

@@ -1,7 +1,7 @@
 import { Rocket, Swords, Users, Crown, Trophy } from "lucide-react";
 
 const STEPS = [
-  { icon: Rocket, title: "Submit Your Product", body: "Add your product to any category. It's 100% free." },
+  { icon: Rocket, title: "Submit Your Product", body: "Pay $1, or earn a free submission by voting and reviewing." },
   { icon: Swords, title: "Fight in Duels", body: "You'll be matched randomly with another product." },
   { icon: Users, title: "Get Votes", body: "Rally the crowd. First to 100 votes wins the duel." },
   { icon: Crown, title: "Win 3 in a Row", body: "Achieve 3 consecutive wins to become champion." },

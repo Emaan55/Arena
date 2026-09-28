@@ -8,6 +8,7 @@ const LABELS: Record<PaymentType, string> = {
   revive: "Revive Now ($10)",
   defend: "Defend Now ($20)",
   sponsor: "Sponsor Your Product",
+  submit: "Pay $1 & Submit",
 };
 
 export function PayButton({
@@ -27,8 +28,9 @@ export function PayButton({
   /** Lets other paid flows (e.g. sponsorship) reuse this same checkout/overlay
    * plumbing against their own route instead of /api/checkout. */
   endpoint?: string;
-  /** Extra fields merged into the POST body — e.g. an edit token or duration. */
-  extraBody?: Record<string, string | number>;
+  /** Extra fields merged into the POST body — e.g. an edit token, duration,
+   * or (for a product submission) the whole form payload, arrays included. */
+  extraBody?: Record<string, unknown>;
   className?: string;
   label?: string;
   onPaid?: () => void;

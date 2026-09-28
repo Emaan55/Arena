@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { getArenaState } from "@/lib/arena-state";
-import {
-  pairUnmatchedProducts,
-  logActivity,
-  markStaleWaitingProductsUnique,
-  isProductFaviconColumnReady,
-  isFaviconTrackingReady,
-} from "@/lib/arena";
+import { isProductFaviconColumnReady } from "@/lib/arena";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
-import { generateEditToken, hashEditToken } from "@/lib/edit-token";
-import { parseBattleFields } from "@/lib/product-fields";
-import { CATEGORIES, type Category } from "@/types/database";
-import { normalizeUrl } from "@/lib/url";
+import { validateProductSubmission, createArenaProduct } from "@/lib/product-submission";
+import { isFreeSubmissionSchemaReady } from "@/lib/free-submission";
 import { toSearchPattern } from "@/lib/search";
-import { resolveAndStoreProductFavicon } from "@/lib/favicon-service";
 
-const MIN_FILL_TIME_MS = 1200;
 const LIST_LIMIT = 100;
 const LIST_QUERY_MAX = 80;
 
@@ -60,6 +51,15 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ products });
 }
 
+/**
+ * The free-earned submission path: requires 5 distinct valid votes and 2
+ * valid reviews (see lib/free-submission.ts), enforced entirely
+ * server-side via the claim_free_submission() Postgres function — the
+ * client never sends progress, only ever finds out whether it's eligible
+ * by trying. Paying $1 instead goes through /api/submit/checkout, and
+ * admin submissions go through /api/admin/products; all three end up at
+ * the same createArenaProduct().
+ */
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!rateLimit(`submit:${ip}`, 5, 10 * 60 * 1000)) {
@@ -75,121 +75,63 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-
   const record = (body ?? {}) as Record<string, unknown>;
-  const { name, url, category, pitch, website, renderedAt } = record;
 
-  // Honeypot: a real user never sees or fills this field.
-  if (typeof website === "string" && website.trim() !== "") {
-    return NextResponse.json({ error: "Could not submit product. Please try again." }, { status: 400 });
-  }
-  // A form submitted faster than a human could plausibly fill it out.
-  if (typeof renderedAt !== "number" || Date.now() - renderedAt < MIN_FILL_TIME_MS) {
-    return NextResponse.json({ error: "Could not submit product. Please try again." }, { status: 400 });
+  const validation = validateProductSubmission(record, { checkHoneypot: true });
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
 
-  if (typeof name !== "string" || !name.trim() || name.trim().length > 80) {
-    return NextResponse.json({ error: "Product name is required (max 80 characters)." }, { status: 400 });
+  const supabaseAuth = await createRouteHandlerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to earn and use a free submission." }, { status: 401 });
   }
-  if (typeof pitch !== "string" || !pitch.trim() || pitch.trim().length > 140) {
+
+  if (!rateLimit(`submit:user:${user.id}`, 5, 10 * 60 * 1000)) {
     return NextResponse.json(
-      { error: "One-line pitch is required (max 140 characters)." },
-      { status: 400 },
+      { error: "Too many submissions. Try again in a few minutes." },
+      { status: 429 },
     );
-  }
-  if (typeof category !== "string" || !CATEGORIES.includes(category as Category)) {
-    return NextResponse.json({ error: "Invalid category." }, { status: 400 });
-  }
-  if (typeof url !== "string") {
-    return NextResponse.json({ error: "URL is required." }, { status: 400 });
-  }
-  const normalizedUrl = normalizeUrl(url);
-  if (!normalizedUrl) {
-    return NextResponse.json({ error: "Please enter a valid URL." }, { status: 400 });
-  }
-
-  const battleFields = parseBattleFields(record);
-  if (!battleFields.ok) {
-    return NextResponse.json({ error: battleFields.error }, { status: 400 });
   }
 
   const admin = createAdminSupabaseClient();
+  if (!(await isFreeSubmissionSchemaReady(admin))) {
+    return NextResponse.json({ error: "Free submissions aren't set up yet. Try paying $1 to submit instead." }, { status: 503 });
+  }
 
-  const { data: existing } = await admin
-    .from("products")
-    .select("id")
-    .ilike("url", normalizedUrl)
-    .limit(1)
-    .maybeSingle();
-  if (existing) {
+  // Atomic, server-authoritative: recomputes vote/review counts and
+  // reserves one claim in the same transaction (see migration 0022), so
+  // the client's displayed progress is never trusted for the actual
+  // decision, and two simultaneous requests can never both consume the
+  // same single earned submission.
+  const { data: claimId, error: claimError } = await admin.rpc("claim_free_submission", { p_user_id: user.id });
+  if (claimError) {
+    return NextResponse.json({ error: "Could not check your free submission eligibility. Please try again." }, { status: 500 });
+  }
+  if (!claimId) {
     return NextResponse.json(
-      { error: "This product has already been submitted to the arena." },
-      { status: 409 },
+      { error: "You haven't earned a free submission yet. Vote on 5 duels and leave 2 reviews, or pay $1 to submit now." },
+      { status: 403 },
     );
   }
 
-  const editToken = generateEditToken();
-
-  const { data: product, error } = await admin
-    .from("products")
-    .insert({
-      name: name.trim(),
-      url: normalizedUrl,
-      pitch: pitch.trim(),
-      category: category as Category,
-      status: "active",
-      wins: 0,
-      is_defending: false,
-      ...battleFields.fields,
-      edit_token_hash: hashEditToken(editToken),
-    })
-    .select()
-    .single();
-
-  if (error || !product) {
-    return NextResponse.json({ error: "Could not submit product. Please try again." }, { status: 500 });
+  const result = await createArenaProduct(admin, validation.fields);
+  if (!result.ok) {
+    // A validation/duplicate-URL failure at this point shouldn't burn an
+    // earned free submission — refund the claim.
+    await admin.from("free_submission_claims").delete().eq("id", claimId);
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  // Auto favicon discovery — reuses the same multi-strategy pipeline every
-  // other favicon call site uses (lib/favicon-service.ts), storing our own
-  // copy keyed by this product's id (hence running after the insert, once
-  // an id actually exists). Never a manual upload. Guarded so a submission
-  // still succeeds normally if migration 0012 hasn't been run yet. A
-  // failure here is never final — it's recorded as logo_status
-  // "temporary_failure"/"not_found" with a scheduled retry, and
-  // backfillMissingProductFavicons picks it up automatically in the
-  // background (see lib/arena.ts) rather than failing the submission or
-  // giving up.
-  if (await isFaviconTrackingReady(admin)) {
-    const result = await resolveAndStoreProductFavicon(admin, product.id, normalizedUrl);
-    const nowIso = new Date().toISOString();
-    if (result.status === "success" && result.logoUrl) {
-      await admin
-        .from("products")
-        .update({ logo_url: result.logoUrl, logo_status: "success", logo_source: result.source, logo_checked_at: nowIso, logo_attempts: 1 })
-        .eq("id", product.id);
-      product.logo_url = result.logoUrl;
-    } else {
-      await admin
-        .from("products")
-        .update({
-          logo_status: result.status,
-          logo_checked_at: nowIso,
-          logo_attempts: 1,
-          logo_next_attempt_at: new Date(Date.now() + 30_000).toISOString(),
-        })
-        .eq("id", product.id);
-    }
-  }
-
-  await logActivity(admin, `🆕 ${product.name} just entered the arena in ${category}`);
-  await pairUnmatchedProducts(admin, category as Category);
-  await markStaleWaitingProductsUnique(admin);
+  await admin.from("free_submission_claims").update({ product_id: result.product.id }).eq("id", claimId);
 
   const state = await getArenaState(admin);
   // editToken is returned exactly once, in plaintext, to the submitter's
   // browser — the DB only ever stores its hash. It's the sole credential
   // for editing this product later (see PATCH /api/products/[id]); losing
   // it means losing edit access, same trade-off as an API key.
-  return NextResponse.json({ product, state, editToken }, { status: 201 });
+  return NextResponse.json({ product: result.product, state, editToken: result.editToken }, { status: 201 });
 }

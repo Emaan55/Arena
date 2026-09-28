@@ -13,7 +13,7 @@ export type Category = (typeof CATEGORIES)[number];
 export type ProductStatus = "active" | "eliminated" | "champion" | "unique";
 export type MatchStatus = "active" | "resolved";
 export type VoteSide = "a" | "b";
-export type PaymentType = "boost" | "revive" | "defend" | "sponsor";
+export type PaymentType = "boost" | "revive" | "defend" | "sponsor" | "submit";
 export type PaymentStatus = "pending" | "completed" | "failed";
 export type SponsorshipStatus = "queued" | "active" | "completed" | "cancelled";
 export type LogoStatus = "pending" | "success" | "temporary_failure" | "not_found";
@@ -105,6 +105,16 @@ export type ProductReview = {
   product_id: string;
   user_id: string;
   body: string;
+  created_at: string;
+};
+
+// One row per free product submission a user has consumed — see migration
+// 0022 and claim_free_submission(). product_id is null until the claimed
+// submission actually succeeds.
+export type FreeSubmissionClaim = {
+  id: string;
+  user_id: string;
+  product_id: string | null;
   created_at: string;
 };
 
@@ -367,6 +377,12 @@ export interface Database {
         Update: Partial<ProductReview>;
         Relationships: Relationships;
       };
+      free_submission_claims: {
+        Row: FreeSubmissionClaim;
+        Insert: Partial<FreeSubmissionClaim>;
+        Update: Partial<FreeSubmissionClaim>;
+        Relationships: Relationships;
+      };
       champions: {
         Row: Champion;
         Insert: Partial<Champion>;
@@ -476,6 +492,10 @@ export interface Database {
           p_provider_variant_id?: string | null;
         };
         Returns: Order | null;
+      };
+      claim_free_submission: {
+        Args: { p_user_id: string };
+        Returns: string | null;
       };
     };
   };

@@ -12,6 +12,7 @@ const VARIANT_ENV_KEYS: Record<Exclude<PaymentType, "sponsor">, string> = {
   boost: "LEMONSQUEEZY_BOOST_VARIANT_ID",
   revive: "LEMONSQUEEZY_REVIVE_VARIANT_ID",
   defend: "LEMONSQUEEZY_DEFEND_VARIANT_ID",
+  submit: "LEMONSQUEEZY_SUBMIT_VARIANT_ID",
 };
 
 export function getVariantId(type: Exclude<PaymentType, "sponsor">): string {
