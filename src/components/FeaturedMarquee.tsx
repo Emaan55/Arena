@@ -153,6 +153,14 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     height: 54,
     lazy: true,
   },
+  {
+    href: "https://udonboost.com/",
+    rel: "noopener noreferrer",
+    src: "https://udonboost.com/badges/featured-partner.svg",
+    alt: "UdonBoost Featured Partner",
+    width: 183,
+    height: 54,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
