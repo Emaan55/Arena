@@ -19,6 +19,9 @@ interface FeaturedBadge {
   height?: number;
   lazy?: boolean;
   ariaLabel?: string;
+  // Passthrough for a badge provider's own verification data attribute on
+  // the <img> (e.g. KittyLaunch's data-kittylaunch-badge), kept verbatim.
+  imgDataAttr?: { name: string; value: string };
 }
 
 const FEATURED_BADGES: FeaturedBadge[] = [
@@ -169,6 +172,14 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     width: 220,
     height: 60,
   },
+  {
+    href: "https://kittylaunch.com/p/the-arena?utm_source=badge",
+    rel: "noopener",
+    src: "https://kittylaunch.com/api/public/badges/launch_badge.svg?style=pill&theme=light",
+    alt: "The Arena — Verified by KittyLaunch",
+    width: 296,
+    imgDataAttr: { name: "data-kittylaunch-badge", value: "1" },
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
@@ -189,6 +200,7 @@ function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplica
         height={badge.height}
         loading={badge.lazy ? "lazy" : undefined}
         className="h-9 w-auto object-contain opacity-80 grayscale transition-all duration-200 ease-out hover:opacity-100 hover:grayscale-0"
+        {...(badge.imgDataAttr ? { [badge.imgDataAttr.name]: badge.imgDataAttr.value } : {})}
       />
     </a>
   );
