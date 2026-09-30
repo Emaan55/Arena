@@ -161,6 +161,14 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     width: 183,
     height: 54,
   },
+  {
+    href: "https://noonlaunch.com/product/the-arena",
+    rel: "dofollow",
+    src: "https://noonlaunch.com/badges/the-arena.svg",
+    alt: "Featured on Noonlaunch",
+    width: 220,
+    height: 60,
+  },
 ];
 
 function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
