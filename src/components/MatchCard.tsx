@@ -10,7 +10,6 @@ import { ShareButtons } from "./ShareButtons";
 import { BattlePitch } from "./BattlePitch";
 import { XHandleLink } from "./XHandleLink";
 import { EditProductButton } from "./EditProductButton";
-import "./match-card.css";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
@@ -55,28 +54,28 @@ function BoostMove({
   if (nearLoss) {
     message = (
       <>
-        <strong className="text-danger">One vote from elimination.</strong> Add +
+        <strong className="text-danger">One vote from elimination.</strong> Give {name} +
         {BOOST_VOTES} votes to stay in it.
       </>
     );
   } else if (gap > 0) {
     message = (
       <>
-        Behind by {gap}. Add <strong className="text-ink">+{BOOST_VOTES} votes</strong>{" "}
+        {name} is behind by {gap}. Give it <strong className="text-ink">+{BOOST_VOTES} votes</strong>{" "}
         instantly.
       </>
     );
   } else if (gap === 0) {
     message = (
       <>
-        It&apos;s tied. Take the lead with{" "}
+        It&apos;s tied. Give {name} the edge with{" "}
         <strong className="text-ink">+{BOOST_VOTES} votes</strong>.
       </>
     );
   } else {
     message = (
       <>
-        Ahead by {-gap}. Extend the lead with <strong className="text-ink">+{BOOST_VOTES} votes</strong>.
+        {name} is ahead. Extend the lead with <strong className="text-ink">+{BOOST_VOTES} votes</strong>.
       </>
     );
   }
@@ -104,21 +103,21 @@ function BoostMove({
         >
           {name.trim().charAt(0).toUpperCase() || "?"}
         </span>
-        <p className="min-h-[2.75em] text-xs leading-snug text-muted">{message}</p>
+        <p className="text-xs leading-snug text-muted">{message}</p>
       </div>
       <PayButton
         type="boost"
         productId={productId}
         matchId={matchId}
         onPaid={onPaid}
-        label={`Boost +${BOOST_VOTES} votes · ${BOOST_PRICE_LABEL}`}
+        label={`${BOOST_PRICE_LABEL}: Boost ${name}`}
         className={`w-full rounded-lg px-3 py-2 text-xs font-semibold shadow-none transition-all duration-150 ease-out active:scale-95 ${
           nearLoss
             ? "border border-danger bg-danger/10 text-danger hover:bg-danger hover:text-danger-ink"
             : "border border-accent/30 bg-accent-soft/10 text-accent hover:bg-accent-soft/20"
         }`}
       />
-      <p className="min-h-[2.75em] text-[10px] leading-snug text-muted">
+      <p className="text-[10px] leading-snug text-muted">
         Boost changes the vote count. It doesn&apos;t guarantee the win.
       </p>
     </div>
@@ -292,10 +291,10 @@ function SideCard({
 
   return (
     <div
-      className={`duel-side flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border bg-surface p-4 shadow-sm transition-all duration-150 ease-out sm:p-5 ${borderClass}`}
+      className={`flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-md transition-all duration-150 ease-out sm:p-5 ${borderClass}`}
       style={isMyVote ? { boxShadow: "var(--glow-accent)" } : undefined}
     >
-      <div className="flex min-h-[4.25rem] items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <a
             href={url}
@@ -304,8 +303,8 @@ function SideCard({
             className="group flex min-w-0 items-center gap-3"
           >
             <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="break-words font-display text-base font-bold leading-snug text-ink group-hover:text-accent group-hover:underline sm:text-lg">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate font-display text-base font-bold text-ink group-hover:text-accent group-hover:underline sm:text-lg">
                 {name}
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
@@ -313,23 +312,20 @@ function SideCard({
               </span>
             </div>
           </a>
+          <XHandleLink handle={xHandle} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {isMyVote && (
+            <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
+              <Check className="h-3 w-3" />
+              Your vote
+            </span>
+          )}
           <EditProductButton productId={productId} submittedAt={submittedAt} />
         </div>
       </div>
 
-      <div className="flex min-h-5 flex-wrap items-center justify-between gap-2">
-        <XHandleLink handle={xHandle} />
-        {isMyVote && (
-          <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
-            <Check className="h-3 w-3" />
-            Your vote
-          </span>
-        )}
-      </div>
-
-      <p className="line-clamp-2 min-h-[3em] break-words text-sm leading-relaxed text-muted">{pitch}</p>
+      <p className="line-clamp-2 min-h-[2.2em] text-xs text-muted sm:text-sm">{pitch}</p>
 
       {winStreak > 0 && (
         <span className="self-start rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold text-muted">
@@ -339,8 +335,8 @@ function SideCard({
 
       <BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} />
 
-      <div className="mt-auto flex flex-col gap-2 pt-1">
-        <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-baseline justify-between">
           <span key={votes} className="font-mono text-2xl font-bold text-ink [animation:slide-up-pop_150ms_ease-out]">
             {votes}
           </span>
@@ -368,7 +364,7 @@ function SideCard({
       <button
         onClick={() => onVote(side)}
         disabled={disabled || voting}
-        className={`min-h-11 w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
+        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
           isMyVote
             ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
             : disabled
@@ -423,11 +419,19 @@ function SideCard({
   );
 }
 
-/** The connector follows the duel container, not the viewport width. */
+/**
+ * Hexagonal "VS" marker between the two duel cards, with thin gradient
+ * lines running to the top/bottom edges of the row — stacks flush between
+ * the cards on mobile (`min-h`) and, on desktop, opts itself back into
+ * `self-stretch` to span the full row height even though the two product
+ * cards next to it deliberately don't (see the grid's `items-start`
+ * comment below) — the connector should always reach edge to edge
+ * regardless of which side has more content.
+ */
 function VsDivider() {
   return (
-    <div className="duel-divider flex items-center justify-center gap-3 self-stretch">
-      <span className="duel-connector bg-accent/25" />
+    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:self-stretch sm:py-0">
+      <span className="min-h-6 w-px flex-1 bg-gradient-to-b from-transparent to-accent/60 sm:min-h-10" />
       <div className="relative h-12 w-11 shrink-0">
         <div className="absolute inset-0" style={{ clipPath: HEX_CLIP, background: "var(--accent)" }} />
         <div
@@ -437,7 +441,7 @@ function VsDivider() {
           <span className="font-display text-xs font-bold text-accent">VS</span>
         </div>
       </div>
-      <span className="duel-connector bg-accent/25" />
+      <span className="min-h-6 w-px flex-1 bg-gradient-to-t from-transparent to-accent/60 sm:min-h-10" />
     </div>
   );
 }
@@ -472,7 +476,7 @@ export function MatchCard({
       : "";
 
   return (
-    <div className="duel-container flex min-w-0 flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-1">
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
           <span className="relative flex h-1.5 w-1.5">
@@ -485,8 +489,17 @@ export function MatchCard({
         <ShareButtons url={shareUrl} text={shareText} />
       </div>
 
-      {/* Zero minimum tracks keep long product names from widening either side. */}
-      <div className="duel-grid grid grid-cols-1 gap-3">
+      {/* Two equal-weight, independently-bordered cards — never just one
+          product's card — connected by a "VS" marker. Both sides render
+          through the same SideCard, so no matchup is ever hardcoded.
+          `items-start` deliberately does NOT stretch both cards to match
+          the taller one's height: one side often has real content the
+          other doesn't (a filled-in Battle Pitch, a win streak badge), and
+          forcing equal height just turns that gap into empty dead space
+          somewhere in the shorter card. Each card sizes to its own
+          content instead; the VS divider still spans the full row via its
+          own self-stretch below. */}
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
         <SideCard
           productId={match.product_a.id}
           matchId={match.id}
