@@ -75,13 +75,13 @@ function ResultRow({ result, onNavigate }: { result: ProductSearchResult; onNavi
       >
         <ProductAvatar name={result.name} logoUrl={result.logo_url} size="sm" accent={result.status === "champion"} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-sm font-semibold text-ink">{result.name}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{result.name}</span>
             <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_CLASS[result.status]}`}>
               {STATUS_LABEL[result.status]}
             </span>
           </div>
-          <span className="text-xs text-muted">{result.category}</span>
+          <span className="truncate text-xs text-muted">{result.category}</span>
           <p className="line-clamp-1 text-xs text-muted">{result.battle_pitch || result.pitch}</p>
           <div className="flex items-center gap-2">
             {result.wins > 0 && (
@@ -109,7 +109,11 @@ function SearchResultsPanel({
   if (query.trim().length < MIN_QUERY_LEN) return null;
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
+    <div
+      aria-label="Product search results"
+      role="region"
+      className="absolute left-0 top-full z-50 mt-2 w-[360px] max-w-[calc(100vw-2rem)] max-h-[60vh] overflow-y-auto rounded-xl border border-border bg-surface shadow-lg xl:left-auto xl:right-0"
+    >
       {loading ? (
         <p className="px-4 py-6 text-center text-sm text-muted">Searching…</p>
       ) : errored ? (
@@ -162,7 +166,7 @@ export function ProductSearchBar({ className }: { className?: string }) {
           }}
           placeholder="Search products…"
           aria-label="Search products"
-          className="w-full bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none"
+          className="min-w-0 w-full bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none"
         />
       </div>
       {focused && <SearchResultsPanel query={query} onNavigate={() => setFocused(false)} />}
