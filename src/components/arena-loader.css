@@ -1,0 +1,33 @@
+.arena-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; padding: 40px 24px; text-align: center; background: var(--bg); color: var(--ink); }
+.arena-loader-page { min-height: calc(100svh - 140px); }
+.arena-loader-splash { min-height: 100svh; width: 100%; }
+.arena-loader-art { position: relative; width: 190px; height: 190px; display: grid; place-items: center; }
+.arena-loader-mark { display: grid; place-items: center; width: 116px; height: 116px; background: var(--bg); border: 1px solid var(--border); border-radius: 28px; box-shadow: 0 0 36px #00b4d818; animation: arena-mark-breathe 2.4s ease-in-out infinite; }
+.arena-loader-orbit { position: absolute; border-radius: 50%; border: 1px solid var(--border); }
+.arena-loader-orbit::after { content: ""; position: absolute; width: 8px; height: 8px; background: #00b4d8; border: 2px solid var(--bg); border-radius: 50%; left: 50%; top: -4px; box-shadow: 0 0 12px #00b4d840; }
+.arena-loader-orbit-outer { inset: 0; border-top: 2px solid #00b4d8; border-bottom: 2px solid #90e0ef; animation: arena-orbit 3.2s linear infinite; }
+.arena-loader-orbit-inner { inset: 15px; border-left: 1px solid #00b4d8; border-right: 1px solid #90e0ef; animation: arena-orbit 5s linear infinite reverse; }
+.arena-loader-orbit-inner::after { width: 6px; height: 6px; top: -3px; background: #90e0ef; }
+.arena-loader-corner { position: absolute; width: 14px; height: 14px; border: 2px solid #00b4d8; }
+.arena-loader-corner-one { left: -14px; top: 27px; border-right: 0; border-bottom: 0; }
+.arena-loader-corner-two { right: -14px; bottom: 27px; border-left: 0; border-top: 0; }
+.arena-loader-copy { display: flex; flex-direction: column; gap: 10px; }
+.arena-loader-eyebrow { color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: .2em; }
+.arena-loader-title { font-family: var(--font-display), sans-serif; font-size: clamp(24px, 5vw, 32px); line-height: 1.1; font-weight: 800; letter-spacing: -.035em; }
+.arena-loader-subtitle { font-size: 12px; color: var(--muted); }
+.arena-loader-bars { display: flex; align-items: center; gap: 6px; height: 16px; }
+.arena-loader-bars span { width: 5px; height: 14px; border-radius: 3px; background: #00b4d8; animation: arena-bar-pulse 1.2s ease-in-out infinite; }
+.arena-loader-bars span:nth-child(2) { animation-delay: .15s; }
+.arena-loader-bars span:nth-child(3) { animation-delay: .3s; background: #90e0ef; }
+.arena-loader-bars span:nth-child(4) { animation-delay: .45s; background: #90e0ef; }
+.arena-initial-splash { position: fixed; inset: 0; z-index: 100; background: var(--bg); opacity: 1; transition: opacity 180ms ease-out; animation: arena-splash-release 0s 8s forwards; }
+.arena-initial-splash-leaving { opacity: 0; pointer-events: none; }
+@keyframes arena-orbit { to { transform: rotate(360deg); } }
+@keyframes arena-mark-breathe { 50% { transform: translateY(-3px); } }
+@keyframes arena-bar-pulse { 0%, 100% { transform: scaleY(.45); opacity: .45; } 50% { transform: scaleY(1); opacity: 1; } }
+/* If hydration fails, release the initial overlay rather than trapping visitors. */
+@keyframes arena-splash-release { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .arena-loader-orbit, .arena-loader-mark, .arena-loader-bars span { animation: none; }
+  .arena-initial-splash { transition: none; }
+}

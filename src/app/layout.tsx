@@ -4,7 +4,9 @@ import { LemonSqueezyScript } from "@/components/LemonSqueezyScript";
 import { PasswordRecoveryRedirect } from "@/components/PasswordRecoveryRedirect";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { InitialArenaSplash } from "@/components/InitialArenaSplash";
 import "./globals.css";
+import "@/components/arena-loader.css";
 import "@/components/reviews/reviews.css";
 
 // Applies a saved theme override before first paint, so a light/dark
@@ -94,6 +96,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link id="favicon-512" rel="icon" type="image/png" sizes="512x512" href="/favicons/icon-light-512.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/favicons/icon-light-180.png" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <InitialArenaSplash />
         <PasswordRecoveryRedirect />
         <SiteHeader />
         <div className="flex-1">{children}</div>
