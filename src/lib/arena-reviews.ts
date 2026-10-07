@@ -17,7 +17,7 @@ export async function getArenaReviews({ page = 0, limit = 12, category }: {
   try {
     const admin = createAdminSupabaseClient();
     let query = admin.from("arena_reviews")
-      .select("id, author_name, avatar_url, product_name, rating, body, category, created_at")
+      .select("id, author_name, avatar_url, profile_image_url, social_platform, social_handle, social_url, product_name, rating, body, category, created_at")
       .order("created_at", { ascending: false }).order("id", { ascending: false });
     if (category) query = query.eq("category", category);
     const [list, stats] = await Promise.all([

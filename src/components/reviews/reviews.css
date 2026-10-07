@@ -58,3 +58,8 @@
 .review-average-stars > span { display: flex; gap: 2px; }
 .review-average-stars svg { flex-shrink: 0; }
 .review-average-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; }
+.review-avatar-link { flex: none; border-radius: 50%; }
+.review-author a:hover { color: var(--accent); }
+.review-social-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--accent); margin-block: 3px; max-width: 100%; overflow-wrap: anywhere; }
+.review-social-link svg { flex-shrink: 0; }
+.review-social-link:hover { text-decoration: underline; text-underline-offset: 3px; }

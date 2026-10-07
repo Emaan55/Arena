@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Star, Quote, Box } from "lucide-react";
+import { Star, Quote, Box, ExternalLink } from "lucide-react";
+import { reviewerAvatarSources } from "@/lib/arena-review-validation";
 import type { PublicArenaReview } from "@/lib/arena-review-types";
 
-export function ReviewAvatar({ name, url, small = false }: { name: string; url: string | null; small?: boolean }) {
-  const [broken, setBroken] = useState(false);
+export function ReviewAvatar({ name, url, fallbackUrls = [], small = false }: { name: string; url: string | null; fallbackUrls?: string[]; small?: boolean }) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const source = [url, ...fallbackUrls].find((candidate) => candidate && !failed.includes(candidate));
   const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   return <span className={`review-avatar ${small ? "review-avatar-small" : ""}`}>
-    {url && !broken ? <Image src={url} alt="" width={48} height={48} unoptimized onError={() => setBroken(true)} /> : <span aria-hidden="true">{initials}</span>}
+    {source ? <Image key={source} src={source} alt="" width={48} height={48} unoptimized referrerPolicy="no-referrer" onError={() => setFailed((previous) => [...previous, source])} /> : <span aria-hidden="true">{initials}</span>}
   </span>;
 }
 
@@ -28,11 +30,14 @@ export function ReviewAverageStars({ rating }: { rating: number }) {
 }
 
 export function ReviewCard({ review, compact = false }: { review: PublicArenaReview; compact?: boolean }) {
+  const sources = reviewerAvatarSources(review);
+  const socialLabel = review.social_platform === "x" ? `𝕏 @${review.social_handle}` : review.social_platform === "instagram" ? `Instagram @${review.social_handle}` : review.social_platform === "linkedin" ? "LinkedIn profile" : "Public profile";
   return <article className={`review-card ${compact ? "review-card-compact" : ""}`}>
     <div className="review-card-top">
-      <ReviewAvatar name={review.author_name} url={review.avatar_url} />
+      {review.social_url ? <a href={review.social_url} target="_blank" rel="noopener noreferrer nofollow ugc" aria-label={`Visit ${review.author_name}'s public profile`} className="review-avatar-link"><ReviewAvatar name={review.author_name} url={sources[0] ?? null} fallbackUrls={sources.slice(1)} /></a> : <ReviewAvatar name={review.author_name} url={sources[0] ?? null} fallbackUrls={sources.slice(1)} />}
       <div className="min-w-0">
-        <h3 className="review-author">{review.author_name}</h3>
+        <h3 className="review-author">{review.social_url ? <a href={review.social_url} target="_blank" rel="noopener noreferrer nofollow ugc">{review.author_name}</a> : review.author_name}</h3>
+        {review.social_url && <a className="review-social-link" href={review.social_url} target="_blank" rel="noopener noreferrer nofollow ugc">{socialLabel}<ExternalLink size={10} aria-hidden="true" /></a>}
         {review.product_name && <p className="review-product-label">Builder of {review.product_name}</p>}
         <ReviewStars rating={review.rating} />
       </div>

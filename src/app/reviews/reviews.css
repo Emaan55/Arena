@@ -126,3 +126,14 @@
 :root[data-theme="dark"] .review-wall { --review-art-opacity: .35; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .review-wall { --review-art-opacity: .35; } }
 .review-wall-stats .review-average-stars, .review-wall-stats .review-average-stars > span { color: #e7ac00; }
+.review-profile-fields { display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); min-width: 0; }
+.review-profile-fields legend { padding-inline: 8px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.review-profile-preview { display: flex; gap: 12px; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.review-profile-preview strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.review-profile-preview > div > span { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+.review-profile-preview a { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); }
+.review-profile-help { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: -6px; }
+.review-photo-label > span { display: flex; align-items: center; gap: 7px; }
+.review-form .review-photo-label input { font-size: 11px; }
+.review-photo-label input::file-selector-button { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); padding: 6px 10px; margin-right: 10px; border-radius: 6px; cursor: pointer; }
+@media (max-width: 760px) { .review-profile-fields { padding: 16px; } }

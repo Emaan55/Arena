@@ -360,20 +360,38 @@ applicable, and kept in sync by `ThemeToggle` on every manual toggle.
 uses the same `arena_reviews` table and `/api/arena-reviews` feed. Existing
 post-vote `product_reviews` keep their original behavior.
 
-Apply `supabase/migrations/0023_arena_reviews.sql` after the earlier migrations
+Apply `supabase/migrations/0023_arena_reviews.sql` and
+`supabase/migrations/0024_arena_reviewer_profiles.sql` after the earlier migrations
 in your development Supabase project. The existing Supabase URL, anon key, and
 server-only service role key are required. The migration enables RLS and
 restricts access to the server API, which verifies the existing auth session,
-uses the profile display name and avatar, and allows one review per account.
+uses the signed-in account ID, and allows one review per account. Reviewers choose their public display name.
 The public statistics aggregate all reviews, independently of pagination and
 category filters. No testimonials or ratings are seeded. Missing configuration
 or schema produces an unavailable state rather than fabricated reviews.
 
 `/reviews?add=1#add-review` opens and focuses the review form, or the sign-in
-invitation for signed-out visitors. Reviews, ratings, profile identity, and
+invitation for signed-out visitors. Reviews, ratings, chosen names, photos, social profile links, and
 optional product attribution are public; email addresses are not included in
 review responses. Run validation tests with Node 24:
 
 ```bash
 node --test tests/arena-review-validation.test.mjs
 ```
+
+Reviewer profiles support X (preferred), Instagram, LinkedIn, and other HTTPS
+profile links. Social handles and URLs are supplied by the reviewer and are
+not marked as verified ownership. X, Instagram, and LinkedIn avatars are
+looked up in the browser through Unavatar, with generated fallback images
+explicitly disabled. Its anonymous tier is rate-limited and social providers
+can be unavailable, so an entered handle does not guarantee an image loads.
+The fallback order is an uploaded photo, a public social photo, the existing
+account photo, and finally initials. No fake profile photos are generated.
+
+Photo uploads require the public `arena-review-avatars` bucket created by
+migration 0024. The API keeps the account ID bound to the authenticated
+session, validates a JPEG/PNG/WebP upload up to 2 MB and 16 megapixels, and
+re-encodes it as a 256px WebP with original metadata removed. Uploaded files
+are removed if the review insert fails. No anonymous browser upload policy
+is added. The external photo lookup requires browser access to `unavatar.io`;
+no X API key is required for this optional lookup.

@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, MessageCircle, Star, Crown, Plus, X, LoaderCircle } from "lucide-react";
 import type { ArenaReviewFeed } from "@/lib/arena-review-types";
-import { ARENA_REVIEW_MAX, REVIEW_CATEGORIES } from "@/lib/arena-review-validation";
+import { ARENA_REVIEW_MAX, REVIEW_CATEGORIES, reviewerAvatarSources, safeAvatarUrl } from "@/lib/arena-review-validation";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { ReviewAverageStars, ReviewAvatar, ReviewCard } from "./ReviewCard";
+import { ReviewerProfileFields } from "./ReviewerProfileFields";
 import { ReviewArenaArt } from "./ReviewArenaArt";
 
 type Filter = "All" | (typeof REVIEW_CATEGORIES)[number];
@@ -65,10 +66,11 @@ export function ReviewWall({ initialFeed, openOnArrival }: { initialFeed: ArenaR
     setSubmitting(true);
     setSubmitError("");
     try {
-      const response = await fetch("/api/arena-reviews", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, body, category: form.get("category"), productName: form.get("productName") }),
-      });
+      const payload = new FormData();
+      payload.set("review", JSON.stringify({ rating, body, category: form.get("category"), productName: form.get("productName"), displayName: form.get("displayName"), socialPlatform: form.get("socialPlatform"), socialProfile: form.get("socialProfile") }));
+      const photo = form.get("photo");
+      if (photo instanceof File && photo.size > 0) payload.set("photo", photo);
+      const response = await fetch("/api/arena-reviews", { method: "POST", body: payload });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save your review.");
       setSuccess("Your review is on the wall. Thanks for sharing your experience!");
@@ -102,7 +104,7 @@ export function ReviewWall({ initialFeed, openOnArrival }: { initialFeed: ArenaR
         <ReviewArenaArt />
       </div>
       {heroReviews.length > 0 && <div className="review-founder-strip" aria-label="Recent reviewers">
-        {heroReviews.map((review) => <span key={review.id} title={review.author_name}><ReviewAvatar name={review.author_name} url={review.avatar_url} small /></span>)}
+        {heroReviews.map((review) => <span key={review.id} title={review.author_name}><ReviewAvatar name={review.author_name} url={reviewerAvatarSources(review)[0] ?? null} fallbackUrls={reviewerAvatarSources(review).slice(1)} small /></span>)}
         <span className="review-founder-strip-label">Your story<br />belongs here.</span>
       </div>}
     </section>
@@ -110,13 +112,13 @@ export function ReviewWall({ initialFeed, openOnArrival }: { initialFeed: ArenaR
     {success && <p className="review-success reviews-container" role="status">{success}</p>}
     {formOpen && <section id="add-review" ref={formRef} className="review-form-section reviews-container" aria-labelledby="add-review-title">
       <div className="review-form-heading"><div><span className="review-eyebrow">YOUR VOICE. YOUR EXPERIENCE.</span><h2 id="add-review-title">Put your experience on the wall.</h2></div><button className="review-close" aria-label="Close review form" disabled={submitting} onClick={() => { setFormOpen(false); addButtonRef.current?.focus(); }}><X size={20} /></button></div>
-      {authLoading ? <p role="status">Checking your session...</p> : !user ? <div className="review-sign-in"><p>Sign in to share your experience. Reviews use your public profile name, never your email address.</p><Link ref={signInRef} href="/auth/sign-in?next=%2Freviews%3Fadd%3D1%23add-review" className="review-button review-button-primary">Sign in to add a review <ArrowRight size={16} /></Link></div> : <form onSubmit={submitReview} className="review-form">
-        <p className="review-posting-as">Posting as <strong>{typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim() ? user.user_metadata.full_name : "Arena member"}</strong></p>
+      {authLoading ? <p role="status">Checking your session...</p> : !user ? <div className="review-sign-in"><p>Sign in to share your experience. Choose your public name, social profile, and photo after signing in. Your email address stays private.</p><Link ref={signInRef} href="/auth/sign-in?next=%2Freviews%3Fadd%3D1%23add-review" className="review-button review-button-primary">Sign in to add a review <ArrowRight size={16} /></Link></div> : <form onSubmit={submitReview} className="review-form">
+        <ReviewerProfileFields key={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : ""} avatarUrl={safeAvatarUrl(user.user_metadata?.avatar_url)} disabled={submitting} />
         <fieldset disabled={submitting} className="review-rating-field"><legend>Your rating <span className="text-muted">(required)</span></legend><div className="review-rating-buttons">{[1, 2, 3, 4, 5].map((value) => <button ref={value === 1 ? ratingRef : undefined} key={value} type="button" aria-label={`Rate ${value} ${value === 1 ? "star" : "stars"}`} aria-pressed={rating === value} onClick={() => setRating(value)}><Star size={30} fill={value <= rating ? "currentColor" : "none"} /></button>)}<span aria-live="polite">{rating ? `${rating}/5` : "Choose your stars"}</span></div></fieldset>
         <div className="review-form-fields"><label>Product name <span className="text-muted">(optional)</span><input name="productName" maxLength={80} placeholder="What are you building?" disabled={submitting} /></label><label>What was your experience about?<select name="category" defaultValue="Experience" disabled={submitting}>{REVIEW_CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label></div>
         <label>Your review<textarea name="body" required minLength={10} maxLength={ARENA_REVIEW_MAX} rows={4} value={body} onChange={(event) => setBody(event.target.value)} placeholder="What stood out? What could be better? Tell fellow builders in your own words." disabled={submitting} aria-describedby="review-body-help" /></label>
         <div className="review-form-help"><span id="review-body-help">10 to {ARENA_REVIEW_MAX} characters. Honest feedback, always.</span><span>{body.length}/{ARENA_REVIEW_MAX}</span></div>
-        <p className="review-privacy">Your profile name, avatar, rating, review, and optional product name will be public. One review per account.</p>
+        <p className="review-privacy">Your chosen name, photo, rating, review, and any social profile or product name you add will be public. One review per account.</p>
         {submitError && <p className="review-error" role="alert">{submitError}</p>}
         <button type="submit" disabled={submitting || rating === 0} className="review-button review-button-primary">{submitting ? <><LoaderCircle size={16} className="animate-spin" /> Sharing your review...</> : <>Publish My Review <ArrowRight size={16} /></>}</button>
       </form>}
