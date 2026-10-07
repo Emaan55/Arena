@@ -353,3 +353,27 @@ applicable, and kept in sync by `ThemeToggle` on every manual toggle.
   alongside the existing per-IP one — IP alone can false-positive on
   shared/NAT'd networks, and this also catches a bot that cycles IPs but
   reuses one visitor id.
+
+### Arena Review Wall
+
+`/reviews` is the dedicated wall for reviews of THE ARENA. The homepage teaser
+uses the same `arena_reviews` table and `/api/arena-reviews` feed. Existing
+post-vote `product_reviews` keep their original behavior.
+
+Apply `supabase/migrations/0023_arena_reviews.sql` after the earlier migrations
+in your development Supabase project. The existing Supabase URL, anon key, and
+server-only service role key are required. The migration enables RLS and
+restricts access to the server API, which verifies the existing auth session,
+uses the profile display name and avatar, and allows one review per account.
+The public statistics aggregate all reviews, independently of pagination and
+category filters. No testimonials or ratings are seeded. Missing configuration
+or schema produces an unavailable state rather than fabricated reviews.
+
+`/reviews?add=1#add-review` opens and focuses the review form, or the sign-in
+invitation for signed-out visitors. Reviews, ratings, profile identity, and
+optional product attribution are public; email addresses are not included in
+review responses. Run validation tests with Node 24:
+
+```bash
+node --test tests/arena-review-validation.test.mjs
+```

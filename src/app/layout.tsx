@@ -5,6 +5,7 @@ import { PasswordRecoveryRedirect } from "@/components/PasswordRecoveryRedirect"
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
+import "@/components/reviews/reviews.css";
 
 // Applies a saved theme override before first paint, so a light/dark
 // toggle choice never flashes the wrong theme on load. Runs as the very

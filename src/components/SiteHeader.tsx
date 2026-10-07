@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: "/live-battles", label: "Live Battles" },
   { href: "/#how-it-works", label: "How it Works" },
   { href: "/#about", label: "About" },
+  { href: "/reviews", label: "Reviews" },
 ];
 
 export function SiteHeader() {
@@ -40,7 +41,7 @@ export function SiteHeader() {
           Arena
         </Link>
 
-        <nav className="hidden shrink-0 items-center gap-5 md:flex lg:gap-6">
+        <nav className="hidden shrink-0 items-center gap-5 xl:flex lg:gap-6">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -91,7 +92,7 @@ export function SiteHeader() {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle menu"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink xl:hidden"
           >
             {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
@@ -99,7 +100,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <nav className="flex flex-col gap-1 border-t border-border px-6 py-3 md:hidden">
+        <nav className="flex flex-col gap-1 border-t border-border px-6 py-3 xl:hidden">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}

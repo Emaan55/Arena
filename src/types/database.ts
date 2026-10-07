@@ -1,3 +1,5 @@
+import type { ArenaReviewRow } from "@/lib/arena-review-types";
+
 export const CATEGORIES = [
   "General",
   "AI Tools",
@@ -371,6 +373,12 @@ export interface Database {
         Update: Partial<Vote>;
         Relationships: Relationships;
       };
+      arena_reviews: {
+        Row: ArenaReviewRow;
+        Insert: Partial<ArenaReviewRow>;
+        Update: Partial<ArenaReviewRow>;
+        Relationships: Relationships;
+      };
       product_reviews: {
         Row: ProductReview;
         Insert: Partial<ProductReview>;
@@ -464,6 +472,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      arena_review_stats: {
+        Args: Record<string, never>;
+        Returns: { total: number; average_rating: number | null }[];
+      };
       cast_vote: {
         Args: { p_match_id: string; p_fingerprint: string; p_side: VoteSide };
         Returns: Match;
