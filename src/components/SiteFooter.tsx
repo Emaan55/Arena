@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandLogo } from "./BrandLogo";
 import { FeaturedMarquee } from "./FeaturedMarquee";
 
@@ -30,6 +33,9 @@ const FOCUS_RING =
 const LINK_CLASS = `w-fit rounded-sm text-sm text-muted transition-colors duration-150 ease-out hover:text-ink ${FOCUS_RING}`;
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/dashboard")) return null;
+
   return (
     <footer className="border-t border-border bg-bg">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 py-14 sm:grid-cols-2 md:px-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
