@@ -34,7 +34,7 @@ export function SiteHeader() {
     router.push("/");
   }
 
-  if (pathname.startsWith("/dashboard")) return null;
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur-md">
@@ -158,3 +158,4 @@ export function SiteHeader() {
     </header>
   );
 }
+

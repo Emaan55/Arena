@@ -34,7 +34,7 @@ const LINK_CLASS = `w-fit rounded-sm text-sm text-muted transition-colors durati
 
 export function SiteFooter() {
   const pathname = usePathname();
-  if (pathname.startsWith("/dashboard")) return null;
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
 
   return (
     <footer className="border-t border-border bg-bg">
@@ -98,3 +98,4 @@ export function SiteFooter() {
     </footer>
   );
 }
+
