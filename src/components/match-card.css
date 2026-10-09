@@ -1,0 +1,30 @@
+.duel-container {
+  container-type: inline-size;
+}
+
+.duel-divider {
+  flex-direction: row;
+}
+
+.duel-connector {
+  height: 1px;
+  flex: 1;
+}
+
+@container (min-width: 640px) {
+  .duel-grid {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .duel-divider {
+    flex-direction: column;
+  }
+
+  .duel-connector {
+    width: 1px;
+    height: auto;
+    min-height: 24px;
+  }
+}

@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await createArenaProduct(admin, validation.fields);
+  const result = await createArenaProduct(admin, validation.fields, user.id);
   if (!result.ok) {
     // A validation/duplicate-URL failure at this point shouldn't burn an
     // earned free submission — refund the claim.
@@ -133,5 +133,5 @@ export async function POST(req: NextRequest) {
   // browser — the DB only ever stores its hash. It's the sole credential
   // for editing this product later (see PATCH /api/products/[id]); losing
   // it means losing edit access, same trade-off as an API key.
-  return NextResponse.json({ product: result.product, state, editToken: result.editToken }, { status: 201 });
+  return NextResponse.json({ product: { ...result.product, owner_id: null, edit_token_hash: null }, state, editToken: result.editToken }, { status: 201 });
 }

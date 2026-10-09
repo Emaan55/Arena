@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Category, Database, Match, Product } from "@/types/database";
 import { resolveAndStoreProductFavicon } from "./favicon-service";
+import { scheduleFounderNotificationDelivery } from "./founder-notifications";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -67,6 +68,7 @@ export async function pairUnmatchedProducts(admin: AdminClient, category: Catego
         .in("id", [a.id, b.id])
         .eq("status", "unique");
       await logActivity(admin, `⚔️ New duel in ${category}: ${a.name} vs ${b.name}`);
+      scheduleFounderNotificationDelivery();
     }
   }
 }

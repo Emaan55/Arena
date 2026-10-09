@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
 import { Bricolage_Grotesque, Inter, IBM_Plex_Mono } from "next/font/google";
 import { LemonSqueezyScript } from "@/components/LemonSqueezyScript";
 import { PasswordRecoveryRedirect } from "@/components/PasswordRecoveryRedirect";
@@ -82,7 +84,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

@@ -14,6 +14,7 @@ import { XHandleLink } from "@/components/XHandleLink";
 import { BattlePitch } from "@/components/BattlePitch";
 import { ProductEditor } from "@/components/ProductEditor";
 import { ArenaPerformance } from "@/components/ArenaPerformance";
+import { ProductViewTracker } from "@/components/ProductViewTracker";
 import { timeAgo } from "@/lib/format";
 import { STATUS_LABEL, STATUS_CLASS } from "@/lib/product-status";
 
@@ -32,12 +33,13 @@ export default async function ProductPage({
   const detail = await getProductDetail(admin, id);
   if (!detail) notFound();
 
-  const { product, champion, history, currentMatch, isWaiting, isUnique } = detail;
+  const { product, champion, history, currentMatch, isWaiting, isUnique, analytics, analyticsByProduct } = detail;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const productUrl = `${siteUrl}/product/${product.id}`;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-6 py-16">
+      <ProductViewTracker productId={product.id} />
       <Link
         href="/"
         className="flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 ease-out hover:text-accent"
@@ -69,7 +71,7 @@ export default async function ProductPage({
         </div>
         <p className="text-muted">{product.pitch}</p>
         <a
-          href={product.url}
+          href={`/api/products/${product.id}/outbound`}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="text-sm text-accent hover:underline"
@@ -83,6 +85,13 @@ export default async function ProductPage({
         />
       </div>
 
+      <section aria-label="Product activity analytics" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          ["Page views", analytics.page_views], ["Unique visitors/day", analytics.unique_page_views],
+          ["Website clicks", analytics.outbound_clicks], ["Unique clickers/day", analytics.unique_outbound_clicks],
+        ].map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-surface p-4 shadow-sm"><span className="block text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</span><span className="mt-1 block font-mono text-xl font-bold text-ink">{Number(value).toLocaleString()}</span></div>)}
+      </section>
+
       <ArenaPerformance
         product={product}
         currentMatch={currentMatch}
@@ -95,7 +104,7 @@ export default async function ProductPage({
       {currentMatch && (
         <div className="flex flex-col gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Live Duel</h2>
-          <ProductLiveDuel match={currentMatch} />
+          <ProductLiveDuel match={currentMatch} analytics={analyticsByProduct} />
         </div>
       )}
 

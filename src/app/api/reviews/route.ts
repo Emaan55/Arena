@@ -5,6 +5,7 @@ import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { isProductReviewsReady, REVIEW_BODY_MAX } from "@/lib/reviews";
+import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 
 const MAX_BATCH_IDS = 100;
 const REVIEW_LIST_LIMIT = 50;
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
   }
 
   logSecurityEvent("review_success", { ip, matchId, userId: user.id, productId });
+  scheduleFounderNotificationDelivery();
 
   return NextResponse.json({ review }, { status: 201 });
 }

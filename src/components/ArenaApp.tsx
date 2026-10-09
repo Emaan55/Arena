@@ -304,6 +304,7 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
                     <MatchCard
                       key={m.id}
                       match={m}
+                      analytics={state.productAnalytics}
                       votedSide={votedMap[m.id]}
                       voting={pendingVotes.has(m.id)}
                       onVote={castVote}

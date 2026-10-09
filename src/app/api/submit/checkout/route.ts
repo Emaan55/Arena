@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { createCheckout, getVariantId } from "@/lib/lemonsqueezy";
 import { validateProductSubmission } from "@/lib/product-submission";
 import { rateLimit } from "@/lib/rate-limit";
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const auth = await createRouteHandlerSupabaseClient();
+  const { data: { user } } = await auth.auth.getUser();
   // LemonSqueezy's custom_data validation rejects an empty-string value
   // outright ("must be a string" — confirmed directly against their API),
   // so optional fields are only included when they actually have a value,
@@ -75,6 +78,7 @@ export async function POST(req: NextRequest) {
   if (f.battle_pitch) custom.battle_pitch = f.battle_pitch;
   if (f.why_us) custom.why_us = f.why_us;
   if (f.x_handle) custom.x_handle = f.x_handle;
+  if (user?.id) custom.owner_id = user.id;
 
   try {
     const url = await createCheckout({

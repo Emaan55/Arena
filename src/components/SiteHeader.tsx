@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationCenter } from "./NotificationCenter";
 import { BrandLogo } from "./BrandLogo";
 import { ProductSearchBar, ProductSearchToggle } from "./ProductSearch";
 import { useAuthUser } from "@/lib/useAuthUser";
@@ -56,6 +57,8 @@ export function SiteHeader() {
         <ProductSearchBar className="hidden w-full max-w-[200px] lg:block xl:max-w-xs" />
 
         <div className="ml-auto flex shrink-0 items-center gap-2.5 lg:gap-3">
+          {user && <Link href="/dashboard" className="hidden whitespace-nowrap text-sm font-semibold text-muted hover:text-accent sm:inline-block">My Arena</Link>}
+          {user && <NotificationCenter />}
           <ThemeToggle className="hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90 sm:flex" />
           {user ? (
             <button
@@ -111,6 +114,7 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          {user && <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-ink">My Arena</Link>}
           <Link
             href="/get-listed"
             onClick={() => setOpen(false)}

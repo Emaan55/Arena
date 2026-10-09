@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!product) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
-  return NextResponse.json({ product });
+  return NextResponse.json({ product: { ...product, owner_id: null, edit_token_hash: null } });
 }
 
 /**
@@ -114,5 +114,5 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Could not update product. Please try again." }, { status: 500 });
   }
 
-  return NextResponse.json({ product: updated });
+  return NextResponse.json({ product: { ...updated, owner_id: null, edit_token_hash: null } });
 }

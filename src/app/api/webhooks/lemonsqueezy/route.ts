@@ -8,6 +8,7 @@ import { isGetListedOrdersSchemaReady } from "@/lib/get-listed/orders";
 import { logAdminAction } from "@/lib/get-listed/audit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { createArenaProduct } from "@/lib/product-submission";
+import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 import type { Category, PaymentType } from "@/types/database";
 
 interface LemonSqueezyWebhookPayload {
@@ -102,6 +103,7 @@ async function handleGetListedOrder(
     action: "payment_received",
     metadata: { provider_order_id: providerOrderId },
   });
+  scheduleFounderNotificationDelivery();
 }
 
 async function handleGetListedRefund(admin: ReturnType<typeof createAdminSupabaseClient>, providerOrderId: string) {
@@ -271,7 +273,7 @@ export async function POST(req: NextRequest) {
       why_us: custom.why_us || null,
       differentiators,
       x_handle: custom.x_handle || null,
-    });
+    }, /^[0-9a-f-]{36}$/i.test(custom.owner_id ?? "") ? custom.owner_id : null);
 
     if (result.ok) {
       await admin.from("payments").update({ product_id: result.product.id }).eq("lemonsqueezy_order_id", orderId);

@@ -4,6 +4,7 @@ import { CATEGORIES, type Category, type Database, type Product } from "@/types/
 import { generateEditToken, hashEditToken } from "./edit-token";
 import { parseBattleFields, type BattleFields } from "./product-fields";
 import { normalizeUrl } from "./url";
+import { scheduleFounderNotificationDelivery } from "./founder-notifications";
 import { resolveAndStoreProductFavicon } from "./favicon-service";
 import { isFaviconTrackingReady, pairUnmatchedProducts, logActivity, markStaleWaitingProductsUnique } from "./arena";
 
@@ -95,6 +96,7 @@ export type CreateProductResult =
 export async function createArenaProduct(
   admin: AdminClient,
   fields: ProductSubmissionFields,
+  ownerId?: string | null,
 ): Promise<CreateProductResult> {
   const { data: existing } = await admin
     .from("products")
@@ -123,6 +125,7 @@ export async function createArenaProduct(
       differentiators: fields.differentiators,
       x_handle: fields.x_handle,
       edit_token_hash: hashEditToken(editToken),
+      owner_id: ownerId ?? null,
     })
     .select()
     .single();
@@ -159,6 +162,7 @@ export async function createArenaProduct(
   await logActivity(admin, `🆕 ${product.name} just entered the arena in ${fields.category}`);
   await pairUnmatchedProducts(admin, fields.category);
   await markStaleWaitingProductsUnique(admin);
+  scheduleFounderNotificationDelivery();
 
   return { ok: true, product, editToken };
 }

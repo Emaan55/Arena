@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { MatchCard } from "./MatchCard";
 import { useAuthUser } from "@/lib/useAuthUser";
 import type { MatchWithProducts } from "@/lib/arena-state";
+import type { ProductAnalyticsDaily } from "@/types/database";
 import type { VoteSide } from "@/types/database";
 
 const VOTED_STORAGE_KEY = "arena_voted_matches";
@@ -31,7 +32,7 @@ function saveVote(matchId: string, side: VoteSide) {
  * arena tree. Refreshes the whole page via the router after a vote/payment
  * so the surrounding product detail (status, history) stays in sync too.
  */
-export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
+export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts; analytics?: Record<string, ProductAnalyticsDaily> }) {
   const router = useRouter();
   const pathname = usePathname();
   const [votedSide, setVotedSide] = useState<VoteSide | undefined>(undefined);
@@ -108,6 +109,7 @@ export function ProductLiveDuel({ match }: { match: MatchWithProducts }) {
     <div className="flex flex-col gap-2">
       <MatchCard
         match={match}
+        analytics={analytics}
         votedSide={votedSide}
         voting={voting}
         onVote={handleVote}

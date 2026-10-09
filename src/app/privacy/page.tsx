@@ -19,6 +19,18 @@ export default function PrivacyPage() {
           Voting, product submissions, Get Listed campaigns, and Discount Drop results are linked to your account so
           the platform can enforce its one-vote-per-duel and attempt-limit rules.
         </p>
+        <p>
+          Product pages record page views separately from outbound website clicks. These events use a first-party,
+          HttpOnly browser identifier to estimate unique visitors per product per day. We aggregate counts and rotate
+          keyed visitor hashes daily; raw event identifiers are removed after 30 days and unique hashes after 400 days.
+          Source IP addresses may be processed transiently for rate limiting, but are not written to analytics records
+          or shown to founders. Founders see aggregate counts only.
+        </p>
+        <p>
+          If you enable optional email categories, we store those preferences and use Resend to deliver messages.
+          Essential submission and claim decision emails are separate from optional updates. Optional emails include a
+          category-specific unsubscribe link; you can also change preferences in your dashboard.
+        </p>
         <p>We do not sell your data to third parties.</p>
       </div>
     </main>

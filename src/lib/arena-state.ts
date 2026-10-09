@@ -2,8 +2,14 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Champion, Database, Match, Product } from "@/types/database";
 import { getSponsorshipState, type SponsorshipState } from "./sponsorship";
+import { getProductAnalyticsSummary } from "./founder-notifications";
+import type { ProductAnalyticsDaily } from "@/types/database";
 
 export type MatchWithProducts = Match & { product_a: Product; product_b: Product };
+
+function publicProduct(product: Product): Product {
+  return { ...product, owner_id: null, edit_token_hash: null };
+}
 export type ChampionWithProduct = Champion & { product: Product };
 
 export interface HomeStats {
@@ -28,6 +34,7 @@ export interface ArenaState {
   activity: { id: string; text: string; created_at: string }[];
   stats: HomeStats;
   sponsorship: SponsorshipState;
+  productAnalytics: Record<string, ProductAnalyticsDaily>;
 }
 
 export async function getArenaState(
@@ -111,14 +118,16 @@ export async function getArenaState(
   // status back to 'active', but never show it as both live and uncontested.
   const unique = (uniqueProductsRes.data ?? []).filter((p) => !matchedIds.has(p.id));
   const champions = (championsRes.data ?? []) as unknown as ChampionWithProduct[];
+  const visibleProducts = [...matches.flatMap((m) => [m.product_a, m.product_b]), ...(activeProductsRes.data ?? []), ...(uniqueProductsRes.data ?? []), ...(eliminatedRes.data ?? []), ...champions.map((c) => c.product), ...(topProductsRes.data ?? [])];
+  const productAnalytics = await getProductAnalyticsSummary(supabase, [...new Set(visibleProducts.map((p) => p.id))]);
 
   return {
-    matches,
-    waiting,
-    unique,
-    eliminated: eliminatedRes.data ?? [],
-    champions,
-    topProducts: topProductsRes.data ?? [],
+    matches: matches.map((match) => ({ ...match, product_a: publicProduct(match.product_a), product_b: publicProduct(match.product_b) })),
+    waiting: waiting.map(publicProduct),
+    unique: unique.map(publicProduct),
+    eliminated: (eliminatedRes.data ?? []).map(publicProduct),
+    champions: champions.map((entry) => ({ ...entry, product: publicProduct(entry.product) })),
+    topProducts: (topProductsRes.data ?? []).map(publicProduct),
     activity: activityRes.data ?? [],
     stats: {
       productsSubmitted: productsCountRes.count ?? 0,
@@ -127,6 +136,7 @@ export async function getArenaState(
       arenaExposure: totalMatchesCountRes.count ?? 0,
     },
     sponsorship,
+    productAnalytics,
   };
 }
 
@@ -145,6 +155,8 @@ export interface ProductDetail {
   currentMatch: MatchWithProducts | null;
   isWaiting: boolean;
   isUnique: boolean;
+  analytics: ProductAnalyticsDaily;
+  analyticsByProduct: Record<string, ProductAnalyticsDaily>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -200,14 +212,21 @@ export async function getProductDetail(
     };
   });
 
-  const currentMatch = (activeMatch as unknown as MatchWithProducts | null) ?? null;
+  const rawCurrentMatch = (activeMatch as unknown as MatchWithProducts | null) ?? null;
+  const currentMatch = rawCurrentMatch ? { ...rawCurrentMatch, product_a: publicProduct(rawCurrentMatch.product_a), product_b: publicProduct(rawCurrentMatch.product_b) } : null;
+  const analyticsMap = await getProductAnalyticsSummary(supabase, [product.id]);
+  const analytics = analyticsMap[product.id] ?? { product_id: product.id, page_views: 0, unique_page_views: 0, outbound_clicks: 0, unique_outbound_clicks: 0 };
+  const analyticsByProduct = await getProductAnalyticsSummary(supabase, [...new Set([product.id, currentMatch?.product_a_id, currentMatch?.product_b_id].filter((value): value is string => Boolean(value)))]);
+  for (const productId of [product.id, currentMatch?.product_a_id, currentMatch?.product_b_id].filter((value): value is string => Boolean(value))) analyticsByProduct[productId] ??= { product_id: productId, page_views: 0, unique_page_views: 0, outbound_clicks: 0, unique_outbound_clicks: 0 };
 
   return {
-    product,
+    product: publicProduct(product),
     champion: champion ?? null,
     history,
     currentMatch,
     isWaiting: product.status === "active" && !currentMatch,
     isUnique: product.status === "unique" && !currentMatch,
+    analytics,
+    analyticsByProduct,
   };
 }

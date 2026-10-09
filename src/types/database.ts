@@ -54,6 +54,7 @@ export type Product = {
   // Hash of a one-time edit token handed to the submitter at creation.
   // Never sent to the client after that — only compared server-side.
   edit_token_hash: string | null;
+  owner_id: string | null;
   // Auto-discovered via the multi-strategy pipeline in
   // lib/favicon-service.ts — never a manual upload. `logo_url` is a stable
   // copy in our own storage once `logo_status` is "success"; ProductAvatar
@@ -350,11 +351,24 @@ export type TermsAcceptance = {
   privacy_version: string;
 };
 
+export type ProductAnalyticsDaily = { product_id: string; page_views: number; unique_page_views: number; outbound_clicks: number; unique_outbound_clicks: number };
+export type FounderNotification = { id: string; user_id: string; event_key: string; event_type: string; title: string; body: string; href: string; email_category: "transactional" | "duel" | "review" | "digest" | "announcement" | "get_listed"; email_status: "queued" | "sending" | "sent" | "failed" | "skipped"; email_attempts: number; email_next_attempt_at: string; email_locked_at: string | null; email_sent_at: string | null; email_last_error: string | null; announcement_id: string | null; read_at: string | null; created_at: string };
+export type FounderNotificationPreferences = { user_id: string; important_duel_updates: boolean; review_notifications: boolean; daily_vote_digest: boolean; product_announcements: boolean; get_listed_updates: boolean; updated_at: string };
+export type FounderProductClaim = { id: string; product_id: string; user_id: string; proof: string; status: "pending" | "approved" | "rejected"; reviewed_at: string | null; reviewed_by: string | null; created_at: string };
+export type ArenaAnnouncement = { id: string; title: string; body: string; status: "draft" | "published"; email_requested: boolean; created_by: string | null; created_at: string; published_at: string | null };
+
 type Relationships = [];
 
 export interface Database {
   public: {
     Tables: {
+      product_analytics_events: { Row: { event_id: string; product_id: string; event_type: "view" | "click"; visitor_day_hash: string; occurred_at: string }; Insert: Partial<{ event_id: string; product_id: string; event_type: "view" | "click"; visitor_day_hash: string; occurred_at: string }>; Update: Partial<{ event_id: string; product_id: string; event_type: "view" | "click"; visitor_day_hash: string; occurred_at: string }>; Relationships: Relationships };
+      product_analytics_daily: { Row: ProductAnalyticsDaily & { day: string }; Insert: Partial<ProductAnalyticsDaily & { day: string }>; Update: Partial<ProductAnalyticsDaily & { day: string }>; Relationships: Relationships };
+      product_analytics_uniques: { Row: { product_id: string; day: string; metric: "view" | "click"; visitor_day_hash: string }; Insert: Partial<{ product_id: string; day: string; metric: "view" | "click"; visitor_day_hash: string }>; Update: Partial<{ product_id: string; day: string; metric: "view" | "click"; visitor_day_hash: string }>; Relationships: Relationships };
+      founder_notifications: { Row: FounderNotification; Insert: Partial<FounderNotification>; Update: Partial<FounderNotification>; Relationships: Relationships };
+      founder_notification_preferences: { Row: FounderNotificationPreferences; Insert: Partial<FounderNotificationPreferences>; Update: Partial<FounderNotificationPreferences>; Relationships: Relationships };
+      founder_product_claims: { Row: FounderProductClaim; Insert: Partial<FounderProductClaim>; Update: Partial<FounderProductClaim>; Relationships: Relationships };
+      arena_announcements: { Row: ArenaAnnouncement; Insert: Partial<ArenaAnnouncement>; Update: Partial<ArenaAnnouncement>; Relationships: Relationships };
       products: {
         Row: Product;
         Insert: Partial<Product>;
@@ -472,6 +486,15 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      review_founder_product_claim: { Args: { p_claim_id: string; p_approve: boolean; p_reviewer: string }; Returns: FounderProductClaim };
+      record_product_analytics: { Args: { p_event_id: string; p_product_id: string; p_event_type: "view" | "click"; p_visitor_day_hash: string; p_day: string }; Returns: boolean };
+      get_product_analytics: { Args: { p_product_ids: string[] }; Returns: ProductAnalyticsDaily[] };
+      enqueue_founder_notification: { Args: { p_user_id: string; p_event_key: string; p_event_type: string; p_title: string; p_body: string; p_href: string; p_email_category: FounderNotification["email_category"]; p_email_requested?: boolean; p_announcement_id?: string | null }; Returns: undefined };
+      create_waiting_product_reminders: { Args: { p_day: string }; Returns: number };
+      create_daily_vote_digests: { Args: { p_day: string }; Returns: number };
+      claim_founder_notification_emails: { Args: { p_limit?: number }; Returns: FounderNotification[] };
+      prune_product_analytics: { Args: { p_unique_before: string }; Returns: number };
+
       arena_review_stats: {
         Args: Record<string, never>;
         Returns: { total: number; average_rating: number | null }[];

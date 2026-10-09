@@ -70,6 +70,18 @@ const GROUPS = [
         description: "Add a product to the arena directly, no payment or vote/review requirement.",
       },
       {
+        href: "/admin/announcements",
+        icon: Megaphone,
+        title: "Announcements",
+        description: "Draft, preview, and publish in-app announcements with optional subscribed email delivery.",
+      },
+      {
+        href: "/admin/founder-claims",
+        icon: ClipboardList,
+        title: "Founder claims",
+        description: "Review legacy product ownership claims before linking products to accounts.",
+      },
+      {
         href: "/admin/favicon-diagnostic",
         icon: ImageIcon,
         title: "Favicon diagnostic",

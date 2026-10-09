@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Activity, Check, MessageSquare, Swords } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
-import type { VoteSide } from "@/types/database";
+import type { ProductAnalyticsDaily, VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
 import { ProductAvatar } from "./ProductAvatar";
 import { ShareButtons } from "./ShareButtons";
@@ -183,7 +183,6 @@ function SideCard({
   name,
   logoUrl,
   pitch,
-  url,
   category,
   winStreak,
   votes,
@@ -202,13 +201,14 @@ function SideCard({
   onPaid,
   showReviewPrompt,
   onReviewDone,
+  pageViews,
+  outboundClicks,
 }: {
   productId: string;
   matchId: string;
   name: string;
   logoUrl: string | null;
   pitch: string;
-  url: string;
   category: string;
   winStreak: number;
   votes: number;
@@ -227,6 +227,8 @@ function SideCard({
   onPaid?: () => void;
   showReviewPrompt: boolean;
   onReviewDone: () => void;
+  pageViews: number;
+  outboundClicks: number;
 }) {
   const isMyVote = votedSide === side;
   const pct = Math.min(100, (votes / VOTES_TO_WIN) * 100);
@@ -297,7 +299,7 @@ function SideCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <a
-            href={url}
+            href={`/api/products/${productId}/outbound`}
             target="_blank"
             rel="noopener noreferrer nofollow"
             className="group flex min-w-0 items-center gap-3"
@@ -349,6 +351,8 @@ function SideCard({
           />
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted"><span>{pageViews.toLocaleString()} page views</span><span>{outboundClicks.toLocaleString()} website clicks</span></div>
 
       <ReviewsPanel
         count={reviewCount}
@@ -454,6 +458,7 @@ export function MatchCard({
   onPaid,
   showReviewPrompt = false,
   onReviewDone,
+  analytics = {},
 }: {
   match: MatchWithProducts;
   votedSide?: VoteSide;
@@ -464,6 +469,7 @@ export function MatchCard({
   // cast — never persisted, never re-shown on a later visit or reload.
   showReviewPrompt?: boolean;
   onReviewDone?: () => void;
+  analytics?: Record<string, ProductAnalyticsDaily>;
 }) {
   const disabled = votedSide !== undefined;
   const aNearLoss = match.votes_b === NEAR_LOSS_THRESHOLD && match.votes_a < VOTES_TO_WIN;
@@ -501,12 +507,13 @@ export function MatchCard({
           own self-stretch below. */}
       <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
         <SideCard
+          pageViews={analytics[match.product_a.id]?.page_views ?? 0}
+          outboundClicks={analytics[match.product_a.id]?.outbound_clicks ?? 0}
           productId={match.product_a.id}
           matchId={match.id}
           name={match.product_a.name}
           logoUrl={match.product_a.logo_url}
           pitch={match.product_a.pitch}
-          url={match.product_a.url}
           category={match.category}
           winStreak={match.product_a.wins}
           votes={match.votes_a}
@@ -528,12 +535,13 @@ export function MatchCard({
         />
         <VsDivider />
         <SideCard
+          pageViews={analytics[match.product_b.id]?.page_views ?? 0}
+          outboundClicks={analytics[match.product_b.id]?.outbound_clicks ?? 0}
           productId={match.product_b.id}
           matchId={match.id}
           name={match.product_b.name}
           logoUrl={match.product_b.logo_url}
           pitch={match.product_b.pitch}
-          url={match.product_b.url}
           category={match.category}
           winStreak={match.product_b.wins}
           votes={match.votes_b}

@@ -7,6 +7,7 @@ import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { checkDuelSprayAbuse } from "@/lib/vote-abuse";
+import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 import type { VoteSide } from "@/types/database";
 
 /**
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
   }
 
   logSecurityEvent("vote_success", { ip, matchId, userId: user.id, side });
+  scheduleFounderNotificationDelivery();
 
   if (match) {
     await resolveMatchIfComplete(admin, match);
