@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import type { ProductSearchResult } from "@/types/database";
 import { ProductAvatar } from "./ProductAvatar";
@@ -21,7 +22,7 @@ function useProductSearch(query: string) {
   useEffect(() => {
     const q = query.trim();
     if (q.length < MIN_QUERY_LEN) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear stale remote results when the query becomes too short.
       setResults([]);
       setLoading(false);
       setSearched(false);
@@ -34,10 +35,10 @@ function useProductSearch(query: string) {
     setErrored(false);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
+        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await response.json();
         if (!active) return;
-        if (!res.ok) {
+        if (!response.ok) {
           setErrored(true);
           setResults([]);
           return;
@@ -65,13 +66,26 @@ function useProductSearch(query: string) {
   return { results, loading, searched, errored };
 }
 
-function ResultRow({ result, onNavigate }: { result: ProductSearchResult; onNavigate: () => void }) {
+function ResultRow({
+  result,
+  active,
+  optionId,
+  onNavigate,
+  onHover,
+}: {
+  result: ProductSearchResult;
+  active: boolean;
+  optionId: string;
+  onNavigate: () => void;
+  onHover: () => void;
+}) {
   return (
-    <li>
+    <li id={optionId} role="option" aria-selected={active}>
       <Link
         href={`/product/${result.id}`}
         onClick={onNavigate}
-        className="flex items-start gap-3 px-4 py-3 transition-colors duration-150 ease-out hover:bg-surface-2"
+        onMouseEnter={onHover}
+        className={`flex items-start gap-3 px-4 py-3 transition-colors ${active ? "bg-accent/10" : "hover:bg-surface-2"}`}
       >
         <ProductAvatar name={result.name} logoUrl={result.logo_url} size="sm" accent={result.status === "champion"} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -84,11 +98,7 @@ function ResultRow({ result, onNavigate }: { result: ProductSearchResult; onNavi
           <span className="truncate text-xs text-muted">{result.category}</span>
           <p className="line-clamp-1 text-xs text-muted">{result.battle_pitch || result.pitch}</p>
           <div className="flex items-center gap-2">
-            {result.wins > 0 && (
-              <span className="font-mono text-[10px] font-bold text-muted">
-                🔥 {result.wins} win{result.wins === 1 ? "" : "s"}
-              </span>
-            )}
+            {result.wins > 0 && <span className="font-mono text-[10px] font-bold text-muted">🔥 {result.wins} win{result.wins === 1 ? "" : "s"}</span>}
             <XHandleLink handle={result.x_handle} className="text-[11px] text-muted hover:text-accent" />
           </div>
         </div>
@@ -99,33 +109,40 @@ function ResultRow({ result, onNavigate }: { result: ProductSearchResult; onNavi
 
 function SearchResultsPanel({
   query,
+  results,
+  loading,
+  searched,
+  errored,
+  selectedIndex,
+  onSelect,
   onNavigate,
-}: {
+}: ReturnType<typeof useProductSearch> & {
   query: string;
+  selectedIndex: number;
+  onSelect: (index: number) => void;
   onNavigate: () => void;
 }) {
-  const { results, loading, searched, errored } = useProductSearch(query);
-
   if (query.trim().length < MIN_QUERY_LEN) return null;
 
   return (
-    <div
-      aria-label="Product search results"
-      role="region"
-      className="absolute left-0 top-full z-50 mt-2 w-[360px] max-w-[calc(100vw-2rem)] max-h-[60vh] overflow-y-auto rounded-xl border border-border bg-surface shadow-lg xl:left-auto xl:right-0"
-    >
+    <div className="absolute right-0 top-full z-[70] mt-2 max-h-[60vh] w-full min-w-[320px] overflow-y-auto rounded-2xl border border-border bg-bg shadow-lg" role="region" aria-label="Product search results">
       {loading ? (
-        <p className="px-4 py-6 text-center text-sm text-muted">Searching…</p>
+        <p className="px-4 py-7 text-center text-sm text-muted">Searching…</p>
       ) : errored ? (
-        <p className="px-4 py-6 text-center text-sm text-muted">Search is unavailable right now.</p>
+        <p className="px-4 py-7 text-center text-sm text-muted">Search is unavailable right now.</p>
       ) : results.length === 0 && searched ? (
-        <p className="px-4 py-6 text-center text-sm text-muted">
-          No products match &ldquo;{query.trim()}&rdquo;.
-        </p>
+        <p className="px-4 py-7 text-center text-sm text-muted">No products match &ldquo;{query.trim()}&rdquo;.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border">
-          {results.map((r) => (
-            <ResultRow key={r.id} result={r} onNavigate={onNavigate} />
+        <ul id="desktop-product-search-results" role="listbox" className="flex flex-col divide-y divide-border">
+          {results.map((result, index) => (
+            <ResultRow
+              key={result.id}
+              result={result}
+              active={selectedIndex === index}
+              optionId={`desktop-product-search-option-${index}`}
+              onHover={() => onSelect(index)}
+              onNavigate={onNavigate}
+            />
           ))}
         </ul>
       )}
@@ -133,128 +150,158 @@ function SearchResultsPanel({
   );
 }
 
-/** Desktop: an always-visible search box inline in the header. */
+/** Desktop/tablet: compact search that expands while active. */
 export function ProductSearchBar({ className }: { className?: string }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const search = useProductSearch(query);
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    function onClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setFocused(false);
+        setSelectedIndex(-1);
       }
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
+  function close() {
+    setFocused(false);
+    setSelectedIndex(-1);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setQuery("");
+      close();
+      event.currentTarget.blur();
+      return;
+    }
+    if (!search.results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedIndex((index) => (index + 1) % search.results.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedIndex((index) => (index <= 0 ? search.results.length - 1 : index - 1));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const result = search.results[selectedIndex >= 0 ? selectedIndex : 0];
+      if (result) {
+        close();
+        router.push(`/product/${result.id}`);
+      }
+    }
+  }
+
   return (
-    <div ref={containerRef} className={`relative ${className ?? ""}`}>
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 transition-colors duration-150 ease-out focus-within:border-accent">
+    <div
+      ref={containerRef}
+      className={`relative shrink-0 transition-[width] duration-200 ease-out ${focused ? "w-[min(340px,34vw)]" : "w-[210px]"} ${className ?? ""}`}
+    >
+      <div className="flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 transition-all focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(0,180,216,0.1)]">
         <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setSelectedIndex(-1); }}
           onFocus={() => setFocused(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setQuery("");
-              setFocused(false);
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
+          onKeyDown={onKeyDown}
           placeholder="Search products…"
           aria-label="Search products"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={focused && query.trim().length >= MIN_QUERY_LEN}
+          aria-controls="desktop-product-search-results"
+          aria-activedescendant={selectedIndex >= 0 ? `desktop-product-search-option-${selectedIndex}` : undefined}
           className="min-w-0 w-full bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none"
         />
+        {query && <button type="button" onClick={() => { setQuery(""); setSelectedIndex(-1); }} aria-label="Clear search" className="text-muted hover:text-ink"><X className="h-3.5 w-3.5" /></button>}
       </div>
-      {focused && <SearchResultsPanel query={query} onNavigate={() => setFocused(false)} />}
+      {focused && <SearchResultsPanel query={query} {...search} selectedIndex={selectedIndex} onSelect={setSelectedIndex} onNavigate={close} />}
     </div>
   );
 }
 
 /** Mobile: an icon button that opens a full-width search panel. */
 export function ProductSearchToggle() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const search = useProductSearch(query);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setSelectedIndex(-1);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") return close();
+    if (!search.results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedIndex((index) => (index + 1) % search.results.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedIndex((index) => (index <= 0 ? search.results.length - 1 : index - 1));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const result = search.results[selectedIndex >= 0 ? selectedIndex : 0];
+      if (result) {
+        close();
+        router.push(`/product/${result.id}`);
+      }
+    }
+  }
+
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Search products"
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90"
-      >
+      <button type="button" onClick={() => setOpen(true)} aria-label="Search products" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink">
         <Search className="h-4 w-4" />
       </button>
-
-      {open &&
-        typeof document !== "undefined" &&
-        createPortal(
-          // Portaled to <body> rather than rendered inline: the header is
-          // `position: sticky` with a backdrop-blur, and a `filter`/
-          // `backdrop-filter` ancestor becomes the containing block for a
-          // `fixed` descendant in most browsers — so inset-0 here would
-          // resolve against the ~60px header instead of the viewport.
-          <div className="fixed inset-0 z-50 flex flex-col bg-bg">
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setOpen(false);
-                }}
-                placeholder="Search products…"
-                aria-label="Search products"
-                className="w-full bg-transparent text-base text-ink placeholder:text-muted focus:outline-none"
-              />
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setQuery("");
-                }}
-                aria-label="Close search"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-ink"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <MobileSearchResults query={query} onNavigate={() => setOpen(false)} />
-            </div>
-          </div>,
-          document.body,
-        )}
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] flex flex-col bg-bg">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+            <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setSelectedIndex(-1); }}
+              onKeyDown={onKeyDown}
+              placeholder="Search products…"
+              aria-label="Search products"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={query.trim().length >= MIN_QUERY_LEN}
+              aria-controls="mobile-product-search-results"
+              aria-activedescendant={selectedIndex >= 0 ? `mobile-product-search-option-${selectedIndex}` : undefined}
+              className="w-full bg-transparent text-base text-ink placeholder:text-muted focus:outline-none"
+            />
+            <button type="button" onClick={close} aria-label="Close search" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {query.trim().length < MIN_QUERY_LEN ? <p className="px-4 py-8 text-center text-sm text-muted">Type at least 2 characters to search.</p> : search.loading ? <p className="px-4 py-8 text-center text-sm text-muted">Searching…</p> : search.errored ? <p className="px-4 py-8 text-center text-sm text-muted">Search is unavailable right now.</p> : search.results.length === 0 && search.searched ? <p className="px-4 py-8 text-center text-sm text-muted">No products match &ldquo;{query.trim()}&rdquo;.</p> : (
+              <ul id="mobile-product-search-results" role="listbox" className="flex flex-col divide-y divide-border">
+                {search.results.map((result, index) => <ResultRow key={result.id} result={result} active={selectedIndex === index} optionId={`mobile-product-search-option-${index}`} onHover={() => setSelectedIndex(index)} onNavigate={close} />)}
+              </ul>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </>
   );
 }
 
-function MobileSearchResults({ query, onNavigate }: { query: string; onNavigate: () => void }) {
-  const { results, loading, searched, errored } = useProductSearch(query);
-
-  if (query.trim().length < MIN_QUERY_LEN) {
-    return <p className="px-4 py-6 text-center text-sm text-muted">Type at least 2 characters to search.</p>;
-  }
-  if (loading) return <p className="px-4 py-6 text-center text-sm text-muted">Searching…</p>;
-  if (errored) return <p className="px-4 py-6 text-center text-sm text-muted">Search is unavailable right now.</p>;
-  if (results.length === 0 && searched) {
-    return (
-      <p className="px-4 py-6 text-center text-sm text-muted">No products match &ldquo;{query.trim()}&rdquo;.</p>
-    );
-  }
-  return (
-    <ul className="flex flex-col divide-y divide-border">
-      {results.map((r) => (
-        <ResultRow key={r.id} result={r} onNavigate={onNavigate} />
-      ))}
-    </ul>
-  );
-}
