@@ -128,7 +128,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-[60] h-16 border-b border-border bg-bg/90 backdrop-blur-xl">
-      <div className="mx-auto grid h-full max-w-[1500px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-3 sm:px-5 xl:grid-cols-[minmax(150px,1fr)_auto_minmax(500px,1fr)] xl:gap-10">
+      <div className="mx-auto grid h-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-3 sm:px-5 xl:grid-cols-[auto_auto_auto] xl:justify-between xl:gap-8">
         <div className="flex min-w-0 items-center gap-2">
           <button type="button" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-site-navigation" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink xl:hidden">
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -139,7 +139,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <nav className="hidden items-center justify-center gap-6 xl:flex" aria-label="Primary navigation">
+        <nav className="hidden min-w-max items-center justify-center gap-6 xl:flex" aria-label="Primary navigation">
           {PRIMARY_LINKS.map((link) => {
             const active = linkIsActive(pathname, hash, link);
             return <Link key={link.href} href={link.href} aria-current={active ? "page" : undefined} className={`relative flex h-10 items-center whitespace-nowrap text-sm font-semibold transition-colors ${active ? "text-accent" : "text-muted hover:text-ink"}`}>{link.label}{active && <span className="absolute inset-x-0 -bottom-3.5 h-0.5 rounded-full bg-accent" />}</Link>;
@@ -147,11 +147,11 @@ export function SiteHeader() {
           <MoreMenu pathname={pathname} hash={hash} />
         </nav>
 
-        <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 xl:ml-3">
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 xl:ml-0 xl:min-w-max">
           <ProductSearchBar className="hidden md:block" />
           <div className="md:hidden"><ProductSearchToggle /></div>
           <ThemeToggle showLabel />
-          <Link href="/get-listed" className="hidden h-10 items-center whitespace-nowrap rounded-xl border border-border bg-surface px-4 text-sm font-bold text-ink shadow-sm transition-all hover:border-accent hover:shadow-md min-[1380px]:inline-flex">Get Listed</Link>
+          <Link href="/get-listed" className="hidden h-10 items-center whitespace-nowrap rounded-xl border border-border bg-surface px-4 text-sm font-bold text-ink shadow-sm transition-all hover:border-accent hover:shadow-md min-[1500px]:inline-flex">Get Listed</Link>
           <Link href="/#submit" className="hidden h-10 items-center whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-bold text-accent-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md lg:inline-flex">Submit Product</Link>
           {user ? <><NotificationCenter /><UserProfileMenu user={user} onSignOut={handleSignOut} /></> : <Link href={signInHref} className="hidden h-10 items-center whitespace-nowrap rounded-xl px-3 text-sm font-bold text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:inline-flex">Sign In</Link>}
         </div>

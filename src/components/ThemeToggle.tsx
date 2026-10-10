@@ -52,7 +52,7 @@ export function ThemeToggle({ className, showLabel = false }: { className?: stri
       }
     >
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      {showLabel && <span className="hidden text-xs font-bold min-[1420px]:inline">{theme === "dark" ? "Light" : "Dark"}</span>}
+      {showLabel && <span className="hidden text-xs font-bold min-[1600px]:inline">{theme === "dark" ? "Light" : "Dark"}</span>}
     </button>
   );
 }
