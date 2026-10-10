@@ -352,7 +352,7 @@ export type TermsAcceptance = {
 };
 
 export type ProductAnalyticsDaily = { product_id: string; page_views: number; unique_page_views: number; outbound_clicks: number; unique_outbound_clicks: number };
-export type FounderNotification = { id: string; user_id: string; event_key: string; event_type: string; title: string; body: string; href: string; email_category: "transactional" | "duel" | "review" | "digest" | "announcement" | "get_listed"; email_status: "queued" | "sending" | "sent" | "failed" | "skipped"; email_attempts: number; email_next_attempt_at: string; email_locked_at: string | null; email_sent_at: string | null; email_last_error: string | null; announcement_id: string | null; read_at: string | null; created_at: string };
+export type FounderNotification = { id: string; user_id: string; event_key: string; event_type: string; title: string; body: string; href: string; email_category: "transactional" | "duel" | "review" | "digest" | "announcement" | "get_listed"; email_status: "queued" | "sending" | "sent" | "failed" | "skipped"; email_attempts: number; email_next_attempt_at: string; email_locked_at: string | null; email_sent_at: string | null; email_last_error: string | null; announcement_id: string | null; in_app_visible: boolean; read_at: string | null; created_at: string };
 export type FounderNotificationPreferences = { user_id: string; important_duel_updates: boolean; review_notifications: boolean; daily_vote_digest: boolean; product_announcements: boolean; get_listed_updates: boolean; updated_at: string };
 export type FounderProductClaim = { id: string; product_id: string; user_id: string; proof: string; status: "pending" | "approved" | "rejected"; reviewed_at: string | null; reviewed_by: string | null; created_at: string };
 export type ArenaAnnouncement = { id: string; title: string; body: string; status: "draft" | "published"; email_requested: boolean; created_by: string | null; created_at: string; published_at: string | null };
@@ -492,6 +492,7 @@ export interface Database {
       enqueue_founder_notification: { Args: { p_user_id: string; p_event_key: string; p_event_type: string; p_title: string; p_body: string; p_href: string; p_email_category: FounderNotification["email_category"]; p_email_requested?: boolean; p_announcement_id?: string | null }; Returns: undefined };
       create_waiting_product_reminders: { Args: { p_day: string }; Returns: number };
       create_daily_vote_digests: { Args: { p_day: string }; Returns: number };
+      create_weekly_announcement_digests: { Args: { p_week_start: string }; Returns: number };
       claim_founder_notification_emails: { Args: { p_limit?: number }; Returns: FounderNotification[] };
       prune_product_analytics: { Args: { p_unique_before: string }; Returns: number };
 
@@ -535,3 +536,4 @@ export interface Database {
     };
   };
 }
+

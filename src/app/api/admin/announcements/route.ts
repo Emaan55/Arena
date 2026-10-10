@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
-import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 export async function GET(req: NextRequest) {
   if (!isAuthorizedAdmin(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin.from("arena_announcements").select("*").order("created_at", { ascending: false }).limit(50);
   if (error) return NextResponse.json({ error: "Could not load announcements." }, { status: 500 });
-  const announcements = await Promise.all((data ?? []).map(async (announcement) => {
-    const { data: jobs } = await admin.from("founder_notifications").select("email_status").eq("announcement_id", announcement.id);
-    const delivery = { queued: 0, sending: 0, sent: 0, failed: 0, skipped: 0 };
-    for (const job of jobs ?? []) if (job.email_status in delivery) delivery[job.email_status as keyof typeof delivery]++;
-    return { ...announcement, delivery };
-  }));
-  return NextResponse.json({ announcements });
+  const { data: latest } = await admin.from("founder_notifications").select("event_key,created_at").eq("event_type", "weekly_announcement_digest").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  let weeklyDelivery: { weekStart: string; queued: number; sending: number; sent: number; failed: number; skipped: number } | null = null;
+  if (latest) {
+    const { data: jobs } = await admin.from("founder_notifications").select("email_status").eq("event_key", latest.event_key);
+    weeklyDelivery = { weekStart: latest.event_key.replace("weekly-announcement-digest:", ""), queued: 0, sending: 0, sent: 0, failed: 0, skipped: 0 };
+    for (const job of jobs ?? []) if (job.email_status in weeklyDelivery) weeklyDelivery[job.email_status as keyof Omit<typeof weeklyDelivery, "weekStart">]++;
+  }
+  return NextResponse.json({ announcements: data ?? [], weeklyDelivery });
 }
 export async function POST(req: NextRequest) {
   if (!isAuthorizedAdmin(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -36,6 +36,6 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await admin.from("arena_announcements").update({ status: "published" }).eq("id", record.id).eq("status", "draft").select().maybeSingle();
   if (error) return NextResponse.json({ error: "Could not publish announcement." }, { status: 500 });
   if (!data) return NextResponse.json({ error: "This announcement was already published or no longer exists." }, { status: 409 });
-  scheduleFounderNotificationDelivery();
   return NextResponse.json({ announcement: data });
 }
+

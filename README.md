@@ -80,7 +80,7 @@ row and become the category's permanent Champion.
 
 Apply migration `0025_founder_analytics_notifications.sql` after the existing migrations. Product page views and outbound clicks are stored as daily aggregates; unique counts use a rotating, keyed visitor hash and raw event IDs are pruned after 30 days. Voting remains in the existing vote tables and is reported separately.
 
-For email, create a [Resend](https://resend.com) account, verify the sender domain, then set `RESEND_API_KEY`, `ARENA_EMAIL_FROM`, and optionally `ARENA_EMAIL_REPLY_TO`. Set a random `NOTIFICATION_UNSUBSCRIBE_SECRET` and `FINGERPRINT_SIGNING_SECRET` in production. The transactional outbox is committed with the underlying event; Next.js `after()` wakes delivery immediately and the cron route recovers queued/retry jobs. The `vercel.json` schedule runs every five minutes; Hobby permits only a daily cron, so use Pro/Enterprise for this retry frequency. Set `CRON_SECRET` in Vercel and locally for protected cron requests.
+For email, create a [Resend](https://resend.com) account, verify the sender domain, then set `RESEND_API_KEY`, `ARENA_EMAIL_FROM`, and optionally `ARENA_EMAIL_REPLY_TO`. Set a random `NOTIFICATION_UNSUBSCRIBE_SECRET` and `FINGERPRINT_SIGNING_SECRET` in production. The transactional outbox is committed with the underlying event; Next.js `after()` wakes immediate event delivery and the daily cron route recovers queued/retry jobs. Admin-selected feature announcements are published in-app immediately and bundled into one weekly email sent on Monday at 03:00 UTC (08:00 PKT) to users who enabled Arena announcements. Set `CRON_SECRET` in Vercel and locally for protected cron requests.
 
 Users with Supabase Auth accounts can visit `/dashboard`; ownership is assigned only to the verified submitter or after an admin approves a legacy claim. Admin announcements and pending claims are linked from `/admin` and use the existing `ADMIN_SECRET` gate. All optional email categories are off by default and only sent after users opt in. Email provider setup is required before queued notifications can be delivered.
 
@@ -403,3 +403,4 @@ re-encodes it as a 256px WebP with original metadata removed. Uploaded files
 are removed if the review insert fails. No anonymous browser upload policy
 is added. The external photo lookup requires browser access to `unavatar.io`;
 no X API key is required for this optional lookup.
+

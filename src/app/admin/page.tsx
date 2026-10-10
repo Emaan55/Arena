@@ -90,6 +90,7 @@ export default function AdminIndexPage() {
 
   useEffect(() => {
     if (!secret) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Refreshes server data when the saved admin session becomes available.
     setRefreshing(true);
     void loadOverview(secret)
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load the admin overview."))

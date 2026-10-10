@@ -20,8 +20,8 @@ export async function GET() {
     ids.length ? admin.from("product_analytics_daily").select("product_id,day,page_views,outbound_clicks").in("product_id", ids).gte("day", firstChartDay).order("day", { ascending: true }) : Promise.resolve({ data: [], error: null }),
     admin.from("founder_product_claims").select("product_id,status,created_at").eq("user_id", user.id),
     admin.from("campaigns").select("id,startup_name,status,submission_target,created_at").eq("owner_id", user.id).is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("founder_notifications").select("id,event_type,title,body,href,read_at,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
-    admin.from("founder_notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
+    admin.from("founder_notifications").select("id,event_type,title,body,href,read_at,created_at").eq("user_id", user.id).eq("in_app_visible", true).order("created_at", { ascending: false }).limit(10),
+    admin.from("founder_notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("in_app_visible", true).is("read_at", null),
   ]);
   const allMatches = [...(matchesA.data ?? []), ...(matchesB.data ?? [])].filter((m, index, all) => all.findIndex((other) => other.id === m.id) === index);
   const matchIds = allMatches.map((match) => match.id);
@@ -67,3 +67,4 @@ export async function GET() {
     unreadCount: unread.count ?? 0,
   });
 }
+
