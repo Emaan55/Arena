@@ -12,7 +12,7 @@ function applyFavicon(theme: "light" | "dark") {
   if (icon512) icon512.href = `/favicons/icon-${theme}-512.png`;
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ className, showLabel = false }: { className?: string; showLabel?: boolean }) {
   // Default matches the CSS default (light) so the very first client
   // render before this effect runs matches the server-rendered markup —
   // the effect below corrects it to the real resolved theme immediately
@@ -45,12 +45,15 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       onClick={toggle}
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       className={
         className ??
-        "flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90"
+        `flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-surface text-ink transition-all duration-150 ease-out hover:border-accent active:scale-90 ${showLabel ? "px-2.5" : "w-9"}`
       }
     >
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {showLabel && <span className="hidden text-xs font-bold min-[1420px]:inline">{theme === "dark" ? "Light" : "Dark"}</span>}
     </button>
   );
 }
+
