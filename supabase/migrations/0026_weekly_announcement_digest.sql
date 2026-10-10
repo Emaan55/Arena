@@ -33,8 +33,7 @@ begin
       count(*)::integer as announcement_count,
       string_agg(
         a.title || E'\n' || a.body,
-        E'\n\n',
-        order by a.published_at asc, a.id asc
+        E'\n\n' order by a.published_at asc, a.id asc
       ) as digest_body
     from public.arena_announcements a
     where a.status = 'published'
