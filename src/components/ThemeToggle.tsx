@@ -56,4 +56,3 @@ export function ThemeToggle({ className, showLabel = false }: { className?: stri
     </button>
   );
 }
-

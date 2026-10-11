@@ -38,4 +38,3 @@ export async function PATCH(req: NextRequest) {
   if (!data) return NextResponse.json({ error: "This announcement was already published or no longer exists." }, { status: 409 });
   return NextResponse.json({ announcement: data });
 }
-

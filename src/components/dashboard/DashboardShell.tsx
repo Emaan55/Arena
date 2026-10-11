@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard#products", label: "My products", icon: Box },
   { href: "/dashboard#duels", label: "Live duels", icon: Swords },
-  { href: "/reviews", label: "Reviews", icon: MessageSquareText },
+  { href: "/dashboard/reviews", label: "Product reviews", icon: MessageSquareText },
   { href: "/dashboard#analytics", label: "Votes & analytics", icon: BarChart3 },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

@@ -61,4 +61,3 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const filename = `${campaign.startup_name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`;
   return csvResponse(filename, csv);
 }
-

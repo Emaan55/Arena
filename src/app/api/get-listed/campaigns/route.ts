@@ -196,20 +196,43 @@ export async function GET() {
   const admin = createAdminSupabaseClient();
   const { data: campaigns } = await admin
     .from("campaigns")
-    .select("*")
+    .select("id,startup_name,package_key,package_label,status,submission_target,created_at,updated_at,campaign_deliverables(status,metrics),submissions(id,status)")
     .eq("owner_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  const ids = (campaigns ?? []).map((c) => c.id);
-  const counts: Record<string, number> = {};
-  if (ids.length > 0) {
-    const { data: rows } = await admin.from("submissions").select("campaign_id").in("campaign_id", ids);
-    for (const row of rows ?? []) {
-      counts[row.campaign_id] = (counts[row.campaign_id] ?? 0) + 1;
-    }
-  }
-
-  const withProgress = (campaigns ?? []).map((c) => ({ ...c, submission_count: counts[c.id] ?? 0 }));
-  return NextResponse.json({ campaigns: withProgress });
+  type CampaignListRow = {
+    id: string;
+    startup_name: string;
+    package_key: string;
+    package_label: string;
+    status: string;
+    submission_target: number;
+    created_at: string;
+    updated_at: string;
+    campaign_deliverables: { status: string; metrics: Record<string, string | number> | null }[];
+    submissions: { id: string; status: string }[];
+  };
+  const withProgress = ((campaigns ?? []) as unknown as CampaignListRow[]).map((campaign) => {
+    const deliverables = campaign.campaign_deliverables ?? [];
+    const applicable = deliverables.filter((item) => item.status !== "not_applicable");
+    const completed = applicable.filter((item) => item.status === "completed").length;
+    return {
+      id: campaign.id,
+      startup_name: campaign.startup_name,
+      package_key: campaign.package_key,
+      package_label: campaign.package_label,
+      status: campaign.status,
+      submission_target: campaign.submission_target,
+      submission_count: campaign.submissions?.length ?? 0,
+      created_at: campaign.created_at,
+      updated_at: campaign.updated_at,
+      deliverables_completed: completed,
+      deliverables_total: applicable.length,
+      progress_percent: applicable.length > 0 ? Math.round((completed / applicable.length) * 100) : 0,
+    };
+  });
+  const response = NextResponse.json({ campaigns: withProgress });
+  response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return response;
 }
-

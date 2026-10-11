@@ -48,6 +48,24 @@ test("admin completion requires directory and deliverable evidence", async () =>
   assert.match(route, /\.not\("status", "in", "\(completed,not_applicable\)"\)/);
   assert.match(deliverableRoute, /Add a published link, asset link, or customer-visible completion note/);
   assert.match(deliverableRoute, /Record all \$\{campaign\.submission_target\} directory submissions/);
+  assert.match(deliverableRoute, /Payment must be confirmed before fulfillment updates/);
+  assert.match(deliverableRoute, /campaign\.status === "active"[\s\S]*campaignUpdate\.status = "in_progress"/);
 });
 
+test("customer live report stays owner protected and exposes platform results", async () => {
+  const [customerRoute, reportPage, reportView, editor] = await Promise.all([
+    read("../src/app/api/get-listed/campaigns/[id]/route.ts"),
+    read("../src/app/get-listed/campaigns/[id]/page.tsx"),
+    read("../src/components/get-listed/CampaignReport.tsx"),
+    read("../src/components/admin/CampaignDeliverablesEditor.tsx"),
+  ]);
+  assert.match(customerRoute, /\.eq\("owner_id", user\.id\)/);
+  assert.match(customerRoute, /getCustomerCampaignReport\(admin, id, campaign\)/);
+  assert.match(reportPage, /LIVE_REPORT_POLL_MS = 30000/);
+  assert.match(reportPage, /document\.visibilityState === "visible"/);
+  assert.match(reportView, /Platform performance/);
+  assert.match(reportView, /getDeliverablePlatform\(item\.kind\)/);
+  assert.match(editor, /CAMPAIGN_METRIC_FIELDS/);
+  assert.match(editor, /Published URL/);
+});
 

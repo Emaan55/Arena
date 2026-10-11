@@ -27,3 +27,24 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
+export async function DELETE(req: NextRequest) {
+  const auth = await createRouteHandlerSupabaseClient();
+  const { data: { user } } = await auth.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Sign in to delete notifications." }, { status: 401 });
+  let payload: unknown;
+  try { payload = await req.json(); } catch { return NextResponse.json({ error: "Invalid request." }, { status: 400 }); }
+  const notificationId = (payload as Record<string, unknown> | null)?.notificationId;
+  if (typeof notificationId !== "string" || !notificationId) return NextResponse.json({ error: "Invalid notification." }, { status: 400 });
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("founder_notifications")
+    .update({ in_app_visible: false, read_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .eq("user_id", user.id)
+    .eq("in_app_visible", true)
+    .select("id")
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: "Could not delete notification." }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Notification not found." }, { status: 404 });
+  return NextResponse.json({ success: true });
+}

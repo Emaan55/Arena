@@ -1,6 +1,7 @@
-import { CheckCircle2, Circle, Clock, ExternalLink, FileText, ShieldCheck, XCircle } from "lucide-react";
+import { Activity, BarChart3, CheckCircle2, Circle, Clock, ExternalLink, Eye, FileText, MousePointer2, ShieldCheck, XCircle } from "lucide-react";
 import type { CustomerCampaignReport } from "@/lib/get-listed/report";
 import type { CampaignStatus } from "@/types/database";
+import { CAMPAIGN_METRIC_FIELDS, formatMetricLabel, getDeliverablePlatform, metricNumber } from "@/lib/get-listed/metrics";
 
 const STATUS_BANNER: Record<CampaignStatus, { title: string; body: string }> = {
   draft: { title: "Draft", body: "This campaign hasn't been submitted for fulfillment yet." },
@@ -41,6 +42,12 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+const compactNumber = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
 /**
  * The one report UI both the customer page (get-listed/campaigns/[id])
  * and the admin preview (admin/get-listed/campaigns/[id]/report) render —
@@ -51,6 +58,17 @@ function formatDate(iso: string): string {
 export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
   const { campaign, payment, progress, accepted, pending, rejected, deliverables, timeline } = report;
   const banner = STATUS_BANNER[campaign.status];
+  const applicableDeliverables = deliverables.filter((item) => item.status !== "not_applicable");
+  const completedDeliverables = applicableDeliverables.filter((item) => item.status === "completed").length;
+  const inProgressDeliverables = applicableDeliverables.filter((item) => item.status === "in_progress").length;
+  const fulfillmentPercent = applicableDeliverables.length > 0
+    ? Math.round((completedDeliverables / applicableDeliverables.length) * 100)
+    : progress.progressPercent ?? 0;
+  const metricTotals = CAMPAIGN_METRIC_FIELDS.map((field) => ({
+    ...field,
+    value: deliverables.reduce((total, item) => total + metricNumber(item.metrics?.[field.key]), 0),
+  })).filter((metric) => metric.value > 0);
+  const measuredDeliverables = deliverables.filter((item) => Object.keys(item.metrics ?? {}).length > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,7 +80,12 @@ export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
               {campaign.packageLabel}{campaign.durationDays ? ` · ${campaign.durationDays}-day campaign` : ` · ${campaign.submissionTarget} directory submissions`}
             </p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[campaign.status]}`}>{banner.title}</span>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[campaign.status]}`}>{banner.title}</span>
+            {payment.status === "paid" && campaign.status !== "completed" && campaign.status !== "cancelled" && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#16a34a]"><span className="h-2 w-2 animate-pulse rounded-full bg-[#16a34a]" /> Live report</span>
+            )}
+          </div>
         </div>
         <p className="text-sm text-ink">{banner.body}</p>
         <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm sm:grid-cols-3">
@@ -87,8 +110,32 @@ export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
             <span className="block text-xs uppercase tracking-wide text-muted">Payment</span>
             <span className="text-ink">{PAYMENT_LABEL[payment.status]}</span>
           </div>
+          <div>
+            <span className="block text-xs uppercase tracking-wide text-muted">Last updated</span>
+            <span className="text-ink">{formatDateTime(campaign.updatedAt)}</span>
+          </div>
         </div>
       </div>
+
+      {payment.status === "paid" && (
+        <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="campaign-progress-heading">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Live fulfillment</p>
+              <h2 id="campaign-progress-heading" className="mt-1 font-display text-lg font-bold text-ink">Campaign progress</h2>
+            </div>
+            <strong className="font-display text-2xl text-ink">{fulfillmentPercent}%</strong>
+          </div>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Campaign fulfillment" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fulfillmentPercent}>
+            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${fulfillmentPercent}%` }} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-surface-2 px-3 py-3"><strong className="block font-display text-xl text-ink">{completedDeliverables}</strong><span className="text-[11px] text-muted">Completed</span></div>
+            <div className="rounded-xl bg-surface-2 px-3 py-3"><strong className="block font-display text-xl text-accent">{inProgressDeliverables}</strong><span className="text-[11px] text-muted">In progress</span></div>
+            <div className="rounded-xl bg-surface-2 px-3 py-3"><strong className="block font-display text-xl text-ink">{Math.max(0, applicableDeliverables.length - completedDeliverables - inProgressDeliverables)}</strong><span className="text-[11px] text-muted">Up next</span></div>
+          </div>
+        </section>
+      )}
 
       {deliverables.length > 0 && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -117,7 +164,7 @@ export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
                       {item.public_url && <a href={item.public_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">View published work <ExternalLink className="h-3 w-3" /></a>}
                       {item.asset_url && <a href={item.asset_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">Open asset <FileText className="h-3 w-3" /></a>}
                     </div>
-                    {Object.keys(item.metrics ?? {}).length > 0 && <div className="mt-3 flex flex-wrap gap-2">{Object.entries(item.metrics).map(([label, value]) => <span key={label} className="rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-muted"><strong className="text-ink">{value}</strong> {label.replaceAll("_", " ")}</span>)}</div>}
+                    {Object.keys(item.metrics ?? {}).length > 0 && <div className="mt-3 flex flex-wrap gap-2">{Object.entries(item.metrics).map(([label, value]) => <span key={label} className="rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-muted"><strong className="text-ink">{typeof value === "number" ? compactNumber.format(value) : value}</strong> {formatMetricLabel(label)}</span>)}</div>}
                   </div>
                 </div>
               </article>
@@ -125,6 +172,50 @@ export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
           </div>
         </div>
       )}
+
+      <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="performance-heading">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="performance-heading" className="flex items-center gap-2 font-display text-lg font-bold text-ink"><BarChart3 className="h-5 w-5 text-accent" /> Platform performance</h2>
+            <p className="mt-1 text-sm text-muted">Available results reported by each publishing platform.</p>
+          </div>
+          <span className="rounded-full bg-surface-2 px-3 py-1 text-[11px] font-semibold text-muted">Updated by The Arena team</span>
+        </div>
+
+        {metricTotals.length > 0 ? (
+          <>
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {metricTotals.slice(0, 4).map((metric) => {
+                const Icon = metric.key === "views" || metric.key === "impressions" ? Eye : metric.key === "clicks" ? MousePointer2 : Activity;
+                return <div key={metric.key} className="rounded-xl border border-border bg-bg p-4"><Icon className="h-4 w-4 text-accent" /><strong className="mt-2 block font-display text-2xl text-ink">{compactNumber.format(metric.value)}</strong><span className="text-xs text-muted">{metric.label}</span></div>;
+              })}
+            </div>
+            <div className="mt-5 overflow-hidden rounded-xl border border-border">
+              <div className="hidden grid-cols-[minmax(150px,1.5fr)_100px_minmax(220px,2fr)_auto] gap-3 bg-surface-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-muted sm:grid">
+                <span>Content</span><span>Platform</span><span>Results</span><span>Link</span>
+              </div>
+              <div className="divide-y divide-border">
+                {measuredDeliverables.map((item) => (
+                  <article key={item.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(150px,1.5fr)_100px_minmax(220px,2fr)_auto] sm:items-center sm:gap-3">
+                    <strong className="truncate text-sm text-ink">{item.title}</strong>
+                    <span className="text-xs font-semibold text-muted">{getDeliverablePlatform(item.kind)}</span>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                      {Object.entries(item.metrics).map(([key, value]) => <span key={key}><strong className="text-ink">{typeof value === "number" ? compactNumber.format(value) : value}</strong> {formatMetricLabel(key)}</span>)}
+                    </div>
+                    {item.public_url ? <a href={item.public_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline">View <ExternalLink className="h-3 w-3" /></a> : <span className="text-xs text-muted">—</span>}
+                  </article>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="mt-5 rounded-xl border border-dashed border-border bg-bg px-5 py-8 text-center">
+            <BarChart3 className="mx-auto h-6 w-6 text-muted" />
+            <p className="mt-2 text-sm font-semibold text-ink">Performance data will appear here</p>
+            <p className="mt-1 text-xs text-muted">Metrics are added after content is published and reporting becomes available.</p>
+          </div>
+        )}
+      </section>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
         <h2 className="font-display text-lg font-bold text-ink">Submission progress</h2>
@@ -270,4 +361,3 @@ export function CampaignReport({ report }: { report: CustomerCampaignReport }) {
     </div>
   );
 }
-

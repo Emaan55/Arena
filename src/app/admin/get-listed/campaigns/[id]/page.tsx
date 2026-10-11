@@ -776,7 +776,8 @@ export default function AdminCampaignDetailPage() {
         deliverables={deliverables}
         secret={secret}
         adminName={adminName}
-        disabled={isDeleted}
+        disabled={isDeleted || paymentStatus !== "paid"}
+        disabledReason={isDeleted ? "Restore this campaign before editing fulfillment." : paymentStatus !== "paid" ? "Payment must be confirmed before fulfillment work can be updated." : undefined}
         onUpdated={load}
       />
 
@@ -1127,4 +1128,3 @@ export default function AdminCampaignDetailPage() {
     </main>
   );
 }
-

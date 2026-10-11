@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/get-listed/audit";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import type { CampaignDeliverable, CampaignDeliverableStatus } from "@/types/database";
+import type { Campaign, CampaignDeliverable, CampaignDeliverableStatus } from "@/types/database";
 
 const VALID_STATUSES: CampaignDeliverableStatus[] = ["pending", "in_progress", "completed", "not_applicable"];
 const URL_MAX = 500;
@@ -31,7 +31,7 @@ function safeMetrics(value: unknown): Record<string, string | number> | null {
   for (const [rawKey, rawValue] of entries) {
     const key = rawKey.trim().slice(0, 50);
     if (!key) continue;
-    if (typeof rawValue === "number" && Number.isFinite(rawValue)) metrics[key] = rawValue;
+    if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) metrics[key] = rawValue;
     else if (typeof rawValue === "string" && rawValue.trim()) metrics[key] = rawValue.trim().slice(0, 200);
   }
   return metrics;
@@ -59,6 +59,9 @@ export async function PATCH(
   ]);
   if (!campaign || !existing) return NextResponse.json({ error: "Deliverable not found." }, { status: 404 });
   if (campaign.deleted_at) return NextResponse.json({ error: "Restore this campaign before editing deliverables." }, { status: 409 });
+  if (campaign.status === "draft" || campaign.status === "awaiting_payment") {
+    return NextResponse.json({ error: "Payment must be confirmed before fulfillment updates can be recorded." }, { status: 409 });
+  }
 
   const update: Partial<CampaignDeliverable> = { updated_at: new Date().toISOString() };
   if (record.status !== undefined) {
@@ -122,7 +125,11 @@ export async function PATCH(
     .single();
   if (error || !deliverable) return NextResponse.json({ error: "Could not update deliverable." }, { status: 500 });
 
-  await admin.from("campaigns").update({ updated_at: new Date().toISOString() }).eq("id", campaignId);
+  const campaignUpdate: Partial<Campaign> = { updated_at: new Date().toISOString() };
+  if (campaign.status === "active" && (deliverable.status === "in_progress" || deliverable.status === "completed")) {
+    campaignUpdate.status = "in_progress";
+  }
+  await admin.from("campaigns").update(campaignUpdate).eq("id", campaignId);
   await logAdminAction(admin, {
     campaignId,
     action: "deliverable_updated",
@@ -132,4 +139,3 @@ export async function PATCH(
 
   return NextResponse.json({ deliverable });
 }
-

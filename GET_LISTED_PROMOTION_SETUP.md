@@ -24,6 +24,21 @@ These variables are recommended rather than mandatory. If one is absent, the che
 
 Do not remove the three legacy variant environment variables. Pending historical campaigns continue to use them.
 
+## Live campaign reporting workflow
+
+After LemonSqueezy confirms payment, the campaign appears in **My Arena → Promotion campaigns** with its package, status, fulfillment percentage, directory progress, and available performance totals.
+
+1. Open **Admin → Get Listed → Campaigns** and select the paid campaign.
+2. Change a deliverable to **In progress** when work begins. The campaign automatically moves from Active to In progress.
+3. Add the published URL, downloadable asset URL, and a customer update.
+4. Enter the metrics the platform actually reports, such as views, impressions, link clicks, reactions, comments, shares, or watch time.
+5. Mark the deliverable complete only after adding evidence.
+6. Use **Preview report** to see the same report as the customer.
+
+The customer report refreshes every 30 seconds while the page is visible and can also be refreshed manually. It shows results by individual platform and never exposes internal admin notes. Fulfillment editing is disabled until payment is confirmed.
+
+This reporting update uses the `campaign_deliverables.metrics` JSON field from migration `0027`; it does not require another database migration or another paid service.
+
 ## Verification checklist
 
 - Create an unpaid campaign for each new package and confirm its base amount.
@@ -34,5 +49,4 @@ Do not remove the three legacy variant environment variables. Pending historical
 - Open the campaign in the admin panel and update a deliverable with evidence links and available metrics.
 - Confirm the customer campaign page displays only customer-safe notes, links, and metrics.
 - Confirm an old Starter, Growth, or Scale campaign still shows its original package and charged amount.
-
 

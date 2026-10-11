@@ -75,4 +75,3 @@ grant execute on function public.create_weekly_announcement_digests(date) to ser
 create index if not exists founder_notifications_visible_user_idx
   on public.founder_notifications(user_id, created_at desc, id desc)
   where in_app_visible;
-

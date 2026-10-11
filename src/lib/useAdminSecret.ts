@@ -43,4 +43,3 @@ export function useAdminSecret() {
 
   return { secret, unlock, reject };
 }
-

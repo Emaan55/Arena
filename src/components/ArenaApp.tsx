@@ -23,6 +23,8 @@ import { PowerMoves } from "./PowerMoves";
 import { ScrollReveal } from "./ScrollReveal";
 import { BrandLogo } from "./BrandLogo";
 import { useAuthUser } from "@/lib/useAuthUser";
+import { ArenaReachStats } from "./ArenaReachStats";
+import type { ArenaPublicMetrics } from "@/lib/site-metrics";
 
 const POLL_MS = 5000;
 const VOTED_STORAGE_KEY = "arena_voted_matches";
@@ -36,7 +38,7 @@ function loadVotedMap(): Record<string, VoteSide> {
   }
 }
 
-export function ArenaApp({ initialState }: { initialState: ArenaState }) {
+export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaState; publicMetrics: ArenaPublicMetrics }) {
   const router = useRouter();
   const [state, setState] = useState(initialState);
   const [tab, setTab] = useState<TabValue>("All");
@@ -217,6 +219,9 @@ export function ArenaApp({ initialState }: { initialState: ArenaState }) {
           </div>
           <div className="mt-6 flex justify-center">
             <StatsRow stats={state.stats} />
+          </div>
+          <div className="mt-3 flex w-full justify-center">
+            <ArenaReachStats metrics={publicMetrics} />
           </div>
         </div>
       </section>

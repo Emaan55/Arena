@@ -28,6 +28,11 @@ export function visitorDayHash(visitorId: string, day: string) {
   if (!secret) throw new Error("Analytics hashing secret is not configured");
   return createHmac("sha256", secret).update(`${visitorId}:${day}`).digest("hex");
 }
+export function analyticsVisitorHash(visitorId: string) {
+  const secret = process.env.FINGERPRINT_SIGNING_SECRET || process.env.FINGERPRINT_SALT || (process.env.NODE_ENV === "production" ? "" : "arena-local-analytics");
+  if (!secret) throw new Error("Analytics hashing secret is not configured");
+  return createHmac("sha256", secret).update(`arena-site:${visitorId}`).digest("hex");
+}
 export function setAnalyticsCookie(response: NextResponse, visitorId: string) {
   response.cookies.set(ANALYTICS_COOKIE, visitorId, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
 }

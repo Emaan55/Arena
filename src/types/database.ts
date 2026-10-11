@@ -393,6 +393,8 @@ export type FounderNotification = { id: string; user_id: string; event_key: stri
 export type FounderNotificationPreferences = { user_id: string; important_duel_updates: boolean; review_notifications: boolean; daily_vote_digest: boolean; product_announcements: boolean; get_listed_updates: boolean; updated_at: string };
 export type FounderProductClaim = { id: string; product_id: string; user_id: string; proof: string; status: "pending" | "approved" | "rejected"; reviewed_at: string | null; reviewed_by: string | null; created_at: string };
 export type ArenaAnnouncement = { id: string; title: string; body: string; status: "draft" | "published"; email_requested: boolean; created_by: string | null; created_at: string; published_at: string | null };
+export type ArenaSiteVisitor = { visitor_hash: string; first_seen_at: string; last_seen_at: string; page_views: number };
+export type ArenaPublicMetric = { id: boolean; domain_rating: number | null; domain_rating_source: string | null; domain_rating_source_url: string | null; domain_rating_checked_at: string | null; updated_at: string };
 
 type Relationships = [];
 
@@ -406,6 +408,8 @@ export interface Database {
       founder_notification_preferences: { Row: FounderNotificationPreferences; Insert: Partial<FounderNotificationPreferences>; Update: Partial<FounderNotificationPreferences>; Relationships: Relationships };
       founder_product_claims: { Row: FounderProductClaim; Insert: Partial<FounderProductClaim>; Update: Partial<FounderProductClaim>; Relationships: Relationships };
       arena_announcements: { Row: ArenaAnnouncement; Insert: Partial<ArenaAnnouncement>; Update: Partial<ArenaAnnouncement>; Relationships: Relationships };
+      arena_site_visitors: { Row: ArenaSiteVisitor; Insert: Partial<ArenaSiteVisitor>; Update: Partial<ArenaSiteVisitor>; Relationships: Relationships };
+      arena_public_metrics: { Row: ArenaPublicMetric; Insert: Partial<ArenaPublicMetric>; Update: Partial<ArenaPublicMetric>; Relationships: Relationships };
       products: {
         Row: Product;
         Insert: Partial<Product>;
@@ -538,6 +542,8 @@ export interface Database {
       create_weekly_announcement_digests: { Args: { p_week_start: string }; Returns: number };
       claim_founder_notification_emails: { Args: { p_limit?: number }; Returns: FounderNotification[] };
       prune_product_analytics: { Args: { p_unique_before: string }; Returns: number };
+      record_arena_site_visit: { Args: { p_visitor_hash: string }; Returns: undefined };
+      get_arena_public_metrics: { Args: Record<string, never>; Returns: { domain_rating: number | null; domain_rating_source: string | null; domain_rating_source_url: string | null; domain_rating_checked_at: string | null; monthly_visitors: number }[] };
 
       arena_review_stats: {
         Args: Record<string, never>;
@@ -579,4 +585,3 @@ export interface Database {
     };
   };
 }
-

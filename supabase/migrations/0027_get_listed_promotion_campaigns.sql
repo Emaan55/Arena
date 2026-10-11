@@ -78,4 +78,3 @@ create index campaign_deliverables_status_idx
 alter table public.campaign_deliverables enable row level security;
 revoke all on public.campaign_deliverables from anon, authenticated;
 
-

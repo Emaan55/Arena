@@ -137,4 +137,3 @@ export function UserProfileMenu({ user, onSignOut }: { user: User; onSignOut: ()
     </div>
   );
 }
-

@@ -2,24 +2,39 @@ import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { getProductAnalyticsSummary } from "@/lib/founder-notifications";
+import { metricNumber } from "@/lib/get-listed/metrics";
+
+export const dynamic = "force-dynamic";
+
+type DashboardCampaignRow = {
+  id: string;
+  startup_name: string;
+  status: string;
+  submission_target: number;
+  created_at: string;
+  updated_at: string;
+  package_label: string;
+  campaign_deliverables: { status: string; metrics: Record<string, string | number> | null }[];
+  submissions: { id: string; status: string }[];
+};
 
 export async function GET() {
   const auth = await createRouteHandlerSupabaseClient();
   const { data: { user } } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: "Sign in to view your dashboard." }, { status: 401 });
   const admin = createAdminSupabaseClient();
-  const { data: products, error } = await admin.from("products").select("*").eq("owner_id", user.id).order("submitted_at", { ascending: false });
+  const { data: products, error } = await admin.from("products").select("id,name,url,category,status,wins,logo_url,submitted_at").eq("owner_id", user.id).order("submitted_at", { ascending: false });
   if (error) return NextResponse.json({ error: "Could not load your products." }, { status: 500 });
   const ids = (products ?? []).map((product) => product.id);
   const firstChartDay = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
   const [matchesA, matchesB, reviews, analytics, dailyAnalytics, claims, campaigns, activity, unread] = await Promise.all([
-    ids.length ? admin.from("matches").select("*, product_a:products!matches_product_a_id_fkey(id,name), product_b:products!matches_product_b_id_fkey(id,name)").in("product_a_id", ids).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
-    ids.length ? admin.from("matches").select("*, product_a:products!matches_product_a_id_fkey(id,name), product_b:products!matches_product_b_id_fkey(id,name)").in("product_b_id", ids).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+    ids.length ? admin.from("matches").select("id,status,votes_a,votes_b,product_a_id,product_b_id,created_at, product_a:products!matches_product_a_id_fkey(id,name), product_b:products!matches_product_b_id_fkey(id,name)").in("product_a_id", ids).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+    ids.length ? admin.from("matches").select("id,status,votes_a,votes_b,product_a_id,product_b_id,created_at, product_a:products!matches_product_a_id_fkey(id,name), product_b:products!matches_product_b_id_fkey(id,name)").in("product_b_id", ids).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     ids.length ? admin.from("product_reviews").select("product_id").in("product_id", ids) : Promise.resolve({ data: [], error: null }),
     getProductAnalyticsSummary(admin, ids),
     ids.length ? admin.from("product_analytics_daily").select("product_id,day,page_views,outbound_clicks").in("product_id", ids).gte("day", firstChartDay).order("day", { ascending: true }) : Promise.resolve({ data: [], error: null }),
     admin.from("founder_product_claims").select("product_id,status,created_at").eq("user_id", user.id),
-    admin.from("campaigns").select("id,startup_name,status,submission_target,created_at").eq("owner_id", user.id).is("deleted_at", null).order("created_at", { ascending: false }),
+    admin.from("campaigns").select("id,startup_name,status,submission_target,created_at,updated_at,package_label,campaign_deliverables(status,metrics),submissions(id,status)").eq("owner_id", user.id).is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("founder_notifications").select("id,event_type,title,body,href,read_at,created_at").eq("user_id", user.id).eq("in_app_visible", true).order("created_at", { ascending: false }).limit(10),
     admin.from("founder_notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("in_app_visible", true).is("read_at", null),
   ]);
@@ -56,15 +71,41 @@ export async function GET() {
     const analyticsSummary = analytics[product.id] ?? { product_id: product.id, page_views: 0, unique_page_views: 0, outbound_clicks: 0, unique_outbound_clicks: 0 };
     return { ...product, edit_token_hash: null, currentMatch: active, wins: won, losses: history.length - won, votesReceived, reviews: (reviews.data ?? []).filter((review) => review.product_id === product.id).length, analytics: analyticsSummary, claim: (claims.data ?? []).find((claim) => claim.product_id === product.id) ?? null };
   });
+  const campaignSummaries = ((campaigns.data ?? []) as unknown as DashboardCampaignRow[]).map((campaign) => {
+    const deliverables = campaign.campaign_deliverables ?? [];
+    const applicable = deliverables.filter((item) => item.status !== "not_applicable");
+    const completed = applicable.filter((item) => item.status === "completed").length;
+    const inProgress = applicable.filter((item) => item.status === "in_progress").length;
+    const totals = deliverables.reduce((result, item) => ({
+      views: result.views + metricNumber(item.metrics?.views),
+      impressions: result.impressions + metricNumber(item.metrics?.impressions),
+      clicks: result.clicks + metricNumber(item.metrics?.clicks),
+    }), { views: 0, impressions: 0, clicks: 0 });
+    return {
+      id: campaign.id,
+      startup_name: campaign.startup_name,
+      status: campaign.status,
+      submission_target: campaign.submission_target,
+      submission_count: campaign.submissions?.length ?? 0,
+      package_label: campaign.package_label,
+      updated_at: campaign.updated_at,
+      deliverables_completed: completed,
+      deliverables_in_progress: inProgress,
+      deliverables_total: applicable.length,
+      progress_percent: applicable.length > 0 ? Math.round((completed / applicable.length) * 100) : 0,
+      metrics: totals,
+    };
+  });
   const founderName = user.user_metadata.full_name || user.user_metadata.name || user.user_metadata.preferred_username || user.email?.split("@")[0] || "Founder";
-  return NextResponse.json({
+  const response = NextResponse.json({
     founder: { name: founderName },
     products: enriched,
     claims: claims.data ?? [],
-    campaigns: campaigns.data ?? [],
+    campaigns: campaignSummaries,
     activity: activity.data ?? [],
     analyticsHistory: Array.from(chartDays.values()),
     unreadCount: unread.count ?? 0,
   });
+  response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return response;
 }
-

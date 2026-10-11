@@ -84,6 +84,8 @@ For email, create a [Resend](https://resend.com) account, verify the sender doma
 
 Users with Supabase Auth accounts can visit `/dashboard`; ownership is assigned only to the verified submitter or after an admin approves a legacy claim. Admin announcements and pending claims are linked from `/admin` and use the existing `ADMIN_SECRET` gate. All optional email categories are off by default and only sent after users opt in. Email provider setup is required before queued notifications can be delivered.
 
+Apply migration `0028_arena_public_metrics.sql` to enable the homepage monthly visitor count and verified domain rating. Visitor counting uses a one-way keyed hash, excludes obvious bots, and stores no IP addresses. Monthly visitors are a rolling 30-day unique count. Set the externally verified domain rating, provider, and source URL from `/admin/site-metrics`; no paid analytics service is required by the application.
+
 ### Project structure
 
 ```
@@ -403,4 +405,3 @@ re-encodes it as a 256px WebP with original metadata removed. Uploaded files
 are removed if the review insert fails. No anonymous browser upload policy
 is added. The external photo lookup requires browser access to `unavatar.io`;
 no X API key is required for this optional lookup.
-

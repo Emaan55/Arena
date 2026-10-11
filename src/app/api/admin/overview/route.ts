@@ -38,4 +38,3 @@ export async function GET(req: NextRequest) {
     updatedAt: new Date().toISOString(),
   });
 }
-

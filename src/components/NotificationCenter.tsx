@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
 
 type Notification = { id: string; title: string; body: string; href: string; read_at: string | null; created_at: string };
@@ -50,6 +50,15 @@ export function NotificationCenter() {
     };
   }, []);
 
+  // Keep the navbar bell in sync when a notification is changed from the
+  // founder dashboard or the full notifications page.
+  useEffect(() => {
+    if (!user) return;
+    const refresh = () => { void loadPage(0); };
+    window.addEventListener("arena-notifications-changed", refresh);
+    return () => window.removeEventListener("arena-notifications-changed", refresh);
+  }, [user]);
+
   if (!user) return null;
 
   async function markRead(id: string) {
@@ -62,6 +71,13 @@ export function NotificationCenter() {
     await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "read_all" }) });
     setItems((previous) => previous.map((item) => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })));
     setUnread(0);
+  }
+
+  async function removeNotification(item: Notification) {
+    const response = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId: item.id }) });
+    if (!response.ok) return;
+    setItems((previous) => previous.filter((candidate) => candidate.id !== item.id));
+    if (!item.read_at) setUnread((count) => Math.max(0, count - 1));
   }
 
   return (
@@ -90,7 +106,8 @@ export function NotificationCenter() {
           </div>
           <div className="max-h-[65vh] overflow-y-auto">
             {items.length === 0 && !loading ? <p className="p-6 text-center text-sm text-muted">You&apos;re all caught up.</p> : items.map((item) => (
-              <Link key={item.id} href={item.href} onClick={() => { if (!item.read_at) void markRead(item.id); setOpen(false); }} className={`block border-b border-border px-4 py-3.5 transition-colors hover:bg-surface-2 ${item.read_at ? "" : "bg-accent/5"}`}>
+              <article key={item.id} className={`flex items-start gap-2 border-b border-border px-4 py-3.5 transition-colors hover:bg-surface-2 ${item.read_at ? "" : "bg-accent/5"}`}>
+              <Link href={item.href} onClick={() => { if (!item.read_at) void markRead(item.id); setOpen(false); }} className="min-w-0 flex-1">
                 <div className="flex items-start gap-3">
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.read_at ? "bg-border-strong" : "bg-accent"}`} />
                   <span className="min-w-0">
@@ -100,6 +117,8 @@ export function NotificationCenter() {
                   </span>
                 </div>
               </Link>
+              <button type="button" onClick={() => void removeNotification(item)} aria-label={`Delete ${item.title}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-3.5 w-3.5" /></button>
+              </article>
             ))}
           </div>
           <div className="flex items-center justify-between px-4 py-3">
@@ -111,4 +130,3 @@ export function NotificationCenter() {
     </div>
   );
 }
-

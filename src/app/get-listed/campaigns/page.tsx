@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FolderOpen } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, FolderOpen } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
-import type { Campaign, CampaignStatus } from "@/types/database";
+import type { CampaignStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
@@ -16,7 +16,20 @@ const STATUS_LABEL: Record<CampaignStatus, string> = {
   cancelled: "Cancelled",
 };
 
-type CampaignWithCount = Campaign & { submission_count: number };
+type CampaignWithCount = {
+  id: string;
+  startup_name: string;
+  package_key: string;
+  package_label: string;
+  status: CampaignStatus;
+  submission_target: number;
+  submission_count: number;
+  created_at: string;
+  updated_at: string;
+  deliverables_completed: number;
+  deliverables_total: number;
+  progress_percent: number;
+};
 
 export default function CampaignsListPage() {
   const { user, loading: authLoading } = useAuthUser();
@@ -78,7 +91,8 @@ export default function CampaignsListPage() {
       {user && campaigns !== null && campaigns.length > 0 && (
         <div className="flex flex-col gap-3">
           {campaigns.map((c) => {
-            const pct = Math.min(100, Math.round((c.submission_count / c.submission_target) * 100));
+            const pct = c.deliverables_total > 0 ? c.progress_percent : Math.min(100, Math.round((c.submission_count / c.submission_target) * 100));
+            const isLive = c.status === "active" || c.status === "in_progress";
             return (
               <Link
                 key={c.id}
@@ -86,18 +100,22 @@ export default function CampaignsListPage() {
                 className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-display text-base font-bold text-ink">{c.startup_name}</h2>
+                  <div>
+                    <h2 className="flex items-center gap-2 font-display text-base font-bold text-ink">{c.startup_name}{isLive && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />}</h2>
+                    <span className="text-[11px] text-muted">Updated {new Date(c.updated_at).toLocaleDateString()}</span>
+                  </div>
                   <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-muted">
                     {STATUS_LABEL[c.status]}
                   </span>
                 </div>
-                <p className="text-xs text-muted">
-                  {c.package_label || GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label || c.package_key} ·{" "}
-                  {c.submission_count}/{c.submission_target} submissions
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                  <span>{c.package_label || GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label || c.package_key}</span>
+                  <span className="flex items-center gap-3"><span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> {c.deliverables_completed}/{c.deliverables_total} deliverables</span><span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5 text-accent" /> {c.submission_count}/{c.submission_target} listings</span></span>
+                </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                 </div>
+                <span className="text-right text-[11px] font-bold text-accent">Open live campaign report →</span>
               </Link>
             );
           })}
@@ -106,4 +124,3 @@ export default function CampaignsListPage() {
     </main>
   );
 }
-

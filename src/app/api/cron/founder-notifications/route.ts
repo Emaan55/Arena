@@ -18,4 +18,3 @@ export async function GET(req: NextRequest) {
   const delivery = await deliverFounderNotificationBatch(admin, 50);
   return NextResponse.json({ digestJobs: digests.data ?? 0, weeklyAnnouncementJobs: weeklyAnnouncements.data ?? 0, waitingReminders: reminders.data ?? 0, delivery, errors: [digests.error?.message, weeklyAnnouncements.error?.message, reminders.error?.message, retention.error?.message].filter(Boolean) });
 }
-

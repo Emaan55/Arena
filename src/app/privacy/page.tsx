@@ -27,6 +27,12 @@ export default function PrivacyPage() {
           or shown to founders. Founders see aggregate counts only.
         </p>
         <p>
+          The homepage&apos;s rolling monthly visitor total uses the same first-party browser identifier after it is
+          transformed into a one-way keyed hash. We store the first and most recent visit times and an aggregate page
+          view count. We do not store an IP address, user agent, or browsing identity in the visitor record, and obvious
+          automated bots are excluded.
+        </p>
+        <p>
           If you enable optional email categories, we store those preferences and use Resend to deliver messages.
           Essential submission and claim decision emails are separate from optional updates. Optional emails include a
           category-specific unsubscribe link; you can also change preferences in your dashboard.

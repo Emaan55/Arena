@@ -12,6 +12,7 @@ import {
   FolderKanban,
   Gauge,
   ImageIcon,
+  Globe2,
   LayoutDashboard,
   LockKeyhole,
   Megaphone,
@@ -59,7 +60,10 @@ const NAV_GROUPS: Array<{ label: string; items: AdminNavItem[] }> = [
   },
   {
     label: "System",
-    items: [{ href: "/admin/favicon-diagnostic", label: "Favicon diagnostic", icon: ImageIcon }],
+    items: [
+      { href: "/admin/site-metrics", label: "Homepage metrics", icon: Globe2 },
+      { href: "/admin/favicon-diagnostic", label: "Favicon diagnostic", icon: ImageIcon },
+    ],
   },
 ];
 
@@ -203,4 +207,3 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

@@ -7,16 +7,15 @@ import {
   BarChart3,
   Bell,
   Box,
-  CheckCircle2,
   ChevronRight,
   Clock3,
   Eye,
   Lightbulb,
-  LoaderCircle,
   MessageSquareText,
   MousePointer2,
   Search,
   Swords,
+  Trash2,
   Trophy,
 } from "lucide-react";
 import { ProductAvatar } from "@/components/ProductAvatar";
@@ -83,7 +82,20 @@ type DashboardData = {
   founder: { name: string };
   products: Product[];
   claims: { product_id: string; status: string }[];
-  campaigns: { id: string; startup_name: string; status: string; submission_target: number }[];
+  campaigns: {
+    id: string;
+    startup_name: string;
+    status: string;
+    submission_target: number;
+    submission_count: number;
+    package_label: string;
+    updated_at: string;
+    deliverables_completed: number;
+    deliverables_in_progress: number;
+    deliverables_total: number;
+    progress_percent: number;
+    metrics: { views: number; impressions: number; clicks: number };
+  }[];
   activity: ActivityItem[];
   analyticsHistory: AnalyticsPoint[];
   unreadCount: number;
@@ -157,21 +169,41 @@ export default function DashboardPage() {
     setClaiming(null);
   }
 
+  async function deleteNotification(item: ActivityItem) {
+    const response = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId: item.id }) });
+    if (!response.ok) {
+      setError("Could not delete notification.");
+      return;
+    }
+    setData((current) => current ? {
+      ...current,
+      activity: current.activity.filter((candidate) => candidate.id !== item.id),
+      unreadCount: item.read_at ? current.unreadCount : Math.max(0, current.unreadCount - 1),
+    } : current);
+    window.dispatchEvent(new Event("arena-notifications-changed"));
+  }
+
   if (!data) {
+    if (!error) {
+      return (
+        <main className="mx-auto w-full max-w-[1500px] animate-pulse px-4 py-6 sm:px-6 lg:px-8 lg:py-8" aria-label="Loading founder dashboard">
+          <div className="h-8 w-64 rounded-lg bg-surface-2" />
+          <div className="mt-2 h-4 w-80 max-w-full rounded bg-surface-2" />
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((item) => <div key={item} className="h-28 rounded-2xl border border-border bg-surface" />)}
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+            <div className="space-y-4"><div className="h-72 rounded-2xl border border-border bg-surface" /><div className="h-52 rounded-2xl border border-border bg-surface" /></div>
+            <div className="h-80 rounded-2xl border border-border bg-surface" />
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="flex min-h-[70vh] items-center justify-center px-6 py-12">
         <div className="flex max-w-md flex-col items-center text-center">
-          {error ? (
-            <>
-              <div className="rounded-2xl border border-danger/20 bg-danger/5 p-5 text-sm text-danger">{error}</div>
-              <Link href="/auth/sign-in?next=%2Fdashboard" className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-ink">Sign in</Link>
-            </>
-          ) : (
-            <>
-              <LoaderCircle className="h-7 w-7 animate-spin text-accent" />
-              <p className="mt-3 text-sm text-muted">Loading your founder dashboard…</p>
-            </>
-          )}
+          <div className="rounded-2xl border border-danger/20 bg-danger/5 p-5 text-sm text-danger">{error}</div>
+          <Link href="/auth/sign-in?next=%2Fdashboard" className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-ink">Sign in</Link>
         </div>
       </main>
     );
@@ -204,7 +236,7 @@ export default function DashboardPage() {
         <StatCard icon={Box} tone="emerald" label="My products" value={data.products.length} detail={`${liveProducts.length} live · ${waitingProducts.length} waiting`} />
         <StatCard icon={BarChart3} tone="blue" label="Total votes" value={totals.votes} detail={`${data.products.reduce((sum, product) => sum + product.wins, 0)} duel wins`} />
         <StatCard icon={MousePointer2} tone="violet" label="Website clicks" value={totals.clicks} detail={`${number.format(totals.views)} product views`} />
-        <StatCard icon={MessageSquareText} tone="cyan" label="Reviews" value={totals.reviews} detail={`${data.unreadCount} unread notifications`} />
+        <Link href="/dashboard/reviews" aria-label="View your product reviews" className="rounded-2xl transition hover:-translate-y-0.5 hover:shadow-md"><StatCard icon={MessageSquareText} tone="cyan" label="Product reviews" value={totals.reviews} detail={`${data.unreadCount} unread notifications`} /></Link>
       </section>
 
       <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
@@ -231,16 +263,14 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-border bg-surface shadow-sm">
-            <SectionHeading title="Recent activity" href="/dashboard/notifications" linkLabel="View all" />
-            {data.activity.length ? (
-              <div className="divide-y divide-border">
-                {data.activity.slice(0, 6).map((item) => <ActivityRow key={item.id} item={item} />)}
+          {data.campaigns.length > 0 && (
+            <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+              <SectionHeading title="Promotion campaigns" href="/get-listed/campaigns" linkLabel="View all" />
+              <div className="grid gap-4 p-4 md:grid-cols-2">
+                {data.campaigns.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign} />)}
               </div>
-            ) : (
-              <div className="px-5 py-8 text-center text-sm text-muted">Your Arena activity will appear here.</div>
-            )}
-          </section>
+            </section>
+          )}
 
           <LegacyClaims
             query={claimQuery}
@@ -254,23 +284,6 @@ export default function DashboardPage() {
             onClaim={requestClaim}
           />
 
-          {data.campaigns.length > 0 && (
-            <section className="rounded-2xl border border-border bg-surface shadow-sm">
-              <SectionHeading title="Get Listed campaigns" href="/get-listed" linkLabel="View Get Listed" />
-              <div className="divide-y divide-border">
-                {data.campaigns.map((campaign) => (
-                  <Link key={campaign.id} href={`/get-listed/campaigns/${campaign.id}`} className="flex items-center gap-3 px-5 py-4 hover:bg-surface-2">
-                    <CheckCircle2 className="h-5 w-5 text-accent" />
-                    <span className="min-w-0 flex-1">
-                      <strong className="block truncate text-sm text-ink">{campaign.startup_name}</strong>
-                      <span className="text-xs capitalize text-muted">{campaign.status.replaceAll("_", " ")} · {campaign.submission_target} listings</span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-muted" />
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
 
         <aside className="space-y-4">
@@ -278,7 +291,7 @@ export default function DashboardPage() {
             <SectionHeading title="Notifications" href="/dashboard/notifications" linkLabel="View all" />
             {data.activity.length ? (
               <div className="divide-y divide-border">
-                {data.activity.slice(0, 5).map((item) => <NotificationRow key={item.id} item={item} />)}
+                {data.activity.slice(0, 5).map((item) => <NotificationRow key={item.id} item={item} onDelete={deleteNotification} />)}
               </div>
             ) : (
               <div className="px-5 py-8 text-center text-sm text-muted">You&apos;re all caught up.</div>
@@ -402,6 +415,53 @@ function SectionHeading({ title, href, linkLabel }: { title: string; href: strin
   );
 }
 
+function CampaignCard({ campaign }: { campaign: DashboardData["campaigns"][number] }) {
+  const isLive = campaign.status === "active" || campaign.status === "in_progress";
+  const statusClass = campaign.status === "completed"
+    ? "bg-emerald-500/10 text-emerald-600"
+    : isLive
+      ? "bg-accent/10 text-accent"
+      : "bg-surface-2 text-muted";
+
+  return (
+    <Link href={`/get-listed/campaigns/${campaign.id}`} className="group rounded-2xl border border-border bg-bg p-4 transition hover:border-accent/50 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <strong className="truncate text-sm text-ink">{campaign.startup_name}</strong>
+            {isLive && <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" aria-label="Live" />}
+          </div>
+          <span className="mt-0.5 block truncate text-xs text-muted">{campaign.package_label}</span>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${statusClass}`}>{campaign.status.replaceAll("_", " ")}</span>
+      </div>
+
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div>
+          <span className="text-[11px] font-semibold text-muted">Overall fulfillment</span>
+          <p className="mt-0.5 text-xs text-ink"><strong>{campaign.deliverables_completed}</strong> of {campaign.deliverables_total} deliverables completed</p>
+        </div>
+        <strong className="font-display text-xl text-ink">{campaign.progress_percent}%</strong>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2">
+        <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${campaign.progress_percent}%` }} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-4 gap-2 border-t border-border pt-3 text-center">
+        <span><strong className="block text-sm text-ink">{number.format(campaign.submission_count)}</strong><small className="text-[10px] text-muted">Listings</small></span>
+        <span><strong className="block text-sm text-ink">{number.format(campaign.metrics.views)}</strong><small className="text-[10px] text-muted">Views</small></span>
+        <span><strong className="block text-sm text-ink">{number.format(campaign.metrics.impressions)}</strong><small className="text-[10px] text-muted">Impressions</small></span>
+        <span><strong className="block text-sm text-ink">{number.format(campaign.metrics.clicks)}</strong><small className="text-[10px] text-muted">Clicks</small></span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
+        <span>{campaign.deliverables_in_progress > 0 ? `${campaign.deliverables_in_progress} being worked on` : `Updated ${new Date(campaign.updated_at).toLocaleDateString()}`}</span>
+        <span className="inline-flex items-center gap-1 font-bold text-accent">Open live report <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+      </div>
+    </Link>
+  );
+}
+
 function ProductRow({ product }: { product: Product }) {
   const match = product.currentMatch;
   const isA = match?.product_a_id === product.id;
@@ -434,29 +494,18 @@ function MiniMetric({ icon: Icon, value, label }: { icon: typeof Eye; value: num
   return <span className="text-center"><span className="flex items-center justify-center gap-1 font-mono text-xs font-semibold text-ink"><Icon className="h-3 w-3" />{number.format(value)}</span><span className="mt-0.5 block text-[10px] text-muted">{label}</span></span>;
 }
 
-function ActivityRow({ item }: { item: ActivityItem }) {
+function NotificationRow({ item, onDelete }: { item: ActivityItem; onDelete: (item: ActivityItem) => Promise<void> }) {
   return (
-    <Link href={item.href} className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-2">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent"><ActivityGlyph type={item.event_type} /></span>
-      <span className="min-w-0 flex-1">
-        <strong className="block truncate text-xs text-ink">{item.title}</strong>
-        <span className="mt-0.5 block truncate text-[11px] text-muted">{item.body}</span>
-      </span>
-      <time className="shrink-0 text-[10px] text-muted">{timeAgo(item.created_at)}</time>
-      {!item.read_at && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
-    </Link>
-  );
-}
-
-function NotificationRow({ item }: { item: ActivityItem }) {
-  return (
-    <Link href={item.href} className="flex gap-3 px-4 py-3.5 hover:bg-surface-2">
+    <article className="flex gap-2 px-4 py-3.5 hover:bg-surface-2">
+    <Link href={item.href} className="flex min-w-0 flex-1 gap-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent"><ActivityGlyph type={item.event_type} /></span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-2"><strong className="line-clamp-2 text-xs text-ink">{item.title}</strong><time className="shrink-0 text-[9px] text-muted">{timeAgo(item.created_at)}</time></span>
         <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-muted">{item.body}</span>
       </span>
     </Link>
+    <button type="button" onClick={() => void onDelete(item)} aria-label={`Delete ${item.title}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-3.5 w-3.5" /></button>
+    </article>
   );
 }
 

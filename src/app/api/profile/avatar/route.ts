@@ -19,4 +19,3 @@ export async function GET() {
   if (error) return NextResponse.json({ avatarUrl: null });
   return NextResponse.json({ avatarUrl: data?.profile_image_url ?? data?.avatar_url ?? null });
 }
-

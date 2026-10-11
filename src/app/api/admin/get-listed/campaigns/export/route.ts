@@ -72,4 +72,3 @@ export async function GET(req: NextRequest) {
   const csv = toCsv(headers, csvRows);
   return csvResponse(`get-listed-campaigns-${new Date().toISOString().slice(0, 10)}.csv`, csv);
 }
-

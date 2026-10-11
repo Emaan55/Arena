@@ -276,4 +276,3 @@ export default function GetListedPage() {
     </main>
   );
 }
-

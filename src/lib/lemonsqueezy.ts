@@ -139,4 +139,3 @@ export function verifyWebhookSignature(rawBody: string, signatureHeader: string 
     return false;
   }
 }
-

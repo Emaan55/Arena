@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, AdminAuditLog, Campaign, CampaignDeliverable, Submission, SubmissionStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "./packages";
 import { derivePaymentStatus, summarizeSubmissions, type AdminPaymentStatus } from "./admin";
-import { isAdminAuditSchemaReady } from "./audit";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -50,6 +49,7 @@ export interface CustomerCampaignReport {
     durationDays: number | null;
     status: Campaign["status"];
     createdAt: string;
+    updatedAt: string;
     isDeleted: boolean;
   };
   payment: {
@@ -128,27 +128,19 @@ function buildCustomerTimeline(campaign: Campaign, auditLog: AdminAuditLog[]): R
  * anything from scratch. Returns null for a campaign that doesn't exist;
  * callers decide what a 404 vs. an admin "not found" looks like.
  */
-export async function getCustomerCampaignReport(admin: AdminClient, campaignId: string): Promise<CustomerCampaignReport | null> {
-  const { data: campaign } = await admin.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
+export async function getCustomerCampaignReport(admin: AdminClient, campaignId: string, authorizedCampaign?: Campaign): Promise<CustomerCampaignReport | null> {
+  const campaign = authorizedCampaign ?? (await admin.from("campaigns").select("*").eq("id", campaignId).maybeSingle()).data;
   if (!campaign) return null;
 
-  const [{ data: submissionRows }, { data: orderRows }, { data: deliverableRows }] = await Promise.all([
+  const [{ data: submissionRows }, { data: orderRows }, { data: deliverableRows }, { data: auditRows }] = await Promise.all([
     admin.from("submissions").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: true }),
     admin.from("orders").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: false }),
     admin.from("campaign_deliverables").select("*").eq("campaign_id", campaignId).order("position", { ascending: true }),
+    admin.from("admin_audit_logs").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: true }),
   ]);
   const submissions = submissionRows ?? [];
   const orders = orderRows ?? [];
-
-  let auditLog: AdminAuditLog[] = [];
-  if (await isAdminAuditSchemaReady(admin)) {
-    const { data } = await admin
-      .from("admin_audit_logs")
-      .select("*")
-      .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: true });
-    auditLog = data ?? [];
-  }
+  const auditLog: AdminAuditLog[] = auditRows ?? [];
 
   const summary = summarizeSubmissions(submissions, campaign.submission_target);
   const paymentStatus = derivePaymentStatus(orders);
@@ -176,6 +168,7 @@ export async function getCustomerCampaignReport(admin: AdminClient, campaignId: 
       durationDays: campaign.campaign_duration_days,
       status: campaign.status,
       createdAt: campaign.created_at,
+      updatedAt: campaign.updated_at,
       isDeleted: Boolean(campaign.deleted_at),
     },
     payment: {
@@ -211,4 +204,3 @@ export async function getCustomerCampaignReport(admin: AdminClient, campaignId: 
     timeline: buildCustomerTimeline(campaign, auditLog),
   };
 }
-

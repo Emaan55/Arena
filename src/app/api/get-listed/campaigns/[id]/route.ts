@@ -31,19 +31,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const admin = createAdminSupabaseClient();
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id")
+    .select("*")
     .eq("id", id)
     .eq("owner_id", user.id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!campaign) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
   }
 
-  const report = await getCustomerCampaignReport(admin, id);
+  const report = await getCustomerCampaignReport(admin, id, campaign);
   if (!report || report.campaign.isDeleted) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ report });
+  const response = NextResponse.json({ report });
+  response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return response;
 }
