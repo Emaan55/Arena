@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     campaign.id,
     campaign.startup_name,
     campaign.website_url,
-    pkg?.label ?? campaign.package_key,
+    campaign.package_label || pkg?.label || campaign.package_key,
     campaign.submission_target,
     s.directory_name,
     s.directory_url,
@@ -61,3 +61,4 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const filename = `${campaign.startup_name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`;
   return csvResponse(filename, csv);
 }
+

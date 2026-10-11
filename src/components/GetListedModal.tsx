@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { CATEGORIES, type Category } from "@/types/database";
-import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
+import { GET_LISTED_PACKAGES, type CurrentGetListedPackageKey } from "@/lib/get-listed/packages";
 
 const DESCRIPTION_MAX = 500;
 
@@ -24,7 +24,7 @@ export function GetListedModal({
 }: {
   open: boolean;
   onClose: () => void;
-  packageKey: GetListedPackageKey;
+  packageKey: CurrentGetListedPackageKey;
   /** A verified, still-available Discount Drop award to apply — re-checked again server-side on submit regardless. */
   discountAward?: { id: string; discountPercent: number } | null;
 }) {
@@ -46,6 +46,8 @@ export function GetListedModal({
     xUrl: "",
     linkedinUrl: "",
     otherUrl: "",
+    targetAudience: "",
+    demoAccessNotes: "",
     termsAccepted: false,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -55,8 +57,9 @@ export function GetListedModal({
 
   const pkg = GET_LISTED_PACKAGES[packageKey];
   const discountedPrice = discountAward
-    ? Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))
+    ? pkg.priceUsd * (1 - discountAward.discountPercent / 100)
     : null;
+  const priceLabel = (value: number) => `$${value.toFixed(value % 1 === 0 ? 0 : 2)}`;
 
   function handleClose() {
     setError(null);
@@ -137,14 +140,14 @@ export function GetListedModal({
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2 className="font-display text-lg font-bold text-ink">Set up your {pkg.arenaName} campaign</h2>
+              <h2 className="font-display text-lg font-bold text-ink">Set up your {pkg.label} campaign</h2>
               <p className="text-sm text-muted">
-                {pkg.target} manual submissions:{" "}
+                {pkg.durationDays}-day campaign · {pkg.target} directory submissions ·{" "}
                 {discountedPrice !== null ? (
                   <>
                     <span className="line-through">${pkg.priceUsd}</span>{" "}
                     <span className="font-semibold text-accent">
-                      ${discountedPrice} ({discountAward!.discountPercent}% off)
+                      {priceLabel(discountedPrice)} ({discountAward!.discountPercent}% off)
                     </span>
                   </>
                 ) : (
@@ -172,9 +175,16 @@ export function GetListedModal({
               required
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value.slice(0, DESCRIPTION_MAX) }))}
-              placeholder="What does your product do? (used in directory submissions)"
+              placeholder="What does your product do and what problem does it solve?"
               rows={3}
               className="resize-none rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+            />
+            <input
+              required
+              value={form.targetAudience}
+              onChange={(e) => setForm((f) => ({ ...f, targetAudience: e.target.value.slice(0, 300) }))}
+              placeholder="Who is the product for?"
+              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
             />
             <select
               value={form.category}
@@ -208,6 +218,14 @@ export function GetListedModal({
               />
             </div>
 
+            <textarea
+              value={form.demoAccessNotes}
+              onChange={(e) => setForm((f) => ({ ...f, demoAccessNotes: e.target.value.slice(0, 1000) }))}
+              placeholder="Demo access or walkthrough notes (optional — do not include permanent passwords)"
+              rows={2}
+              className="resize-none rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+            />
+
             <label className="flex items-start gap-2 text-xs text-muted">
               <input
                 type="checkbox"
@@ -215,8 +233,8 @@ export function GetListedModal({
                 onChange={(e) => setForm((f) => ({ ...f, termsAccepted: e.target.checked }))}
                 className="mt-0.5"
               />
-              I understand this package covers manual submissions, not guaranteed live listings. Each directory
-              controls its own approval, review time, and policies.
+              I understand this is a promotional service. Publication, reach, visitors, signups, sales, and directory
+              acceptance are not guaranteed, and sponsored content will be disclosed where required.
             </label>
 
             {error && <p className="text-sm text-danger">{error}</p>}
@@ -226,7 +244,7 @@ export function GetListedModal({
               disabled={submitting}
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-50"
             >
-              {submitting ? "Creating…" : `Get Listed for $${discountedPrice ?? pkg.priceUsd}`}
+              {submitting ? "Creating…" : `Continue to checkout · ${priceLabel(discountedPrice ?? pkg.priceUsd)}`}
             </button>
           </form>
         )}
@@ -234,3 +252,4 @@ export function GetListedModal({
     </div>
   );
 }
+

@@ -7,10 +7,12 @@ import { ArrowLeft, Plus, Pencil, Trash2, RotateCcw, ExternalLink, Download } fr
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
 import { downloadAdminFile } from "@/lib/download-admin-file";
+import { CampaignDeliverablesEditor } from "@/components/admin/CampaignDeliverablesEditor";
 import {
   CATEGORIES,
   type AdminAuditLog,
   type Campaign,
+  type CampaignDeliverable,
   type CampaignStatus,
   type Category,
   type Directory,
@@ -66,6 +68,7 @@ const ACTION_LABEL: Record<string, string> = {
   bulk_submission_update: "Bulk submission update",
   payment_reconciled: "Payment reconciled manually",
   payment_received: "Payment received",
+  deliverable_updated: "Promotion deliverable updated",
 };
 
 function describeAudit(entry: AdminAuditLog): string {
@@ -104,6 +107,8 @@ function describeAudit(entry: AdminAuditLog): string {
       return typeof meta.payment_reference === "string" ? `Reference: ${meta.payment_reference}` : "";
     case "payment_received":
       return typeof meta.provider_order_id === "string" ? `LemonSqueezy order ${meta.provider_order_id}` : "";
+    case "deliverable_updated":
+      return typeof meta.title === "string" ? `${meta.title}: ${String(meta.to_status ?? "updated").replace("_", " ")}` : "";
     default:
       return "";
   }
@@ -115,6 +120,7 @@ export default function AdminCampaignDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<CampaignWithOwner | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [deliverables, setDeliverables] = useState<CampaignDeliverable[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [auditLog, setAuditLog] = useState<AdminAuditLog[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<AdminPaymentStatus>("no_order");
@@ -159,6 +165,8 @@ export default function AdminCampaignDetailPage() {
     xUrl: "",
     linkedinUrl: "",
     otherUrl: "",
+    targetAudience: "",
+    demoAccessNotes: "",
   });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -199,6 +207,7 @@ export default function AdminCampaignDetailPage() {
     const data = await res.json();
     setCampaign(data.campaign);
     setSubmissions(data.submissions ?? []);
+    setDeliverables(data.deliverables ?? []);
     setOrders(data.orders ?? []);
     setAuditLog(data.auditLog ?? []);
     setPaymentStatus(data.paymentStatus ?? "no_order");
@@ -211,6 +220,8 @@ export default function AdminCampaignDetailPage() {
       xUrl: data.campaign.x_url ?? "",
       linkedinUrl: data.campaign.linkedin_url ?? "",
       otherUrl: data.campaign.other_url ?? "",
+      targetAudience: data.campaign.target_audience ?? "",
+      demoAccessNotes: data.campaign.demo_access_notes ?? "",
     });
   }
 
@@ -370,6 +381,8 @@ export default function AdminCampaignDetailPage() {
           xUrl: editForm.xUrl,
           linkedinUrl: editForm.linkedinUrl,
           otherUrl: editForm.otherUrl,
+          targetAudience: editForm.targetAudience,
+          demoAccessNotes: editForm.demoAccessNotes,
           adminName,
         }),
       });
@@ -592,6 +605,19 @@ export default function AdminCampaignDetailPage() {
                 {deleteBusy ? "Deleting…" : "Delete Campaign"}
               </button>
             </div>
+            <input
+              value={editForm.targetAudience}
+              onChange={(e) => setEditForm((f) => ({ ...f, targetAudience: e.target.value }))}
+              placeholder="Target audience"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            />
+            <textarea
+              rows={2}
+              value={editForm.demoAccessNotes}
+              onChange={(e) => setEditForm((f) => ({ ...f, demoAccessNotes: e.target.value }))}
+              placeholder="Demo access notes"
+              className="resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+            />
           </div>
         )}
 
@@ -685,6 +711,8 @@ export default function AdminCampaignDetailPage() {
               </span>
             </div>
             <p className="col-span-2 text-sm text-muted sm:col-span-4">{campaign.description}</p>
+            {campaign.target_audience && <p className="col-span-2 text-sm text-muted sm:col-span-4"><span className="font-semibold text-ink">Target audience:</span> {campaign.target_audience}</p>}
+            {campaign.demo_access_notes && <p className="col-span-2 rounded-lg border border-border bg-bg p-3 text-sm text-muted sm:col-span-4"><span className="font-semibold text-ink">Demo access notes:</span> {campaign.demo_access_notes}</p>}
           </div>
         )}
       </div>
@@ -695,7 +723,7 @@ export default function AdminCampaignDetailPage() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span className="block text-xs uppercase tracking-wide text-muted">Package</span>
-              <span className="text-ink">{pkg?.label ?? campaign.package_key}</span>
+              <span className="text-ink">{campaign.package_label || pkg?.label || campaign.package_key}</span>
             </div>
             <div>
               <span className="block text-xs uppercase tracking-wide text-muted">Target</span>
@@ -742,6 +770,15 @@ export default function AdminCampaignDetailPage() {
           )}
         </div>
       </div>
+
+      <CampaignDeliverablesEditor
+        campaignId={campaign.id}
+        deliverables={deliverables}
+        secret={secret}
+        adminName={adminName}
+        disabled={isDeleted}
+        onUpdated={load}
+      />
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex items-center justify-between">
@@ -1090,3 +1127,4 @@ export default function AdminCampaignDetailPage() {
     </main>
   );
 }
+

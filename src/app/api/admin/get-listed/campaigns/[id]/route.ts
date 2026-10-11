@@ -30,10 +30,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
   }
 
-  const [{ data: submissions }, { data: ownerData }, { data: orders }] = await Promise.all([
+  const [{ data: submissions }, { data: ownerData }, { data: orders }, { data: deliverables }] = await Promise.all([
     admin.from("submissions").select("*").eq("campaign_id", id).order("created_at", { ascending: true }),
     admin.auth.admin.getUserById(campaign.owner_id),
     admin.from("orders").select("*").eq("campaign_id", id).order("created_at", { ascending: false }),
+    admin.from("campaign_deliverables").select("*").eq("campaign_id", id).order("position", { ascending: true }),
   ]);
 
   let auditLog: unknown[] = [];
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     campaign: { ...campaign, owner_email: ownerData?.user?.email ?? null },
     submissions: submissions ?? [],
+    deliverables: deliverables ?? [],
     orders: orders ?? [],
     auditLog,
     paymentStatus,
@@ -105,13 +107,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Invalid status." }, { status: 400 });
     }
     if (record.status === "completed") {
-      const { count } = await admin
-        .from("submissions")
-        .select("id", { count: "exact", head: true })
-        .eq("campaign_id", id);
+      const [{ count }, { count: unfinishedDeliverables }] = await Promise.all([
+        admin.from("submissions").select("id", { count: "exact", head: true }).eq("campaign_id", id),
+        admin
+          .from("campaign_deliverables")
+          .select("id", { count: "exact", head: true })
+          .eq("campaign_id", id)
+          .not("status", "in", "(completed,not_applicable)"),
+      ]);
       if ((count ?? 0) < existing.submission_target) {
         return NextResponse.json(
           { error: `Cannot mark complete: ${count ?? 0}/${existing.submission_target} submissions recorded.` },
+          { status: 400 },
+        );
+      }
+      if ((existing.package_version ?? 1) >= 2 && (unfinishedDeliverables ?? 0) > 0) {
+        return NextResponse.json(
+          { error: `Cannot mark complete: ${unfinishedDeliverables} promotion deliverable${unfinishedDeliverables === 1 ? " is" : "s are"} still open.` },
           { status: 400 },
         );
       }
@@ -143,6 +155,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (description !== undefined && description && description !== existing.description) {
     update.description = description;
     changedFields.push("description");
+  }
+  for (const [field, column, max] of [
+    ["targetAudience", "target_audience", 300],
+    ["demoAccessNotes", "demo_access_notes", 1000],
+  ] as const) {
+    const value = editableString(field, max);
+    if (value === undefined) continue;
+    const next = value || null;
+    if (next !== (existing[column] ?? null)) {
+      (update as Record<string, unknown>)[column] = next;
+      changedFields.push(column);
+    }
   }
   if (record.category !== undefined) {
     if (!CATEGORIES.includes(record.category as Category)) {
@@ -202,3 +226,4 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ campaign: updated });
 }
+

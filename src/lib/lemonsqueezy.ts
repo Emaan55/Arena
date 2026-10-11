@@ -35,16 +35,22 @@ export function getSponsorVariantId(days: SponsorDuration): string {
   return value;
 }
 
-const GET_LISTED_VARIANT_ENV_KEYS: Record<GetListedPackageKey, string> = {
-  starter: "LEMONSQUEEZY_GETLISTED_STARTER_VARIANT_ID",
-  growth: "LEMONSQUEEZY_GETLISTED_GROWTH_VARIANT_ID",
-  scale: "LEMONSQUEEZY_GETLISTED_SCALE_VARIANT_ID",
+const GET_LISTED_VARIANT_ENV_KEYS: Record<GetListedPackageKey, readonly string[]> = {
+  starter: ["LEMONSQUEEZY_GETLISTED_STARTER_VARIANT_ID"],
+  growth: ["LEMONSQUEEZY_GETLISTED_GROWTH_VARIANT_ID"],
+  scale: ["LEMONSQUEEZY_GETLISTED_SCALE_VARIANT_ID"],
+  // The old variant IDs are safe fallbacks because checkout always sends a
+  // server-computed custom_price. Dedicated variants are still recommended
+  // so the package name shown by LemonSqueezy matches the new campaign.
+  launch_starter: ["LEMONSQUEEZY_GETLISTED_LAUNCH_STARTER_VARIANT_ID", "LEMONSQUEEZY_GETLISTED_STARTER_VARIANT_ID"],
+  growth_campaign: ["LEMONSQUEEZY_GETLISTED_GROWTH_CAMPAIGN_VARIANT_ID", "LEMONSQUEEZY_GETLISTED_GROWTH_VARIANT_ID"],
+  launch_accelerator: ["LEMONSQUEEZY_GETLISTED_LAUNCH_ACCELERATOR_VARIANT_ID", "LEMONSQUEEZY_GETLISTED_SCALE_VARIANT_ID"],
 };
 
 export function getGetListedVariantId(packageKey: GetListedPackageKey): string {
-  const key = GET_LISTED_VARIANT_ENV_KEYS[packageKey];
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing env var ${key} — Get Listed payments aren't configured yet.`);
+  const keys = GET_LISTED_VARIANT_ENV_KEYS[packageKey];
+  const value = keys.map((key) => process.env[key]).find(Boolean);
+  if (!value) throw new Error(`Missing env var ${keys[0]} — Get Listed payments aren't configured yet.`);
   return value;
 }
 
@@ -133,3 +139,4 @@ export function verifyWebhookSignature(rawBody: string, signatureHeader: string 
     return false;
   }
 }
+

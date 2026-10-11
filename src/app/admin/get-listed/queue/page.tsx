@@ -11,10 +11,8 @@ import { GET_LISTED_PACKAGES } from "@/lib/get-listed/packages";
 type Row = Campaign & { submission_count: number; owner_email: string | null };
 
 /**
- * Work queue for whoever is doing the actual manual submissions: every
- * paid-and-not-yet-complete campaign, oldest first, so it's obvious what
- * to pick up next. Excludes draft/awaiting_payment (nothing to submit yet
- * — no payment collected) and completed/cancelled (nothing left to do).
+ * Paid-and-not-yet-complete promotion campaigns, oldest first. Directory
+ * submissions and content deliverables are managed from the campaign page.
  */
 export default function AdminGetListedQueuePage() {
   const { secret, unlock, reject } = useAdminSecret();
@@ -49,8 +47,8 @@ export default function AdminGetListedQueuePage() {
         All campaigns
       </Link>
 
-      <h1 className="font-display text-2xl font-bold text-ink">Submission Queue</h1>
-      <p className="-mt-4 text-sm text-muted">Active campaigns not yet at target, oldest first.</p>
+      <h1 className="font-display text-2xl font-bold text-ink">Campaign Work Queue</h1>
+      <p className="-mt-4 text-sm text-muted">Paid promotion campaigns that still need fulfillment, oldest first.</p>
 
       {rows === null ? (
         <p className="text-sm text-muted">Loading…</p>
@@ -69,7 +67,7 @@ export default function AdminGetListedQueuePage() {
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="font-display text-base font-bold text-ink">{c.startup_name}</h2>
                   <span className="text-xs text-muted">
-                    {GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label ?? c.package_key}
+                    {c.package_label || GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label || c.package_key}
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
@@ -86,3 +84,4 @@ export default function AdminGetListedQueuePage() {
     </main>
   );
 }
+

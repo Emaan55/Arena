@@ -92,7 +92,7 @@ export default function CampaignsListPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted">
-                  {GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label ?? c.package_key} ·{" "}
+                  {c.package_label || GET_LISTED_PACKAGES[c.package_key as keyof typeof GET_LISTED_PACKAGES]?.label || c.package_key} ·{" "}
                   {c.submission_count}/{c.submission_target} submissions
                 </p>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
@@ -106,3 +106,4 @@ export default function CampaignsListPage() {
     </main>
   );
 }
+

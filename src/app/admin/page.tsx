@@ -46,7 +46,7 @@ const MANAGEMENT_AREAS = [
   },
   {
     title: "Get Listed",
-    description: "Run paid directory campaigns and keep fulfillment work moving.",
+    description: "Run paid promotion campaigns, content deliverables, and directory fulfillment.",
     items: [
       { href: "/admin/get-listed/campaigns", label: "Campaigns", detail: "Customers, payments, and progress", icon: FolderKanban },
       { href: "/admin/get-listed/queue", label: "Work queue", detail: "Campaigns that need attention", icon: ClipboardCheck },

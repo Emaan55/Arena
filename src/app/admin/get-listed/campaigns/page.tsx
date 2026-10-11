@@ -311,7 +311,7 @@ export default function AdminGetListedCampaignsPage() {
                       {c.deleted_at && <span className="text-xs font-bold uppercase text-danger">Deleted</span>}
                     </td>
                     <td className="px-4 py-2 text-ink">
-                      {GET_LISTED_PACKAGES[c.package_key as GetListedPackageKey]?.label ?? c.package_key}
+                      {c.package_label || GET_LISTED_PACKAGES[c.package_key as GetListedPackageKey]?.label || c.package_key}
                     </td>
                     <td className="px-4 py-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${PAYMENT_STYLE[c.payment_status]}`}>
@@ -373,3 +373,4 @@ export default function AdminGetListedCampaignsPage() {
     </main>
   );
 }
+

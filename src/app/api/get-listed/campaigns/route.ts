@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
-import { GET_LISTED_PACKAGES, isGetListedPackageKey } from "@/lib/get-listed/packages";
+import { GET_LISTED_PACKAGES, isCurrentGetListedPackageKey } from "@/lib/get-listed/packages";
 import { CATEGORIES, type Category } from "@/types/database";
 
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 500;
 const URL_MAX = 300;
+const AUDIENCE_MAX = 300;
+const DEMO_NOTES_MAX = 1000;
 
 function normalizedOrNull(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > max) return null;
   return trimmed;
+}
+
+function normalizedHttpUrlOrNull(value: unknown): string | null {
+  const normalized = normalizedOrNull(value, URL_MAX);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" || url.protocol === "http:" ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -41,7 +54,7 @@ export async function POST(req: NextRequest) {
   const record = (body ?? {}) as Record<string, unknown>;
 
   const packageKey = record.packageKey;
-  if (!isGetListedPackageKey(packageKey)) {
+  if (!isCurrentGetListedPackageKey(packageKey)) {
     return NextResponse.json({ error: "Invalid package." }, { status: 400 });
   }
 
@@ -50,7 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Startup name is required (max ${NAME_MAX} characters).` }, { status: 400 });
   }
 
-  const websiteUrl = normalizedOrNull(record.websiteUrl, URL_MAX);
+  const websiteUrl = normalizedHttpUrlOrNull(record.websiteUrl);
   if (!websiteUrl) {
     return NextResponse.json({ error: "A valid website URL is required." }, { status: 400 });
   }
@@ -66,6 +79,11 @@ export async function POST(req: NextRequest) {
   const category = record.category;
   if (!CATEGORIES.includes(category as Category)) {
     return NextResponse.json({ error: "Invalid category." }, { status: 400 });
+  }
+
+  const targetAudience = normalizedOrNull(record.targetAudience, AUDIENCE_MAX);
+  if (!targetAudience) {
+    return NextResponse.json({ error: `Target audience is required (max ${AUDIENCE_MAX} characters).` }, { status: 400 });
   }
 
   if (record.termsAccepted !== true) {
@@ -113,15 +131,16 @@ export async function POST(req: NextRequest) {
       website_url: websiteUrl,
       description,
       category: category as Category,
-      x_url: normalizedOrNull(record.xUrl, URL_MAX),
-      linkedin_url: normalizedOrNull(record.linkedinUrl, URL_MAX),
-      other_url: normalizedOrNull(record.otherUrl, URL_MAX),
+      x_url: normalizedHttpUrlOrNull(record.xUrl),
+      linkedin_url: normalizedHttpUrlOrNull(record.linkedinUrl),
+      other_url: normalizedHttpUrlOrNull(record.otherUrl),
       package_key: pkg.key,
+      package_label: pkg.label,
+      package_version: pkg.version,
       submission_target: pkg.target,
-      // No payment flow yet (Phase 1) — this honestly reflects that
-      // nothing has been paid or fulfilled yet, rather than inventing a
-      // fake "active" state. See PATCH /api/admin/get-listed/campaigns/[id]
-      // for how an admin currently moves this forward by hand.
+      campaign_duration_days: pkg.durationDays,
+      target_audience: targetAudience,
+      demo_access_notes: normalizedOrNull(record.demoAccessNotes, DEMO_NOTES_MAX),
       status: "awaiting_payment",
       terms_accepted_at: new Date().toISOString(),
       discount_award_id: discountAwardId,
@@ -132,6 +151,28 @@ export async function POST(req: NextRequest) {
 
   if (error || !campaign) {
     return NextResponse.json({ error: "Could not create campaign." }, { status: 500 });
+  }
+
+  const { error: deliverablesError } = await admin.from("campaign_deliverables").insert(
+    pkg.deliverables.map((item, position) => ({
+      campaign_id: campaign.id,
+      deliverable_key: item.key,
+      kind: item.kind,
+      title: item.title,
+      purpose: item.purpose,
+      position,
+      status: "pending" as const,
+    })),
+  );
+
+  if (deliverablesError) {
+    // The campaign is still unpaid, so roll it back instead of leaving an
+    // incomplete fulfillment record. No discount is linked until after this.
+    await admin.from("campaigns").delete().eq("id", campaign.id).eq("owner_id", user.id);
+    return NextResponse.json(
+      { error: "Campaign fulfillment is not configured yet. Apply migration 0027 and try again." },
+      { status: 503 },
+    );
   }
 
   if (discountAwardId) {
@@ -171,3 +212,4 @@ export async function GET() {
   const withProgress = (campaigns ?? []).map((c) => ({ ...c, submission_count: counts[c.id] ?? 0 }));
   return NextResponse.json({ campaigns: withProgress });
 }
+

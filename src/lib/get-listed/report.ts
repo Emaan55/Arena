@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, AdminAuditLog, Campaign, Submission, SubmissionStatus } from "@/types/database";
+import type { Database, AdminAuditLog, Campaign, CampaignDeliverable, Submission, SubmissionStatus } from "@/types/database";
 import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "./packages";
 import { derivePaymentStatus, summarizeSubmissions, type AdminPaymentStatus } from "./admin";
 import { isAdminAuditSchemaReady } from "./audit";
@@ -22,6 +22,11 @@ export interface ReportTimelineEntry {
   label: string;
 }
 
+export type ReportDeliverable = Pick<
+  CampaignDeliverable,
+  "id" | "kind" | "title" | "purpose" | "status" | "public_url" | "asset_url" | "customer_notes" | "metrics" | "completed_at"
+>;
+
 /**
  * The one shape both the customer report page and the admin report
  * preview render (via the shared CampaignReport component) — this IS the
@@ -42,6 +47,7 @@ export interface CustomerCampaignReport {
     packagePriceUsd: number | null;
     discountPercent: number | null;
     submissionTarget: number;
+    durationDays: number | null;
     status: Campaign["status"];
     createdAt: string;
     isDeleted: boolean;
@@ -64,6 +70,7 @@ export interface CustomerCampaignReport {
   accepted: ReportSubmission[];
   pending: ReportSubmission[];
   rejected: ReportSubmission[];
+  deliverables: ReportDeliverable[];
   timeline: ReportTimelineEntry[];
 }
 
@@ -103,6 +110,9 @@ function buildCustomerTimeline(campaign: Campaign, auditLog: AdminAuditLog[]): R
       if (meta.to_status === "accepted") entries.push({ id: entry.id, date: entry.created_at, label: `${directory} accepted` });
       else if (meta.to_status === "rejected") entries.push({ id: entry.id, date: entry.created_at, label: `${directory} not accepted` });
       else if (meta.to_status === "submitted") entries.push({ id: entry.id, date: entry.created_at, label: `${directory} submitted` });
+    } else if (entry.action === "deliverable_updated" && typeof meta.title === "string") {
+      if (meta.to_status === "completed") entries.push({ id: entry.id, date: entry.created_at, label: `${meta.title} completed` });
+      else if (meta.to_status === "in_progress") entries.push({ id: entry.id, date: entry.created_at, label: `${meta.title} started` });
     }
   }
 
@@ -122,9 +132,10 @@ export async function getCustomerCampaignReport(admin: AdminClient, campaignId: 
   const { data: campaign } = await admin.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
   if (!campaign) return null;
 
-  const [{ data: submissionRows }, { data: orderRows }] = await Promise.all([
+  const [{ data: submissionRows }, { data: orderRows }, { data: deliverableRows }] = await Promise.all([
     admin.from("submissions").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: true }),
     admin.from("orders").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: false }),
+    admin.from("campaign_deliverables").select("*").eq("campaign_id", campaignId).order("position", { ascending: true }),
   ]);
   const submissions = submissionRows ?? [];
   const orders = orderRows ?? [];
@@ -158,10 +169,11 @@ export async function getCustomerCampaignReport(admin: AdminClient, campaignId: 
       startupName: campaign.startup_name,
       websiteUrl: campaign.website_url,
       packageKey: campaign.package_key,
-      packageLabel: pkg?.label ?? campaign.package_key,
+      packageLabel: campaign.package_label || pkg?.label || campaign.package_key,
       packagePriceUsd: pkg?.priceUsd ?? null,
       discountPercent: campaign.discount_percent,
       submissionTarget: campaign.submission_target,
+      durationDays: campaign.campaign_duration_days,
       status: campaign.status,
       createdAt: campaign.created_at,
       isDeleted: Boolean(campaign.deleted_at),
@@ -184,6 +196,19 @@ export async function getCustomerCampaignReport(admin: AdminClient, campaignId: 
     accepted: submissions.filter((s) => s.status === "accepted").map(toReportSubmission),
     pending: submissions.filter((s) => s.status === "pending" || s.status === "submitted").map(toReportSubmission),
     rejected: submissions.filter((s) => s.status === "rejected").map(toReportSubmission),
+    deliverables: (deliverableRows ?? []).map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      purpose: item.purpose,
+      status: item.status,
+      public_url: item.public_url,
+      asset_url: item.asset_url,
+      customer_notes: item.customer_notes,
+      metrics: item.metrics,
+      completed_at: item.completed_at,
+    })),
     timeline: buildCustomerTimeline(campaign, auditLog),
   };
 }
+

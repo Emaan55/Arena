@@ -3,186 +3,144 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
-  ShieldCheck,
-  CheckCircle2,
-  Zap,
   ArrowRight,
-  Target,
-  Swords,
-  Search,
-  Send,
+  BarChart3,
+  BriefcaseBusiness,
+  Check,
+  CheckCircle2,
+  CirclePlay,
+  FileCheck2,
   FileText,
-  Clock,
-  Crosshair,
-  Eye,
-  FileCheck,
-  Activity,
-  Link2,
   Gamepad2,
+  ImageIcon,
+  LayoutDashboard,
+  Megaphone,
+  MousePointerClick,
+  SearchCheck,
+  Send,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Video,
+  Zap,
 } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
-import { GetListedHeroArt } from "@/components/GetListedHeroArt";
-import { CrownIcon } from "@/components/icons";
-import { GET_LISTED_PACKAGES, type GetListedPackageKey } from "@/lib/get-listed/packages";
+import {
+  GET_LISTED_PACKAGES,
+  CURRENT_GET_LISTED_PACKAGE_KEYS,
+  type CurrentGetListedPackageKey,
+} from "@/lib/get-listed/packages";
 
-const PACKAGE_ORDER: GetListedPackageKey[] = ["starter", "growth", "scale"];
+type PackageContent = {
+  tagline: string;
+  audience: string;
+  cta: string;
+  badge?: string;
+  features: string[];
+};
 
-/**
- * Display-only Arena identity for each package (names, copy, icon). The
- * actual pricing, submission target, and packageKey sent to the backend
- * all still come from GET_LISTED_PACKAGES / GetListedModal, exactly as
- * before, so this never has to stay in sync with a second source of truth.
- */
-const PACKAGE_COPY: Record<
-  GetListedPackageKey,
-  {
-    icon: React.ComponentType<{ className?: string }>;
-    roundLabel: string;
-    description: string;
-    features: string[];
-    ctaLabel: string;
-    tagline: string;
-    featured?: boolean;
-  }
-> = {
-  starter: {
-    icon: Target,
-    roundLabel: "Round 01",
-    description: "Get your product on the map.",
+const PACKAGE_CONTENT: Record<CurrentGetListedPackageKey, PackageContent> = {
+  launch_starter: {
+    tagline: "Give your product its first promotional push.",
+    audience: "Affordable exposure without doing every promotional task yourself.",
+    cta: "Start My Launch",
     features: [
-      "Manual submission to 30+ relevant directories",
-      "Directories matched to your product and category",
-      "We handle the submission work",
-      "Submission tracking",
-      "Listing URLs collected where published",
-      "Final campaign report",
-      "Save 15+ hours of repetitive work",
+      "15 relevant free directory submissions",
+      "1 dedicated X product feature",
+      "1 reusable promotional graphic",
+      "7-day Get Listed showcase placement",
+      "3 actionable positioning suggestions",
+      "Report with links, status, and available metrics",
+      "Delivery within 7 days",
     ],
-    ctaLabel: "Enter the Arena",
-    tagline: "Make your first move.",
   },
-  growth: {
-    icon: Swords,
-    roundLabel: "Round 02",
-    description: "Turn visibility into momentum.",
+  growth_campaign: {
+    tagline: "Turn your product into content people can discover.",
+    audience: "Product demonstrations, social promotion, and wider distribution.",
+    cta: "Grow My Product",
+    badge: "Recommended",
     features: [
-      "Manual submission to 60+ relevant directories",
-      "Niche-matched directory research",
-      "We handle research and submission work",
-      "Full submission tracking",
-      "Listing URLs collected where published",
-      "Detailed final campaign report",
-      "Save 30+ hours of manual work",
-      "Expand your product's directory footprint",
+      "30 relevant free directory submissions",
+      "3–5 minute YouTube screen-recorded demo",
+      "2 X posts using different angles",
+      "1 LinkedIn product feature",
+      "1 reusable promotional graphic",
+      "14-day Get Listed showcase placement",
+      "5 researched distribution opportunities",
+      "14-day report with available reach, engagement, and clicks",
     ],
-    ctaLabel: "Get More Exposure",
-    tagline: "More reach. More opportunities.",
-    featured: true,
   },
-  scale: {
-    icon: CrownIcon,
-    roundLabel: "Final Round",
-    description: "Go all in on distribution.",
+  launch_accelerator: {
+    tagline: "Keep your product in front of potential users for longer.",
+    audience: "A complete month-long promotional campaign across multiple formats.",
+    cta: "Accelerate My Launch",
     features: [
-      "Manual submission to 120+ relevant directories",
-      "Extensive category and niche targeting",
-      "Research, submission, and tracking handled for you",
-      "Full campaign dashboard",
-      "Listing URLs collected where published",
-      "Comprehensive final report",
-      "Save 60+ hours of repetitive work",
-      "Maximize your product's directory footprint",
+      "45 relevant free directory submissions",
+      "5–7 minute YouTube product walkthrough",
+      "1 YouTube Short highlighting a standout feature",
+      "4 X posts spread throughout the campaign",
+      "2 LinkedIn product features with different angles",
+      "2 reusable promotional graphics",
+      "30-day Get Listed showcase placement",
+      "Use-case spotlight and 10 distribution opportunities",
+      "Mid-campaign update and final performance report",
     ],
-    ctaLabel: "Enter Champion Mode",
-    tagline: "Push distribution further.",
   },
 };
 
-const HOW_IT_WORKS = [
-  {
-    number: "01",
-    title: "Find",
-    icon: Search,
-    body: "We identify directories relevant to your product, category, and audience.",
-  },
-  {
-    number: "02",
-    title: "Submit",
-    icon: Send,
-    body: "We manually submit your product to the selected directories.",
-  },
-  {
-    number: "03",
-    title: "Report",
-    icon: FileText,
-    body: "You get submission tracking, listing URLs where available, and a final campaign report.",
-  },
+const HOW_IT_WORKS: Array<{ number: string; title: string; body: string; icon: LucideIcon }> = [
+  { number: "01", title: "Choose your campaign", body: "Select the promotion package that fits your goals.", icon: Target },
+  { number: "02", title: "Share your product", body: "Provide your URL, target audience, product details, and any necessary demo access.", icon: Send },
+  { number: "03", title: "We promote it", body: "We create the agreed content, publish promotional posts, and complete relevant submissions.", icon: Megaphone },
+  { number: "04", title: "Track your results", body: "Follow campaign progress and review the performance information available.", icon: BarChart3 },
 ];
 
-const REAL_VALUE = [
-  { icon: Clock, title: "Less manual work", body: "We handle repetitive submissions." },
-  { icon: Crosshair, title: "Better targeting", body: "Directories are selected around your product and category." },
-  { icon: Eye, title: "Full visibility", body: "Track submission status and published URLs." },
-  { icon: FileCheck, title: "Proof of work", body: "Receive a final campaign report." },
+const VALUE_ITEMS: Array<{ title: string; body: string; icon: LucideIcon }> = [
+  { title: "YouTube product demos", body: "Give potential users a real look at your product instead of another sales pitch.", icon: Video },
+  { title: "Social media promotion", body: "Introduce your product through different content angles across X and LinkedIn.", icon: Share2 },
+  { title: "Directory distribution", body: "Save hours researching and submitting your product to relevant launch platforms.", icon: SearchCheck },
+  { title: "Promotional graphics", body: "Get ready-to-share visuals you can reuse on your own channels.", icon: ImageIcon },
+  { title: "Campaign tracking", body: "See what is complete, where your product was featured, and what results are available.", icon: FileCheck2 },
+  { title: "Practical next steps", body: "Finish with researched opportunities and actions you can continue using after delivery.", icon: Sparkles },
 ];
 
-const WHAT_YOU_GET = [
-  { icon: Send, title: "Manual submissions", body: "Relevant directories selected for your product." },
-  { icon: Activity, title: "Tracking", body: "Know where each submission stands." },
-  { icon: Link2, title: "Listing URLs", body: "Keep the links to published listings where available." },
-  { icon: FileText, title: "Final report", body: "A clean record of the campaign when the work is complete." },
-];
-
-const PROMISES = [
-  "Manual submissions",
-  "Relevant directory research",
-  "Submission tracking",
-  "Listing URLs where published",
+const TRACKING_ITEMS = [
+  "Campaign status",
+  "Completed and pending deliverables",
+  "Directory submission progress",
+  "Published content links",
+  "Available engagement metrics",
   "Final campaign report",
 ];
 
 const FAQ = [
-  {
-    q: "Is a listing guaranteed?",
-    a: "No. This package covers manual submission work, not guaranteed approval. Each directory reviews submissions under its own policies and can accept, reject, or ignore any listing.",
-  },
-  {
-    q: "How long does it take?",
-    a: "It varies by directory: some review in days, others take weeks. Your campaign report shows the real status of every submission as it changes.",
-  },
-  {
-    q: "What counts as a submission?",
-    a: "One real, manually-performed submission to one directory. Your progress (e.g. 37/60) always reflects actual submissions made, never a placeholder.",
-  },
-  {
-    q: "What is Discount Drop?",
-    a: "An optional 45-second reaction game (hit the targets, avoid the decoys) that can unlock up to 60% off your package. Your score is verified server-side, so the discount is always based on real performance. Playing is never required to get listed.",
-  },
+  { q: "Will I get guaranteed customers?", a: "No. We help increase your product's opportunities for discovery through content and distribution, but cannot guarantee visitors, signups, or sales." },
+  { q: "Do I need to record a video?", a: "No. We create the screen-recorded demo using your product and the information or access you provide. No interview, video call, or live meeting is included." },
+  { q: "Will every directory accept my product?", a: "No. We submit to relevant directories, but publication depends on each platform's review process." },
+  { q: "Can I purchase without playing Discount Drop?", a: "Yes. The game is completely optional and every package can be purchased directly." },
+  { q: "Will I own the promotional graphics?", a: "Yes. The finished graphics are provided for you to reuse in your own marketing." },
+  { q: "How can I track my campaign?", a: "Your Get Listed dashboard shows fulfillment progress, published links, and available results." },
+  { q: "Are these recurring subscriptions?", a: "No. All three packages are one-time campaigns." },
+  { q: "How is promotional content handled?", a: "Sponsored content is disclosed where required. Posts and listings remain subject to each platform's moderation rules and may be edited or removed by that platform." },
 ];
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted">
-      {children}
-    </span>
-  );
+function formatPrice(cents: number) {
+  const dollars = cents / 100;
+  return `$${dollars.toFixed(Number.isInteger(dollars) ? 0 : 2)}`;
 }
 
 export default function GetListedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activePackage, setActivePackage] = useState<GetListedPackageKey | null>(null);
+  const [activePackage, setActivePackage] = useState<CurrentGetListedPackageKey | null>(null);
   const [discountAward, setDiscountAward] = useState<{ id: string; discountPercent: number } | null>(null);
 
   useEffect(() => {
     const awardId = searchParams.get("discountAward");
     if (!awardId) return;
-    // Re-fetched from the server, not trusted from the URL — the id is
-    // just "which award to look up," the amount always comes from
-    // /status's own record of it. Campaign creation re-validates this
-    // award again from scratch regardless (ownership, available, not
-    // expired), so this is purely a display convenience.
     fetch("/api/get-listed/discount-drop/status")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -195,388 +153,127 @@ export default function GetListedPage() {
 
   useEffect(() => {
     const resume = searchParams.get("resume");
-    const pkg = searchParams.get("package");
-    if (resume === "1" && pkg && pkg in GET_LISTED_PACKAGES) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reopening the campaign form the visitor started before signing in, not a render-driven derivation
-      setActivePackage(pkg as GetListedPackageKey);
+    const packageKey = searchParams.get("package");
+    if (resume === "1" && CURRENT_GET_LISTED_PACKAGE_KEYS.includes(packageKey as CurrentGetListedPackageKey)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore the campaign form intentionally after the external sign-in redirect
+      setActivePackage(packageKey as CurrentGetListedPackageKey);
       router.replace("/get-listed");
     }
   }, [searchParams, router]);
 
   return (
-    <main className="flex flex-col">
-      {/* Preload whichever theme's hero artwork actually applies — React
-          hoists <link> tags rendered anywhere in the tree into <head>, so
-          this works from a Client Component with no separate layout
-          change. The `media` attribute means only the matching one is
-          ever fetched, never both. */}
-      <link rel="preload" as="image" href="/listingheroright.webp" media="(prefers-color-scheme: light)" />
-      <link rel="preload" as="image" href="/listingherodarkright.webp" media="(prefers-color-scheme: dark)" />
-
-      {/* Hero */}
-      <section className="relative overflow-hidden pb-14 pt-14 sm:pt-20 lg:min-h-[600px] lg:pb-0 lg:pt-0">
-        {/* Desktop: artwork bleeds edge-to-edge across the section's full
-            height on the right side — sized against the section, not the
-            padded/centered grid below, so it can never leave a gap above,
-            below, or to the right of itself regardless of how tall the
-            text column gets. */}
-        <div className="absolute inset-y-0 right-0 hidden w-[55%] lg:block">
-          <GetListedHeroArt />
-        </div>
-
-        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 sm:px-10 lg:grid-cols-[45%_55%] lg:gap-8 lg:min-h-[600px] lg:py-20">
-          {/* Left: message */}
-          <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-            <Eyebrow>
-              <Zap className="h-3.5 w-3.5 shrink-0 text-accent" />
-              Founder Distribution
-            </Eyebrow>
-            <h1 className="font-display text-4xl font-black uppercase leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
-              Put your product
-              <br />
-              <span className="text-accent">everywhere it matters.</span>
-            </h1>
-            <p className="max-w-md text-base text-muted sm:text-lg">
-              We handle the directory research, submissions, and tracking. You focus on building. We handle the
-              distribution.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <a
-                href="#packages"
-                className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-bold uppercase tracking-wide text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-              >
-                Get Listed
-                <ArrowRight className="h-4 w-4" />
+    <main className="overflow-hidden">
+      <section className="relative border-b border-border px-6 py-20 md:px-10 lg:py-28">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_25%,color-mix(in_srgb,var(--accent)_16%,transparent),transparent_34%),linear-gradient(to_bottom,transparent,var(--bg))]" />
+        <div className="pointer-events-none absolute right-[8%] top-16 hidden h-72 w-72 rotate-6 rounded-[2.5rem] border border-accent/20 bg-accent/5 shadow-[0_0_80px_color-mix(in_srgb,var(--accent)_18%,transparent)] lg:block" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.15fr_.85fr]">
+          <div className="flex flex-col items-start gap-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-accent">
+              <Megaphone className="h-4 w-4" /> Done-for-you product promotion
+            </span>
+            <div className="space-y-4">
+              <h1 className="max-w-3xl font-display text-4xl font-black leading-[1.03] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+                Your product deserves more than a launch-day post.
+              </h1>
+              <p className="text-xl font-semibold text-ink sm:text-2xl">We help more people discover what you&apos;ve built.</p>
+              <p className="max-w-2xl text-base leading-7 text-muted">
+                Building your product was the hard part. Getting it noticed shouldn&apos;t be another full-time job. We create content that shows what your product does, share it across our channels, submit it to relevant directories, and give you a clear report of the work completed.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a href="#campaigns" className="inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-6 text-sm font-bold text-accent-ink shadow-lg transition hover:-translate-y-0.5">
+                Explore Campaigns <ArrowRight className="h-4 w-4" />
               </a>
-              <Link
-                href="/get-listed/discount-drop"
-                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-              >
-                <Gamepad2 className="h-4 w-4 text-accent" />
-                Play Discount Drop
+              <Link href="/get-listed/discount-drop" className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-surface px-6 text-sm font-bold text-ink shadow-sm transition hover:border-accent">
+                <Gamepad2 className="h-4 w-4 text-accent" /> Play Discount Drop
               </Link>
             </div>
-
-            {/* Value strip */}
-            <div className="grid w-full max-w-md grid-cols-3 gap-px overflow-hidden rounded-xl border border-border bg-border">
-              {[
-                { value: "30+", label: "Directories" },
-                { value: "60+", label: "Hours Saved" },
-                { value: "100%", label: "Manual Submission" },
-              ].map((stat) => (
-                <div key={stat.label} className="flex flex-col items-center gap-0.5 bg-surface px-2 py-3.5 text-center">
-                  <span className="font-mono text-lg font-bold text-ink sm:text-xl">{stat.value}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">{stat.label}</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> One-time campaigns</span>
+              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> Clear fulfillment tracking</span>
+              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> No calls required</span>
             </div>
           </div>
 
-          {/* Mobile/tablet: no room for a full-bleed side layer once the
-              layout stacks, so the artwork renders inline here instead —
-              the lg:block layer above takes over at the two-column
-              breakpoint (lg:hidden keeps this one from doubling up). */}
-          <div className="relative min-h-[260px] w-full min-w-0 sm:min-h-[360px] lg:hidden">
-            <GetListedHeroArt />
+          <div className="relative mx-auto w-full max-w-md rounded-[2rem] border border-border bg-surface/90 p-5 shadow-2xl backdrop-blur">
+            <div className="mb-5 flex items-center justify-between">
+              <div><p className="text-xs font-bold uppercase tracking-widest text-accent">Campaign workspace</p><p className="mt-1 font-display text-lg font-bold text-ink">Everything in one place</p></div>
+              <span className="rounded-full bg-[#16a34a]/10 px-3 py-1 text-xs font-bold text-[#16a34a]">In progress</span>
+            </div>
+            <div className="space-y-3">
+              {[
+                [CirclePlay, "Product demo", "Script and recording"],
+                [Share2, "Social promotion", "X and LinkedIn"],
+                [SearchCheck, "Distribution", "Relevant directories"],
+                [FileText, "Campaign report", "Links and available results"],
+              ].map(([Icon, title, body], index) => {
+                const ItemIcon = Icon as LucideIcon;
+                return <div key={String(title)} className="flex items-center gap-3 rounded-2xl border border-border bg-bg p-4"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent"><ItemIcon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="text-sm font-bold text-ink">{String(title)}</p><p className="text-xs text-muted">{String(body)}</p></div><span className={`h-2.5 w-2.5 rounded-full ${index < 2 ? "bg-[#16a34a]" : "bg-accent/40"}`} /></div>;
+              })}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-10">
-          <h2 className="text-center font-display text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-            How it works
-          </h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {HOW_IT_WORKS.map((step) => (
-              <div
-                key={step.number}
-                className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-3xl font-black text-border">{step.number}</span>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft/20 text-accent">
-                    <step.icon className="h-5 w-5" />
-                  </div>
-                </div>
-                <h3 className="font-display text-base font-bold uppercase tracking-wide text-ink">{step.title}</h3>
-                <p className="text-sm text-muted">{step.body}</p>
-              </div>
-            ))}
+      <section className="px-6 py-20 md:px-10">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">How it works</p><h2 className="mt-3 font-display text-3xl font-black text-ink sm:text-4xl">From product details to completed promotion.</h2></div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {HOW_IT_WORKS.map(({ number, title, body, icon: Icon }) => <div key={number} className="relative rounded-2xl border border-border bg-surface p-6 shadow-sm"><span className="absolute right-5 top-4 font-display text-3xl font-black text-border">{number}</span><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent"><Icon className="h-5 w-5" /></div><h3 className="font-display text-base font-bold text-ink">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{body}</p></div>)}
           </div>
         </div>
       </section>
 
-      {/* Packages */}
-      <section id="packages" className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <Eyebrow>
-              <Zap className="h-3.5 w-3.5 text-accent" />
-              Choose Your Level
-            </Eyebrow>
-            <h2 className="font-display text-3xl font-black uppercase tracking-tight text-ink sm:text-4xl">
-              How far do you want to take it?
-            </h2>
-            <p className="max-w-xl text-sm text-muted sm:text-base">
-              Pick the distribution level that fits your product. Every package includes manual submissions,
-              relevant directories, tracking, and a final report.
-            </p>
-            {discountAward && (
-              <span className="mt-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-ink">
-                {discountAward.discountPercent}% off ready. Pick a package below to apply it.
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {PACKAGE_ORDER.map((key) => {
+      <section id="campaigns" className="scroll-mt-24 border-y border-border bg-surface-2/40 px-6 py-20 md:px-10">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto mb-12 max-w-2xl text-center"><p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Promotion campaigns</p><h2 className="mt-3 font-display text-3xl font-black text-ink sm:text-4xl">Choose how far you want to take your launch.</h2><p className="mt-3 text-sm leading-6 text-muted">Every package is a one-time purchase with specific deliverables, a clear timeline, and a campaign dashboard.</p></div>
+          {discountAward && <div className="mx-auto mb-6 max-w-xl rounded-xl border border-accent bg-accent/10 px-5 py-3 text-center text-sm font-bold text-accent">Your {discountAward.discountPercent}% Discount Drop reward is ready and will be applied at checkout.</div>}
+          <div className="grid items-stretch gap-5 lg:grid-cols-3">
+            {CURRENT_GET_LISTED_PACKAGE_KEYS.map((key) => {
               const pkg = GET_LISTED_PACKAGES[key];
-              const copy = PACKAGE_COPY[key];
-              const Icon = copy.icon;
-              const featured = copy.featured === true;
-              const discountedPrice = discountAward
-                ? Math.round(pkg.priceUsd * (1 - discountAward.discountPercent / 100))
-                : null;
-
-              return (
-                <div
-                  key={key}
-                  className={`relative flex flex-col gap-5 overflow-hidden rounded-2xl border p-6 sm:p-7 ${
-                    featured
-                      ? "border-accent/40 bg-black text-white shadow-lg sm:-translate-y-3"
-                      : "border-border bg-surface text-ink shadow-sm"
-                  }`}
-                >
-                  <span
-                    className={`absolute right-4 top-4 font-mono text-[10px] uppercase tracking-widest ${
-                      featured ? "text-white/30" : "text-muted/60"
-                    }`}
-                  >
-                    {copy.roundLabel}
-                  </span>
-
-                  <div className="flex items-center justify-between">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                        featured ? "bg-white/10 text-accent" : "bg-accent-soft/20 text-accent"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    {featured && (
-                      <span className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
-                        <Zap className="h-3 w-3" />
-                        Most popular
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <h3 className="font-display text-2xl font-black uppercase tracking-tight">{pkg.arenaName}</h3>
-                    <p className={`text-sm ${featured ? "text-white/70" : "text-muted"}`}>{copy.description}</p>
-                  </div>
-
-                  <span
-                    className={`w-fit rounded-full border px-3 py-1 text-xs font-semibold ${
-                      featured ? "border-white/20 text-white/80" : "border-border text-muted"
-                    }`}
-                  >
-                    {pkg.target}+ targeted directories
-                  </span>
-
-                  <div className={`flex flex-col gap-1 border-t pt-4 ${featured ? "border-white/10" : "border-border"}`}>
-                    <div className="flex items-baseline gap-2">
-                      {discountedPrice !== null ? (
-                        <>
-                          <span className={`text-lg line-through ${featured ? "text-white/40" : "text-muted"}`}>
-                            ${pkg.priceUsd}
-                          </span>
-                          <span className="font-display text-4xl font-black text-accent">${discountedPrice}</span>
-                        </>
-                      ) : (
-                        <span className="font-display text-4xl font-black">${pkg.priceUsd}</span>
-                      )}
-                    </div>
-                    <span className={`text-xs font-semibold uppercase tracking-wide ${featured ? "text-white/40" : "text-muted"}`}>
-                      {discountAward ? `${discountAward.discountPercent}% off, one-time` : "One-time"}
-                    </span>
-                  </div>
-
-                  <ul className="flex flex-col gap-2">
-                    {copy.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    onClick={() => setActivePackage(key)}
-                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-bold uppercase tracking-wide text-accent-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-                  >
-                    {discountAward ? `Use ${discountAward.discountPercent}% discount` : copy.ctaLabel}
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-
-                  <p className={`text-center text-xs leading-relaxed ${featured ? "text-white/40" : "text-muted"}`}>
-                    {copy.tagline}
-                  </p>
-                </div>
-              );
+              const copy = PACKAGE_CONTENT[key];
+              const discountedCents = discountAward ? Math.round(pkg.priceUsd * 100 * (1 - discountAward.discountPercent / 100)) : null;
+              const recommended = key === "growth_campaign";
+              return <article key={key} className={`relative flex flex-col rounded-[1.75rem] border p-6 shadow-sm ${recommended ? "border-accent bg-bg shadow-[0_18px_60px_color-mix(in_srgb,var(--accent)_16%,transparent)] lg:-translate-y-3" : "border-border bg-surface"}`}>
+                {copy.badge && <span className="absolute right-5 top-5 rounded-full bg-accent px-3 py-1 text-[11px] font-black uppercase tracking-wider text-accent-ink">{copy.badge}</span>}
+                <p className="pr-28 font-display text-xl font-black text-ink">{pkg.label}</p>
+                <p className="mt-2 min-h-12 text-sm font-semibold leading-6 text-muted">{copy.tagline}</p>
+                <div className="my-6 flex items-end gap-2"><span className={`font-display font-black ${discountedCents === null ? "text-4xl text-ink" : "text-lg text-muted line-through"}`}>${pkg.priceUsd}</span>{discountedCents !== null && <span className="font-display text-4xl font-black text-accent">{formatPrice(discountedCents)}</span>}<span className="pb-1 text-xs text-muted">one-time</span></div>
+                <p className="mb-5 rounded-xl bg-surface-2 p-3 text-sm leading-5 text-muted">{copy.audience}</p>
+                <ul className="flex flex-1 flex-col gap-3">
+                  {copy.features.map((feature) => <li key={feature} className="flex gap-2.5 text-sm leading-5 text-ink"><Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />{feature}</li>)}
+                </ul>
+                <button onClick={() => setActivePackage(key)} className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-bold transition hover:-translate-y-0.5 ${recommended ? "bg-accent text-accent-ink shadow-lg" : "border border-border bg-bg text-ink hover:border-accent"}`}>{copy.cta}<ArrowRight className="h-4 w-4" /></button>
+              </article>;
             })}
           </div>
         </div>
       </section>
 
-      {/* Real value */}
-      <section className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-10">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <h2 className="font-display text-3xl font-black uppercase tracking-tight text-ink sm:text-4xl">
-              Stop doing distribution by hand.
-            </h2>
-            <p className="max-w-xl text-sm text-muted sm:text-base">
-              Finding directories, filling forms, and tracking submissions can eat hours of founder time. We take
-              the repetitive work off your plate and give you a clear record of what was submitted.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {REAL_VALUE.map((item) => (
-              <div key={item.title} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft/20 text-accent">
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink">{item.title}</h3>
-                <p className="text-xs text-muted">{item.body}</p>
-              </div>
-            ))}
-          </div>
+      <section id="discount-drop" className="px-6 py-20 md:px-10">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-accent/30 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_15%,var(--surface)),var(--surface))] p-8 sm:p-12">
+          <div className="pointer-events-none absolute -right-14 -top-14 h-64 w-64 rounded-full border-[30px] border-accent/10" />
+          <div className="relative max-w-2xl"><span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-bg/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent"><Zap className="h-3.5 w-3.5" /> Optional launch bonus</span><h2 className="mt-5 font-display text-3xl font-black text-ink sm:text-4xl">Your launch budget just got a power-up.</h2><p className="mt-4 max-w-xl text-base leading-7 text-muted">Play Discount Drop for a chance to unlock up to 60% off your promotion campaign. Your first attempt is free, results are verified by the server, and your reward has a visible two-minute claim window.</p><div className="mt-7 flex flex-wrap items-center gap-4"><Link href="/get-listed/discount-drop" className="inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-6 text-sm font-bold text-accent-ink shadow-lg"><Gamepad2 className="h-4 w-4" /> Play for My Discount</Link><span className="text-sm text-muted">Prefer to skip the game? Choose any campaign above.</span></div></div>
         </div>
       </section>
 
-      {/* What you get */}
-      <section className="border-t border-border bg-surface px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-10">
-          <h2 className="text-center font-display text-3xl font-black uppercase tracking-tight text-ink sm:text-4xl">
-            You don&apos;t just get submissions.
-          </h2>
-          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-            {WHAT_YOU_GET.map((item) => (
-              <div key={item.title} className="flex flex-col gap-2 bg-bg p-6">
-                <item.icon className="h-5 w-5 text-accent" />
-                <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink">{item.title}</h3>
-                <p className="text-xs text-muted">{item.body}</p>
-              </div>
-            ))}
-          </div>
+      <section className="border-y border-border bg-surface px-6 py-20 md:px-10">
+        <div className="mx-auto max-w-6xl"><div className="mb-10 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">What your promotion looks like</p><h2 className="mt-3 font-display text-3xl font-black text-ink sm:text-4xl">Useful content, distribution, and proof of work.</h2><p className="mt-3 text-sm text-muted">The cards below are service previews, not fabricated customer campaigns or performance claims.</p></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{VALUE_ITEMS.map(({ title, body, icon: Icon }) => <article key={title} className="rounded-2xl border border-border bg-bg p-6"><div className="mb-4 flex items-center justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent"><Icon className="h-5 w-5" /></div><span className="rounded-full bg-surface-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted">Service preview</span></div><h3 className="font-display text-base font-bold text-ink">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{body}</p></article>)}</div></div>
+      </section>
+
+      <section className="px-6 py-20 md:px-10">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Transparent campaign tracking</p><h2 className="mt-3 font-display text-3xl font-black text-ink sm:text-4xl">Know what is happening after checkout.</h2><p className="mt-4 text-base leading-7 text-muted">Your private Get Listed dashboard separates payment from fulfillment and records real work as it is completed. Metrics appear only when they are available.</p><ul className="mt-7 grid gap-3 sm:grid-cols-2">{TRACKING_ITEMS.map((item) => <li key={item} className="flex items-center gap-2 text-sm font-semibold text-ink"><CheckCircle2 className="h-4 w-4 text-accent" />{item}</li>)}</ul><Link href="/get-listed/campaigns" className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-accent">Open Get Listed dashboard <ArrowRight className="h-4 w-4" /></Link></div>
+          <div className="rounded-[1.75rem] border border-border bg-surface p-6 shadow-xl"><div className="flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-muted">Campaign progress</p><p className="mt-1 font-display text-lg font-bold text-ink">Growth Campaign</p></div><LayoutDashboard className="h-5 w-5 text-accent" /></div><div className="mt-6 h-2 overflow-hidden rounded-full bg-surface-2"><div className="h-full w-3/5 rounded-full bg-accent" /></div><div className="mt-2 flex justify-between text-xs text-muted"><span>Work completed</span><span>Tracked from actual updates</span></div><div className="mt-6 space-y-3">{[[CirclePlay,"YouTube product demo","In progress"],[Send,"Directory submissions","12 of 30"],[BriefcaseBusiness,"LinkedIn feature","Pending"],[FileText,"Campaign report","Pending"]].map(([Icon,title,status],index)=>{const ItemIcon=Icon as LucideIcon;return <div key={String(title)} className="flex items-center gap-3 rounded-xl border border-border bg-bg p-3"><ItemIcon className="h-4 w-4 text-accent" /><span className="flex-1 text-sm font-semibold text-ink">{String(title)}</span><span className={`text-xs ${index===0?"text-accent":"text-muted"}`}>{String(status)}</span></div>;})}</div><p className="mt-4 text-center text-[11px] text-muted">Illustrative dashboard preview</p></div>
         </div>
       </section>
 
-      {/* Discount Drop */}
-      <section id="discount-drop" className="border-t border-border px-6 py-16 text-center md:px-10">
-        <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface text-accent">
-            <Gamepad2 className="h-6 w-6" />
-          </div>
-          <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Optional
-          </span>
-          <h2 className="font-display text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-            Play. Score. Save.
-          </h2>
-          <p className="text-sm text-muted">
-            Think you can earn a better price? Play Discount Drop and unlock a temporary discount for your Get
-            Listed package. Every score is verified server-side, and playing is never required, every package above
-            is always available at full price.
-          </p>
-          <Link
-            href="/get-listed/discount-drop"
-            className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-bold uppercase tracking-wide text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-          >
-            <Gamepad2 className="h-4 w-4" />
-            Play Discount Drop
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      <section className="border-y border-border bg-surface px-6 py-20 md:px-10"><div className="mx-auto max-w-3xl"><div className="mb-9 text-center"><p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Frequently asked questions</p><h2 className="mt-3 font-display text-3xl font-black text-ink">Clear expectations before you buy.</h2></div><div className="space-y-3">{FAQ.map((item)=><details key={item.q} className="group rounded-2xl border border-border bg-bg p-5"><summary className="cursor-pointer list-none pr-6 text-sm font-bold text-ink">{item.q}</summary><p className="mt-3 text-sm leading-6 text-muted">{item.a}</p></details>)}</div></div></section>
 
-      {/* Trust / expectations */}
-      <section className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          <h2 className="text-center font-display text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-            What we actually promise
-          </h2>
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {PROMISES.map((item) => (
-              <li key={item} className="flex items-center gap-2 rounded-xl border border-border bg-surface p-4 text-sm text-ink">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
-                {item}
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-5">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-            <p className="text-sm text-muted">
-              Directory acceptance and publication are controlled by third-party platforms, so we do not guarantee
-              that every submission will be accepted or published.
-            </p>
-          </div>
-        </div>
-      </section>
+      <section className="px-6 py-20 text-center md:px-10"><div className="mx-auto flex max-w-2xl flex-col items-center"><MousePointerClick className="h-8 w-8 text-accent" /><h2 className="mt-5 font-display text-3xl font-black text-ink sm:text-4xl">You built something worth showing. Let&apos;s get it seen.</h2><p className="mt-4 text-base text-muted">Choose your campaign, share your product, and let us handle the promotional work.</p><a href="#campaigns" className="mt-7 inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-7 text-sm font-bold text-accent-ink shadow-lg">Get My Product Promoted <ArrowRight className="h-4 w-4" /></a><div className="mt-7 flex items-start gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-left text-xs text-muted"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><span>Promotion increases opportunities for discovery. It does not guarantee traffic, customers, sales, directory approval, rankings, or continued publication on third-party platforms.</span></div></div></section>
 
-      {/* FAQ */}
-      <section className="border-t border-border px-6 py-16 md:px-10">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          <h2 className="text-center font-display text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-            FAQ
-          </h2>
-          {FAQ.map((item) => (
-            <div key={item.q} className="rounded-xl border border-border bg-surface p-5">
-              <h3 className="font-display text-sm font-bold text-ink">{item.q}</h3>
-              <p className="mt-1 text-sm text-muted">{item.a}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="border-t border-border px-6 py-16 text-center">
-        <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-          <Swords className="h-8 w-8 text-accent" />
-          <h2 className="font-display text-3xl font-black uppercase tracking-tight text-ink sm:text-4xl">
-            Ready to enter the Arena?
-          </h2>
-          <p className="text-sm text-muted">Pick your package. We&apos;ll handle the distribution work.</p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#packages"
-              className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-bold uppercase tracking-wide text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-            >
-              Get Listed
-              <ArrowRight className="h-4 w-4" />
-            </a>
-            <Link
-              href="/get-listed/discount-drop"
-              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink shadow-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-            >
-              <Gamepad2 className="h-4 w-4 text-accent" />
-              Play Discount Drop
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {activePackage && (
-        <GetListedModal
-          open
-          onClose={() => setActivePackage(null)}
-          packageKey={activePackage}
-          discountAward={discountAward}
-        />
-      )}
+      {activePackage && <GetListedModal open onClose={() => setActivePackage(null)} packageKey={activePackage} discountAward={discountAward} />}
     </main>
   );
 }
+

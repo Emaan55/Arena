@@ -201,7 +201,12 @@ export type Campaign = {
   linkedin_url: string | null;
   other_url: string | null;
   package_key: string;
+  package_label: string;
+  package_version: number;
   submission_target: number;
+  campaign_duration_days: number | null;
+  target_audience: string | null;
+  demo_access_notes: string | null;
   status: CampaignStatus;
   terms_accepted_at: string | null;
   created_at: string;
@@ -215,6 +220,38 @@ export type Campaign = {
   // deleting only hides it from the default admin list.
   deleted_at: string | null;
   deleted_by: string | null;
+};
+
+export type CampaignDeliverableStatus = "pending" | "in_progress" | "completed" | "not_applicable";
+export type CampaignDeliverableKind =
+  | "directory"
+  | "x_post"
+  | "linkedin_post"
+  | "youtube_video"
+  | "youtube_short"
+  | "graphic"
+  | "showcase"
+  | "strategy"
+  | "update"
+  | "report";
+
+export type CampaignDeliverable = {
+  id: string;
+  campaign_id: string;
+  deliverable_key: string;
+  kind: CampaignDeliverableKind;
+  title: string;
+  purpose: string;
+  position: number;
+  status: CampaignDeliverableStatus;
+  public_url: string | null;
+  asset_url: string | null;
+  customer_notes: string | null;
+  admin_notes: string | null;
+  metrics: Record<string, string | number>;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Submission = {
@@ -433,6 +470,12 @@ export interface Database {
         Row: Campaign;
         Insert: Partial<Campaign>;
         Update: Partial<Campaign>;
+        Relationships: Relationships;
+      };
+      campaign_deliverables: {
+        Row: CampaignDeliverable;
+        Insert: Partial<CampaignDeliverable>;
+        Update: Partial<CampaignDeliverable>;
         Relationships: Relationships;
       };
       submissions: {

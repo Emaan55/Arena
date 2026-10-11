@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     c.id,
     c.startup_name,
     c.website_url,
-    GET_LISTED_PACKAGES[c.package_key as GetListedPackageKey]?.label ?? c.package_key,
+    c.package_label || GET_LISTED_PACKAGES[c.package_key as GetListedPackageKey]?.label || c.package_key,
     c.submission_target,
     c.submission_count,
     c.accepted_count,
@@ -72,3 +72,4 @@ export async function GET(req: NextRequest) {
   const csv = toCsv(headers, csvRows);
   return csvResponse(`get-listed-campaigns-${new Date().toISOString().slice(0, 10)}.csv`, csv);
 }
+
