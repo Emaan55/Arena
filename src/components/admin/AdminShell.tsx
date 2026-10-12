@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
   BarChart3,
+  BadgeCheck,
   BookOpen,
   Boxes,
   ClipboardCheck,
@@ -53,6 +54,7 @@ const NAV_GROUPS: Array<{ label: string; items: AdminNavItem[] }> = [
     label: "Get Listed",
     items: [
       { href: "/admin/get-listed/campaigns", label: "Campaigns", icon: FolderKanban },
+      { href: "/admin/get-listed/results", label: "Campaign Results", icon: BadgeCheck },
       { href: "/admin/get-listed/queue", label: "Work queue", icon: ClipboardCheck },
       { href: "/admin/get-listed/directories", label: "Directories", icon: BookOpen },
       { href: "/admin/get-listed/analytics", label: "Analytics", icon: BarChart3 },

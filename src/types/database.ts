@@ -1,4 +1,5 @@
 import type { ArenaReviewRow } from "@/lib/arena-review-types";
+import type { CampaignResult, CampaignResultPlatform } from "@/lib/get-listed/campaign-results";
 
 export const CATEGORIES = [
   "General",
@@ -482,6 +483,18 @@ export interface Database {
         Update: Partial<CampaignDeliverable>;
         Relationships: Relationships;
       };
+      campaign_results: {
+        Row: CampaignResult;
+        Insert: Partial<CampaignResult>;
+        Update: Partial<CampaignResult>;
+        Relationships: Relationships;
+      };
+      campaign_result_platforms: {
+        Row: CampaignResultPlatform;
+        Insert: Partial<CampaignResultPlatform>;
+        Update: Partial<CampaignResultPlatform>;
+        Relationships: Relationships;
+      };
       submissions: {
         Row: Submission;
         Insert: Partial<Submission>;
@@ -544,6 +557,22 @@ export interface Database {
       prune_product_analytics: { Args: { p_unique_before: string }; Returns: number };
       record_arena_site_visit: { Args: { p_visitor_hash: string }; Returns: undefined };
       get_arena_public_metrics: { Args: Record<string, never>; Returns: { domain_rating: number | null; domain_rating_source: string | null; domain_rating_source_url: string | null; domain_rating_checked_at: string | null; monthly_visitors: number }[] };
+      save_campaign_result: {
+        Args: {
+          p_campaign_id: string;
+          p_product_name: string;
+          p_logo_url: string | null;
+          p_website_url: string;
+          p_package_label: string;
+          p_campaign_duration_days: number | null;
+          p_domain_rating: number | null;
+          p_dr_recorded_at: string | null;
+          p_dr_evidence_url: string | null;
+          p_is_published: boolean;
+          p_platforms: Array<Record<string, string | number | null>>;
+        };
+        Returns: string;
+      };
 
       arena_review_stats: {
         Args: Record<string, never>;

@@ -3,8 +3,9 @@
 ## Required deployment order
 
 1. Run `supabase/migrations/0027_get_listed_promotion_campaigns.sql` in the Supabase SQL editor.
-2. Deploy the application code.
-3. Confirm the existing LemonSqueezy webhook still points to `/api/webhooks/lemonsqueezy` and includes order created and order refunded events.
+2. Run `supabase/migrations/0029_campaign_results.sql` after migration 0028 to enable public campaign results.
+3. Deploy the application code.
+4. Confirm the existing LemonSqueezy webhook still points to `/api/webhooks/lemonsqueezy` and includes order created and order refunded events.
 
 The migration must run before the redesigned campaign form is used. It adds the new package keys, campaign snapshots, and the private deliverable checklist used by the customer and admin dashboards. Existing campaigns, orders, discounts, submissions, and fulfillment history are preserved.
 
@@ -38,6 +39,19 @@ After LemonSqueezy confirms payment, the campaign appears in **My Arena → Prom
 The customer report refreshes every 30 seconds while the page is visible and can also be refreshed manually. It shows results by individual platform and never exposes internal admin notes. Fulfillment editing is disabled until payment is confirmed.
 
 This reporting update uses the `campaign_deliverables.metrics` JSON field from migration `0027`; it does not require another database migration or another paid service.
+
+## Public campaign results workflow
+
+Migration `0029_campaign_results.sql` adds a separate, curated public results layer. It does not modify orders, payments, discounts, fulfillment status, or the private customer report.
+
+1. Open **Admin → Get Listed → Campaign Results**.
+2. Select an existing campaign.
+3. Add the product logo, optional Ahrefs DR evidence, and only the YouTube, LinkedIn, or X posts that were actually published.
+4. Save a draft and verify the public card preview.
+5. Publish the result when its links and manually recorded metrics are ready.
+6. Update the same result as platform view counts change, or use **Unpublish** to remove it from the Get Listed page without deleting campaign history.
+
+The public section remains hidden until at least one result is published. Platform links are validated on the server, combined views sum only saved view counts, and the RLS policies expose only published result rows.
 
 ## Verification checklist
 

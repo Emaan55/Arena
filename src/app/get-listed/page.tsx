@@ -28,6 +28,7 @@ import {
   Zap,
 } from "lucide-react";
 import { GetListedModal } from "@/components/GetListedModal";
+import { CampaignResultsSection } from "@/components/get-listed/CampaignResultsSection";
 import {
   GET_LISTED_PACKAGES,
   CURRENT_GET_LISTED_PACKAGE_KEYS,
@@ -223,6 +224,8 @@ export default function GetListedPage() {
           </div>
         </div>
       </section>
+
+      <CampaignResultsSection />
 
       <section id="campaigns" className="scroll-mt-24 border-y border-border bg-surface-2/40 px-6 py-20 md:px-10">
         <div className="mx-auto max-w-6xl">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Pencil, Trash2, RotateCcw, ExternalLink, Download } from "lucide-react";
+import { ArrowLeft, BarChart3, Plus, Pencil, Trash2, RotateCcw, ExternalLink, Download } from "lucide-react";
 import { useAdminSecret } from "@/lib/useAdminSecret";
 import { AdminUnlockForm } from "@/components/AdminUnlockForm";
 import { downloadAdminFile } from "@/lib/download-admin-file";
@@ -69,6 +69,10 @@ const ACTION_LABEL: Record<string, string> = {
   payment_reconciled: "Payment reconciled manually",
   payment_received: "Payment received",
   deliverable_updated: "Promotion deliverable updated",
+  campaign_result_saved: "Campaign result draft saved",
+  campaign_result_published: "Campaign result published",
+  campaign_result_updated: "Campaign result updated",
+  campaign_result_unpublished: "Campaign result unpublished",
 };
 
 function describeAudit(entry: AdminAuditLog): string {
@@ -539,6 +543,13 @@ export default function AdminCampaignDetailPage() {
             className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
           >
             Preview report
+          </Link>
+          <Link
+            href={`/admin/get-listed/results/${campaign.id}`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Campaign Results
           </Link>
           <a
             href={`/get-listed/campaigns/${campaign.id}`}

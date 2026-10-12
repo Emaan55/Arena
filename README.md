@@ -86,6 +86,8 @@ Users with Supabase Auth accounts can visit `/dashboard`; ownership is assigned 
 
 Apply migration `0028_arena_public_metrics.sql` to enable the homepage monthly visitor count and verified domain rating. Visitor counting uses a one-way keyed hash, excludes obvious bots, and stores no IP addresses. Monthly visitors are a rolling 30-day unique count. Set the externally verified domain rating, provider, and source URL from `/admin/site-metrics`; no paid analytics service is required by the application.
 
+Apply migration `0029_campaign_results.sql` to enable admin-curated Get Listed campaign results. Admins manage drafts and published evidence from `/admin/get-listed/results`. Public RLS policies expose only published records and their entered YouTube, LinkedIn, or X links; no social analytics API or Ahrefs subscription is required.
+
 ### Project structure
 
 ```
