@@ -197,7 +197,6 @@ function SideCard({
   votedSide,
   onVote,
   onPaid,
-  pageViews,
   outboundClicks,
 }: {
   productId: string;
@@ -221,7 +220,6 @@ function SideCard({
   votedSide?: VoteSide;
   onVote: (side: VoteSide) => void;
   onPaid?: () => void;
-  pageViews: number;
   outboundClicks: number;
 }) {
   const isMyVote = votedSide === side;
@@ -334,7 +332,9 @@ function SideCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted"><span>{pageViews.toLocaleString()} page views</span><span>{outboundClicks.toLocaleString()} website clicks</span></div>
+      <div className="text-[11px] text-muted">
+        {outboundClicks.toLocaleString()} website clicks
+      </div>
 
       <ReviewsPanel
         count={reviewCount}
@@ -454,7 +454,6 @@ export function MatchCard({
           own self-stretch below. */}
       <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
         <SideCard
-          pageViews={analytics[match.product_a.id]?.page_views ?? 0}
           outboundClicks={analytics[match.product_a.id]?.outbound_clicks ?? 0}
           productId={match.product_a.id}
           matchId={match.id}
@@ -480,7 +479,6 @@ export function MatchCard({
         />
         <VsDivider />
         <SideCard
-          pageViews={analytics[match.product_b.id]?.page_views ?? 0}
           outboundClicks={analytics[match.product_b.id]?.outbound_clicks ?? 0}
           productId={match.product_b.id}
           matchId={match.id}
