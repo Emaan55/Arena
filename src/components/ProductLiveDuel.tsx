@@ -7,6 +7,13 @@ import { useAuthUser } from "@/lib/useAuthUser";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { ProductAnalyticsDaily } from "@/types/database";
 import type { VoteSide } from "@/types/database";
+import { VoteReviewPrompt } from "./VoteReviewPrompt";
+import {
+  clearPendingVoteReview,
+  loadPendingVoteReview,
+  savePendingVoteReview,
+  type PendingVoteReview,
+} from "@/lib/vote-review-prompt";
 
 const VOTED_STORAGE_KEY = "arena_voted_matches";
 
@@ -38,13 +45,15 @@ export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts
   const [votedSide, setVotedSide] = useState<VoteSide | undefined>(undefined);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const [pendingReview, setPendingReview] = useState<PendingVoteReview | null>(null);
   const { user, loading: authLoading } = useAuthUser();
   const resumedVote = useRef(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVotedSide(loadVotedMap()[match.id]);
+    const storedReview = loadPendingVoteReview();
+    setPendingReview(storedReview?.matchId === match.id ? storedReview : null);
   }, [match.id]);
 
   function redirectToSignIn(matchId: string, side: VoteSide) {
@@ -80,8 +89,10 @@ export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts
       }
       saveVote(matchId, side);
       setVotedSide(side);
-      setShowReviewPrompt(true);
-      router.refresh();
+      const product = side === "a" ? match.product_a : match.product_b;
+      const review = { matchId, productId: product.id, productName: product.name, side };
+      savePendingVoteReview(review);
+      setPendingReview(review);
     } catch {
       setError("Network error, please try again.");
     } finally {
@@ -114,10 +125,18 @@ export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts
         voting={voting}
         onVote={handleVote}
         onPaid={() => router.refresh()}
-        showReviewPrompt={showReviewPrompt}
-        onReviewDone={() => setShowReviewPrompt(false)}
+      />
+      <VoteReviewPrompt
+        key={pendingReview?.matchId ?? "no-pending-review"}
+        pending={pendingReview}
+        onDone={() => {
+          if (pendingReview) clearPendingVoteReview(pendingReview.matchId);
+          setPendingReview(null);
+          router.refresh();
+        }}
       />
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
+

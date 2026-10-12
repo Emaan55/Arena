@@ -124,8 +124,6 @@ function BoostMove({
   );
 }
 
-const REVIEW_BODY_MAX = 500;
-
 interface ReviewEntry {
   id: string;
   body: string;
@@ -199,8 +197,6 @@ function SideCard({
   votedSide,
   onVote,
   onPaid,
-  showReviewPrompt,
-  onReviewDone,
   pageViews,
   outboundClicks,
 }: {
@@ -225,8 +221,6 @@ function SideCard({
   votedSide?: VoteSide;
   onVote: (side: VoteSide) => void;
   onPaid?: () => void;
-  showReviewPrompt: boolean;
-  onReviewDone: () => void;
   pageViews: number;
   outboundClicks: number;
 }) {
@@ -254,36 +248,24 @@ function SideCard({
     };
   }, [productId]);
 
-  const [reviewDraft, setReviewDraft] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
-  async function submitReview() {
-    const trimmed = reviewDraft.trim();
-    if (!trimmed) return;
-    setSubmittingReview(true);
-    setReviewError(null);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, productId, body: trimmed }),
+  useEffect(() => {
+    const onReviewCreated = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        productId: string;
+        review: { id: string; body: string; createdAt: string };
+      }>).detail;
+      if (!detail || detail.productId !== productId) return;
+      setReviews((previous) => {
+        if (previous.some((review) => review.id === detail.review.id)) return previous;
+        return [{ ...detail.review, authorName: "You" }, ...previous];
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setReviewError(data.error ?? "Could not save your review.");
-        return;
-      }
-      setReviews((prev) => [{ id: data.review.id, body: data.review.body, authorName: "You", createdAt: data.review.created_at }, ...prev]);
-      setReviewCount((c) => c + 1);
-      setReviewDraft("");
-      onReviewDone();
-    } catch {
-      setReviewError("Network error, please try again.");
-    } finally {
-      setSubmittingReview(false);
-    }
-  }
+      setReviewCount((count) => count + 1);
+      setReviewsLoaded(true);
+      setReviewsOpen(true);
+    };
+    window.addEventListener("arena:review-created", onReviewCreated);
+    return () => window.removeEventListener("arena:review-created", onReviewCreated);
+  }, [productId]);
 
   const borderClass = isMyVote
     ? "border-accent"
@@ -379,37 +361,6 @@ function SideCard({
         {voting ? "Voting…" : isMyVote ? "✓ Voted" : disabled ? "Not selected" : "Vote for this side"}
       </button>
 
-      {showReviewPrompt && isMyVote && (
-        <div className="flex flex-col gap-2 rounded-lg border border-accent/30 bg-accent-soft/5 p-3">
-          <span className="text-xs font-semibold text-ink">
-            Why did you vote for {name}? <span className="font-normal text-muted">(optional)</span>
-          </span>
-          <textarea
-            value={reviewDraft}
-            onChange={(e) => setReviewDraft(e.target.value.slice(0, REVIEW_BODY_MAX))}
-            rows={2}
-            placeholder="Share what stood out... (optional)"
-            className="resize-none rounded-lg border border-border bg-bg px-2.5 py-2 text-xs text-ink placeholder:text-muted"
-          />
-          {reviewError && <p className="text-xs text-danger">{reviewError}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={onReviewDone}
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted transition-colors duration-150 ease-out hover:text-ink"
-            >
-              Skip
-            </button>
-            <button
-              onClick={submitReview}
-              disabled={submittingReview || !reviewDraft.trim()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink disabled:opacity-50"
-            >
-              {submittingReview ? "Submitting…" : "Submit review"}
-            </button>
-          </div>
-        </div>
-      )}
-
       <BoostMove
         productId={productId}
         matchId={matchId}
@@ -456,8 +407,6 @@ export function MatchCard({
   voting = false,
   onVote,
   onPaid,
-  showReviewPrompt = false,
-  onReviewDone,
   analytics = {},
 }: {
   match: MatchWithProducts;
@@ -467,8 +416,6 @@ export function MatchCard({
   onPaid?: () => void;
   // True only in the same session, right after this exact duel's vote was
   // cast — never persisted, never re-shown on a later visit or reload.
-  showReviewPrompt?: boolean;
-  onReviewDone?: () => void;
   analytics?: Record<string, ProductAnalyticsDaily>;
 }) {
   const disabled = votedSide !== undefined;
@@ -530,8 +477,6 @@ export function MatchCard({
           votedSide={votedSide}
           onVote={(side) => onVote(match.id, side)}
           onPaid={onPaid}
-          showReviewPrompt={showReviewPrompt}
-          onReviewDone={onReviewDone ?? (() => {})}
         />
         <VsDivider />
         <SideCard
@@ -558,8 +503,6 @@ export function MatchCard({
           votedSide={votedSide}
           onVote={(side) => onVote(match.id, side)}
           onPaid={onPaid}
-          showReviewPrompt={showReviewPrompt}
-          onReviewDone={onReviewDone ?? (() => {})}
         />
       </div>
       {disabled && (
@@ -568,3 +511,4 @@ export function MatchCard({
     </div>
   );
 }
+

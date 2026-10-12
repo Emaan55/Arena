@@ -25,6 +25,13 @@ import { BrandLogo } from "./BrandLogo";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { ArenaReachStats } from "./ArenaReachStats";
 import type { ArenaPublicMetrics } from "@/lib/site-metrics";
+import { VoteReviewPrompt } from "./VoteReviewPrompt";
+import {
+  clearPendingVoteReview,
+  loadPendingVoteReview,
+  savePendingVoteReview,
+  type PendingVoteReview,
+} from "@/lib/vote-review-prompt";
 
 const POLL_MS = 5000;
 const VOTED_STORAGE_KEY = "arena_voted_matches";
@@ -45,10 +52,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
   const [votedMap, setVotedMap] = useState<Record<string, VoteSide>>({});
   const [pendingVotes, setPendingVotes] = useState<Set<string>>(new Set());
   const [voteError, setVoteError] = useState<string | null>(null);
-  // Only set for the exact duel just voted on, this session — never
-  // persisted, never re-shown on a later visit or reload of an
-  // already-voted match (see castVote/markVoted below).
-  const [justVotedMatchId, setJustVotedMatchId] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingVoteReview | null>(null);
   const [challenge, setChallenge] = useState<{ category: Category; from: string } | null>(null);
   const inFlight = useRef(false);
   const { user, loading: authLoading } = useAuthUser();
@@ -60,6 +64,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
     // window-less render, avoiding a hydration mismatch.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVotedMap(loadVotedMap());
+    setPendingReview(loadPendingVoteReview());
 
     const params = new URLSearchParams(window.location.search);
     const joinCategory = params.get("join");
@@ -151,7 +156,13 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
         return;
       }
       markVoted(matchId, side);
-      setJustVotedMatchId(matchId);
+      const votedMatch = state.matches.find((match) => match.id === matchId);
+      if (votedMatch) {
+        const product = side === "a" ? votedMatch.product_a : votedMatch.product_b;
+        const review = { matchId, productId: product.id, productName: product.name, side };
+        savePendingVoteReview(review);
+        setPendingReview(review);
+      }
       if (data.state) setState(data.state);
     } catch {
       setVoteError("Network error, please try again.");
@@ -314,8 +325,6 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
                       voting={pendingVotes.has(m.id)}
                       onVote={castVote}
                       onPaid={refreshState}
-                      showReviewPrompt={justVotedMatchId === m.id}
-                      onReviewDone={() => setJustVotedMatchId(null)}
                     />
                   ))}
                 </div>
@@ -400,6 +409,15 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
           </div>
         </section>
       </ScrollReveal>
+      <VoteReviewPrompt
+        key={pendingReview?.matchId ?? "no-pending-review"}
+        pending={pendingReview}
+        onDone={() => {
+          if (pendingReview) clearPendingVoteReview(pendingReview.matchId);
+          setPendingReview(null);
+        }}
+      />
     </main>
   );
 }
+
