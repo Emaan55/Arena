@@ -4,7 +4,7 @@ import type { Database } from "@/types/database";
 
 type AdminClient = SupabaseClient<Database>;
 
-export const REVIEW_BODY_MAX = 500;
+export { REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "./product-review-limits";
 
 // Same schema-readiness pattern as isDirectoryLibraryReady/isAdminAuditSchemaReady
 // elsewhere — migration 0021 may not be applied yet on a given environment,

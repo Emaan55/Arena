@@ -4,7 +4,7 @@ import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
-import { isProductReviewsReady, REVIEW_BODY_MAX } from "@/lib/reviews";
+import { isProductReviewsReady, REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "@/lib/reviews";
 import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 
 const MAX_BATCH_IDS = 100;
@@ -111,8 +111,8 @@ export async function POST(req: NextRequest) {
   if (!matchId || !productId) {
     return NextResponse.json({ error: "Invalid review." }, { status: 400 });
   }
-  if (!reviewBody || reviewBody.length > REVIEW_BODY_MAX) {
-    return NextResponse.json({ error: `Review must be between 1 and ${REVIEW_BODY_MAX} characters.` }, { status: 400 });
+  if (reviewBody.length < REVIEW_BODY_MIN || reviewBody.length > REVIEW_BODY_MAX) {
+    return NextResponse.json({ error: `Review must be between ${REVIEW_BODY_MIN} and ${REVIEW_BODY_MAX} characters.` }, { status: 400 });
   }
 
   const supabaseAuth = await createRouteHandlerSupabaseClient();

@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, MessageSquare, X } from "lucide-react";
 import type { PendingVoteReview } from "@/lib/vote-review-prompt";
-
-const REVIEW_BODY_MAX = 500;
+import { REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "@/lib/product-review-limits";
 
 interface CreatedReview {
   id: string;
@@ -47,7 +46,11 @@ export function VoteReviewPrompt({
 
   async function submitReview() {
     const body = draft.trim();
-    if (!body || !pending) return;
+    if (!pending) return;
+    if (body.length < REVIEW_BODY_MIN || body.length > REVIEW_BODY_MAX) {
+      setError(`Review must be between ${REVIEW_BODY_MIN} and ${REVIEW_BODY_MAX} characters.`);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -133,14 +136,16 @@ export function VoteReviewPrompt({
             ref={textareaRef}
             id="post-vote-review"
             value={draft}
+            minLength={REVIEW_BODY_MIN}
+            maxLength={REVIEW_BODY_MAX}
             onChange={(event) => setDraft(event.target.value.slice(0, REVIEW_BODY_MAX))}
             rows={4}
             placeholder="Share what you liked about this product..."
             className="resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15 placeholder:text-muted"
           />
           <div className="flex items-center justify-between text-xs text-muted">
-            <span>{error ?? "Your review will appear on this product's live battle card."}</span>
-            <span className="shrink-0 pl-3 font-mono">{draft.length}/{REVIEW_BODY_MAX}</span>
+            <span aria-live="polite">{error ?? `Minimum ${REVIEW_BODY_MIN} characters. Your review will appear on this product's live battle card.`}</span>
+            <span className="shrink-0 pl-3 font-mono">{draft.trim().length}/{REVIEW_BODY_MAX}</span>
           </div>
         </div>
 
@@ -156,7 +161,7 @@ export function VoteReviewPrompt({
           <button
             type="button"
             onClick={submitReview}
-            disabled={submitting || !draft.trim()}
+            disabled={submitting || draft.trim().length < REVIEW_BODY_MIN}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:translate-y-0 disabled:opacity-50"
           >
             {submitting ? "Publishing…" : "Publish review"}
@@ -166,4 +171,3 @@ export function VoteReviewPrompt({
     </div>
   );
 }
-
