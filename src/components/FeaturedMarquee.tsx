@@ -26,6 +26,15 @@ interface FeaturedBadge {
 
 const FEATURED_BADGES: FeaturedBadge[] = [
   {
+    href: "https://aixcollection.com/ai/thearena",
+    rel: "noopener noreferrer",
+    src: "https://aixcollection.com/assets/images/badge.png",
+    alt: "AI X Collection",
+    width: 220,
+    height: 54,
+    lazy: true,
+  },
+  {
     href: "https://www.scrolllaunch.com/products/the-arena?ref=badge",
     rel: "noopener",
     src: "https://www.scrolllaunch.com/api/badge/the-arena",
