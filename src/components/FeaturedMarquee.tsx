@@ -19,9 +19,7 @@ interface FeaturedBadge {
   imgDataAttr?: { name: string; value: string };
 }
 
-// Keep the supplied verification badge visible and outside the animated,
-// duplicated track. Its image remains a direct child of the provider link.
-const VERIFICATION_BADGE: FeaturedBadge = {
+const AI_X_COLLECTION_BADGE: FeaturedBadge = {
   href: "https://aixcollection.com/ai/thearena",
   rel: "noopener",
   src: "https://aixcollection.com/assets/images/badge.png",
@@ -32,6 +30,7 @@ const VERIFICATION_BADGE: FeaturedBadge = {
 };
 
 const FEATURED_BADGES: FeaturedBadge[] = [
+  AI_X_COLLECTION_BADGE,
   {
     href: "https://www.scrolllaunch.com/products/the-arena?ref=badge",
     rel: "noopener",
@@ -191,10 +190,9 @@ const FEATURED_BADGES: FeaturedBadge[] = [
   },
 ];
 
-function BadgeLink({ badge, duplicate = false, pinned = false }: {
+function BadgeLink({ badge, duplicate = false }: {
   badge: FeaturedBadge;
   duplicate?: boolean;
-  pinned?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const imageRef = useCallback((image: HTMLImageElement | null) => {
@@ -213,7 +211,7 @@ function BadgeLink({ badge, duplicate = false, pinned = false }: {
       aria-label={badge.ariaLabel ?? badge.alt}
       aria-hidden={duplicate || undefined}
       tabIndex={duplicate ? -1 : undefined}
-      className={`relative flex shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${pinned ? "" : "mr-10"} ${duplicate ? "motion-reduce:hidden" : ""}`}
+      className={`relative mr-10 flex shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${duplicate ? "motion-reduce:hidden" : ""}`}
       style={{ width: displayWidth, height: displayHeight }}
     >
       <img
@@ -244,10 +242,7 @@ export function FeaturedMarquee() {
   return (
     <div className="border-t border-border">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 md:px-10 lg:flex-row lg:items-center">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
-          <BadgeLink badge={VERIFICATION_BADGE} pinned />
-        </div>
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
         <div
           className="group relative min-w-0 w-full flex-1 overflow-hidden motion-reduce:overflow-x-auto"
           style={{
