@@ -1,14 +1,9 @@
-/**
- * "As featured on" badges as a continuous, seamless-loop marquee. Pure CSS
- * (the @keyframes lives in globals.css) — no JS, no client component, no
- * carousel library. The badge list is rendered twice back to back and the
- * whole track shifts left by 50% of its own width per loop; see the
- * `marquee` keyframe's comment for why spacing has to come from a margin
- * on each badge rather than a flex `gap`.
- *
- * Every href/src/alt/rel/width/height below is exactly what was pasted in
- * when each badge was added — this only changes how they're laid out and
- * displayed (size, grayscale-until-hover), never the link or image itself.
+"use client";
+
+import { useCallback, useState } from "react";
+
+/** Provider links and image URLs stay in the initial server-rendered HTML.
+ * Image failures get a readable linked label without changing the source.
  */
 interface FeaturedBadge {
   href: string;
@@ -24,16 +19,19 @@ interface FeaturedBadge {
   imgDataAttr?: { name: string; value: string };
 }
 
+// Keep the supplied verification badge visible and outside the animated,
+// duplicated track. Its image remains a direct child of the provider link.
+const VERIFICATION_BADGE: FeaturedBadge = {
+  href: "https://aixcollection.com/ai/thearena",
+  rel: "noopener",
+  src: "https://aixcollection.com/assets/images/badge.png",
+  alt: "AI X Collection",
+  width: 213,
+  height: 54,
+  lazy: true,
+};
+
 const FEATURED_BADGES: FeaturedBadge[] = [
-  {
-    href: "https://aixcollection.com/ai/thearena",
-    rel: "noopener noreferrer",
-    src: "https://aixcollection.com/assets/images/badge.png",
-    alt: "AI X Collection",
-    width: 220,
-    height: 54,
-    lazy: true,
-  },
   {
     href: "https://www.scrolllaunch.com/products/the-arena?ref=badge",
     rel: "noopener",
@@ -103,6 +101,7 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     src: "https://neeed.directory/badges/neeed-badge-light.svg",
     alt: "Featured on neeed.directory",
     width: 139,
+    height: 44,
   },
   {
     href: "https://tools.launchllama.co/products/the-arena?utm_source=badge&utm_medium=referral",
@@ -187,30 +186,56 @@ const FEATURED_BADGES: FeaturedBadge[] = [
     src: "https://kittylaunch.com/api/public/badges/launch_badge.svg?style=pill&theme=light",
     alt: "The Arena — Verified by KittyLaunch",
     width: 296,
+    height: 76,
     imgDataAttr: { name: "data-kittylaunch-badge", value: "1" },
   },
 ];
 
-function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplicate?: boolean }) {
+function BadgeLink({ badge, duplicate = false, pinned = false }: {
+  badge: FeaturedBadge;
+  duplicate?: boolean;
+  pinned?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const imageRef = useCallback((image: HTMLImageElement | null) => {
+    // The browser may finish loading an SSR image before React attaches
+    // onError. Check it when the element mounts as well as on load/error.
+    if (image?.complete) setFailed(image.naturalWidth === 0);
+  }, []);
+  const displayHeight = 54;
+  const displayWidth = Math.round(badge.width * displayHeight / (badge.height ?? displayHeight));
+
   return (
     <a
       href={badge.href}
       target="_blank"
       rel={badge.rel}
-      aria-label={badge.ariaLabel}
+      aria-label={badge.ariaLabel ?? badge.alt}
       aria-hidden={duplicate || undefined}
       tabIndex={duplicate ? -1 : undefined}
-      className={`mr-10 flex shrink-0 items-center ${duplicate ? "motion-reduce:hidden" : ""}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${pinned ? "" : "mr-10"} ${duplicate ? "motion-reduce:hidden" : ""}`}
+      style={{ width: displayWidth, height: displayHeight }}
     >
       <img
+        ref={imageRef}
         src={badge.src}
         alt={badge.alt}
         width={badge.width}
         height={badge.height}
         loading={badge.lazy ? "lazy" : undefined}
-        className="h-9 w-auto object-contain opacity-80 grayscale transition-all duration-200 ease-out hover:opacity-100 hover:grayscale-0"
+        onError={() => setFailed(true)}
+        onLoad={() => setFailed(false)}
+        className={`h-full w-full object-contain transition-opacity duration-200 ease-out ${failed ? "invisible" : "opacity-100 hover:opacity-80"}`}
         {...(badge.imgDataAttr ? { [badge.imgDataAttr.name]: badge.imgDataAttr.value } : {})}
       />
+      {failed && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 flex items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink"
+        >
+          <span className="truncate">{badge.alt}</span>
+        </span>
+      )}
     </a>
   );
 }
@@ -218,10 +243,13 @@ function BadgeLink({ badge, duplicate = false }: { badge: FeaturedBadge; duplica
 export function FeaturedMarquee() {
   return (
     <div className="border-t border-border">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-5 md:px-10">
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 md:px-10 lg:flex-row lg:items-center">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted">As featured on</span>
+          <BadgeLink badge={VERIFICATION_BADGE} pinned />
+        </div>
         <div
-          className="group relative min-w-0 flex-1 overflow-hidden motion-reduce:overflow-x-auto"
+          className="group relative min-w-0 w-full flex-1 overflow-hidden motion-reduce:overflow-x-auto"
           style={{
             maskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
             WebkitMaskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
