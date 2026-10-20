@@ -12,9 +12,9 @@ export function StatsRow({ stats }: { stats: HomeStats }) {
   return (
     <div className="grid w-full max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
       {items.map(({ icon: Icon, value, label }) => (
-        <div key={label} className="flex flex-col items-center gap-1 bg-surface px-4 py-5 text-center">
-          <Icon className="mb-1 h-4 w-4 text-accent" />
-          <span className="font-mono text-2xl font-bold text-ink">{value.toLocaleString()}</span>
+        <div key={label} className="flex flex-col items-center gap-1 bg-surface px-3 py-3 text-center">
+          <Icon className="h-4 w-4 text-accent" aria-hidden="true" />
+          <span className="font-mono text-xl font-bold text-ink">{value.toLocaleString()}</span>
           <span className="text-xs text-muted">{label}</span>
         </div>
       ))}

@@ -203,17 +203,20 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
   return (
     <main className="flex flex-col">
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pb-14 pt-16 text-center sm:pt-24">
+      <section className="relative overflow-hidden px-4 pb-8 pt-5 text-center sm:px-6 sm:pt-6">
         <ArenaBackdrop />
-        <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6">
-          <h1 className="font-display text-4xl font-black leading-[1.08] text-ink sm:text-6xl">
-            Products fight.
-            <br />
-            <span className="text-accent">Winners live forever.</span>
-          </h1>
-          <p className="max-w-lg text-base text-muted sm:text-lg">
-            Free to enter. Win 3 duels to become a permanent Hall of Fame champion.
-          </p>
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-6">
+          <header className="flex w-full flex-col items-center gap-6 sm:gap-8">
+            <ArenaReachStats metrics={publicMetrics} />
+            <h1 className="font-display text-4xl font-black leading-[1.08] text-ink sm:text-6xl">
+              Products fight.
+              <br />
+              <span className="text-accent">Winners live forever.</span>
+            </h1>
+            <p className="max-w-lg text-base text-muted sm:text-lg">
+              Free to enter. Win 3 duels to become a permanent Hall of Fame champion.
+            </p>
+          </header>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href="#submit"
@@ -228,31 +231,22 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
               Explore Arenas
             </a>
           </div>
-          <div className="mt-6 flex justify-center">
+          <div className="flex w-full justify-center">
             <StatsRow stats={state.stats} />
           </div>
-          <div className="mt-3 flex w-full justify-center">
-            <ArenaReachStats metrics={publicMetrics} />
-          </div>
+          <section id="how-it-works" className="w-full border-t border-border pt-6 text-left">
+            <h2 className="mb-5 text-center font-display text-xl font-bold text-ink sm:text-2xl">
+              How The <span className="text-accent">Arena</span> Works
+            </h2>
+            <HowItWorks />
+          </section>
         </div>
       </section>
 
       {/* Submission form */}
-      <section className="px-6 pb-16">
+      <section className="px-6 pb-8">
         <SubmitForm onSubmitted={handleSubmitted} />
       </section>
-
-      {/* How it works */}
-      <ScrollReveal>
-        <section id="how-it-works" className="border-t border-border px-6 py-16 md:px-10">
-          <div className="mx-auto flex max-w-5xl flex-col gap-10">
-            <h2 className="text-center font-display text-2xl font-bold text-ink sm:text-3xl">
-              How The <span className="text-accent">Arena</span> Works
-            </h2>
-            <HowItWorks />
-          </div>
-        </section>
-      </ScrollReveal>
 
       {/* Sponsored */}
       <SponsoredSection sponsorship={state.sponsorship} onPaid={refreshState} />
@@ -420,4 +414,3 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
     </main>
   );
 }
-
