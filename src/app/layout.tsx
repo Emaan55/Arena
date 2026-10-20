@@ -54,7 +54,8 @@ export const metadata: Metadata = {
   description:
     "Submit your product for free and battle head-to-head against other products in your category. First to 100 votes wins. Win 3 in a row, become the Champion.",
   alternates: {
-    canonical: SITE_URL,
+    // Next resolves this against the current route and metadataBase, not just the homepage.
+    canonical: "./",
   },
   openGraph: {
     title: SITE_TITLE,
