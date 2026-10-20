@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Activity, Check, MessageSquare, Swords } from "lucide-react";
+import { Activity, Check, ExternalLink, MessageSquare, Swords } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { ProductAnalyticsDaily, VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
@@ -321,9 +321,7 @@ function SideCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <a
-            href={`/api/products/${productId}/outbound`}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
+            href={`/product/${productId}`}
             className="group flex min-w-0 items-center gap-3"
           >
             <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
@@ -374,8 +372,17 @@ function SideCard({
         </div>
       </div>
 
-      <div className="text-[11px] text-muted">
-        {outboundClicks.toLocaleString()} website clicks
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted">
+        <span>{outboundClicks.toLocaleString()} website clicks</span>
+        <a
+          href={`/api/products/${productId}/outbound`}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          aria-label={`Visit ${name} website (opens in a new tab)`}
+          className="inline-flex items-center gap-1 py-1 font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Visit Website <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        </a>
       </div>
 
       <ReviewsPanel
