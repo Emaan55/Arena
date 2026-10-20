@@ -4,12 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, MessageSquare, X } from "lucide-react";
 import type { PendingVoteReview } from "@/lib/vote-review-prompt";
 import { REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "@/lib/product-review-limits";
-
-interface CreatedReview {
-  id: string;
-  body: string;
-  createdAt: string;
-}
+import type { PublicProductReview } from "@/lib/reviewer-profile";
 
 /**
  * A post-vote dialog that is independent from the duel card. A deciding
@@ -69,10 +64,12 @@ export function VoteReviewPrompt({
         return;
       }
 
-      const review: CreatedReview = {
+      const review: PublicProductReview = {
         id: data.review.id,
         body: data.review.body,
         createdAt: data.review.created_at,
+        authorName: data.review.authorName ?? "Arena member",
+        authorAvatarUrl: data.review.authorAvatarUrl ?? null,
       };
       window.dispatchEvent(
         new CustomEvent("arena:review-created", {

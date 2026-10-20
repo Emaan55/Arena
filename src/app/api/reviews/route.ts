@@ -6,6 +6,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { isProductReviewsReady, REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "@/lib/reviews";
 import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
+import { getReviewAuthors } from "@/lib/review-authors";
+import { resolveReviewAuthor } from "@/lib/reviewer-profile";
 
 const MAX_BATCH_IDS = 100;
 const REVIEW_LIST_LIMIT = 50;
@@ -56,24 +58,12 @@ export async function GET(req: NextRequest) {
 
     const rows = data ?? [];
     const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
-    const nameById = new Map<string, string>();
-    if (userIds.length > 0) {
-      // Same "look up display names via listUsers" pattern as the discount
-      // drop leaderboard (src/app/api/get-listed/discount-drop/leaderboard/route.ts)
-      // — this app has no separate public-profile table.
-      const { data: usersPage } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      for (const u of usersPage?.users ?? []) {
-        if (userIds.includes(u.id)) {
-          const fullName = u.user_metadata?.full_name;
-          nameById.set(u.id, typeof fullName === "string" && fullName.trim() ? fullName.trim() : "Voter");
-        }
-      }
-    }
+    const authorById = await getReviewAuthors(admin, userIds);
 
     const reviews = rows.map((r) => ({
       id: r.id,
       body: r.body,
-      authorName: nameById.get(r.user_id) ?? "Voter",
+      ...(authorById.get(r.user_id) ?? resolveReviewAuthor(null)),
       createdAt: r.created_at,
     }));
 
@@ -173,5 +163,6 @@ export async function POST(req: NextRequest) {
   logSecurityEvent("review_success", { ip, matchId, userId: user.id, productId });
   scheduleFounderNotificationDelivery();
 
-  return NextResponse.json({ review }, { status: 201 });
+  const authorById = await getReviewAuthors(admin, [user.id], [user]);
+  return NextResponse.json({ review: { ...review, ...(authorById.get(user.id) ?? resolveReviewAuthor(user)) } }, { status: 201 });
 }

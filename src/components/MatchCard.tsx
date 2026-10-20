@@ -10,6 +10,8 @@ import { ShareButtons } from "./ShareButtons";
 import { BattlePitch } from "./BattlePitch";
 import { XHandleLink } from "./XHandleLink";
 import { EditProductButton } from "./EditProductButton";
+import { ReviewAvatar } from "./reviews/ReviewCard";
+import type { PublicProductReview } from "@/lib/reviewer-profile";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
@@ -124,19 +126,9 @@ function BoostMove({
   );
 }
 
-interface ReviewEntry {
-  id: string;
-  body: string;
-  authorName: string;
-  createdAt: string;
-}
-
 /**
- * Collapsed by default: just the count, no request for the list until a
- * viewer actually clicks it. The count itself is fetched once per card on
- * mount (a single indexed count query — see /api/reviews) rather than
- * threaded through the arena-state polling loop, so this feature stays
- * fully self-contained and never touches ArenaState's shape.
+ * Counts load on mount; public reviewer profiles load only when expanded.
+ * Reviews remain independent of the arena-state polling loop.
  */
 function ReviewsPanel({
   count,
@@ -144,16 +136,23 @@ function ReviewsPanel({
   loaded,
   open,
   onToggle,
+  loading,
+  error,
+  onRetry,
 }: {
   count: number;
-  reviews: ReviewEntry[];
+  reviews: PublicProductReview[];
   loaded: boolean;
   open: boolean;
   onToggle: () => void;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <button
+        aria-expanded={open}
         onClick={onToggle}
         disabled={!loaded || count === 0}
         className="flex items-center gap-1.5 self-start text-xs font-medium text-muted transition-colors duration-150 ease-out hover:text-accent disabled:cursor-default disabled:hover:text-muted"
@@ -161,15 +160,28 @@ function ReviewsPanel({
         <MessageSquare className="h-3.5 w-3.5" />
         {count} review{count === 1 ? "" : "s"}
       </button>
-      {open && reviews.length > 0 && (
-        <ul className="flex max-h-48 flex-col gap-2 overflow-y-auto rounded-lg border border-border bg-surface-2 p-3">
-          {reviews.map((r) => (
-            <li key={r.id} className="flex flex-col gap-0.5 border-b border-border pb-2 text-xs last:border-0 last:pb-0">
-              <span className="font-semibold text-ink">{r.authorName}</span>
-              <span className="leading-snug text-muted">{r.body}</span>
-            </li>
-          ))}
-        </ul>
+      {open && (
+        <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-surface-2 p-3">
+          {loading && <p role="status" className="text-xs text-muted">Loading reviews…</p>}
+          {error && <p role="alert" className="text-xs text-muted">{error} <button onClick={onRetry} className="font-semibold text-accent hover:underline">Try again</button></p>}
+          {!loading && !error && reviews.length === 0 && <p className="text-xs text-muted">No reviews available.</p>}
+          <ul className="flex flex-col gap-3">
+            {reviews.map((r) => (
+              <li key={r.id} className="flex min-w-0 flex-col gap-2 border-b border-border pb-3 text-xs last:border-0 last:pb-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <ReviewAvatar name={r.authorName} url={r.authorAvatarUrl ?? null} small />
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-ink">{r.authorName}</p>
+                    <time dateTime={r.createdAt} className="text-[10px] text-muted">
+                      {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                    </time>
+                  </div>
+                </div>
+                <span className="break-words leading-snug text-muted">{r.body}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
@@ -226,18 +238,20 @@ function SideCard({
   const pct = Math.min(100, (votes / VOTES_TO_WIN) * 100);
 
   const [reviewCount, setReviewCount] = useState(0);
-  const [reviews, setReviews] = useState<ReviewEntry[]>([]);
+  const [reviews, setReviews] = useState<PublicProductReview[]>([]);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [reviewsFetched, setReviewsFetched] = useState(false);
+  const [reviewListLoading, setReviewListLoading] = useState(false);
+  const [reviewListError, setReviewListError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/reviews?productId=${productId}`)
+    fetch(`/api/reviews?productIds=${productId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        setReviewCount(data.count ?? 0);
-        setReviews(data.reviews ?? []);
+        setReviewCount(data.counts?.[productId] ?? 0);
         setReviewsLoaded(true);
       })
       .catch(() => {});
@@ -250,12 +264,12 @@ function SideCard({
     const onReviewCreated = (event: Event) => {
       const detail = (event as CustomEvent<{
         productId: string;
-        review: { id: string; body: string; createdAt: string };
+        review: PublicProductReview;
       }>).detail;
       if (!detail || detail.productId !== productId) return;
       setReviews((previous) => {
         if (previous.some((review) => review.id === detail.review.id)) return previous;
-        return [{ ...detail.review, authorName: "You" }, ...previous];
+        return [detail.review, ...previous];
       });
       setReviewCount((count) => count + 1);
       setReviewsLoaded(true);
@@ -264,6 +278,34 @@ function SideCard({
     window.addEventListener("arena:review-created", onReviewCreated);
     return () => window.removeEventListener("arena:review-created", onReviewCreated);
   }, [productId]);
+
+  async function loadReviews() {
+    if (reviewListLoading) return;
+    setReviewListLoading(true);
+    setReviewListError(null);
+    try {
+      const response = await fetch(`/api/reviews?productId=${productId}`);
+      if (!response.ok) throw new Error("Could not load reviews.");
+      const data = await response.json();
+      // Preserve a review published while this request was in flight.
+      setReviews((previous) => {
+        const fetched: PublicProductReview[] = data.reviews ?? [];
+        const ids = new Set(fetched.map((review) => review.id));
+        return [...previous.filter((review) => !ids.has(review.id)), ...fetched];
+      });
+      setReviewCount((count) => Math.max(count, data.count ?? 0));
+      setReviewsFetched(true);
+    } catch {
+      setReviewListError("Could not load reviews.");
+    } finally {
+      setReviewListLoading(false);
+    }
+  }
+
+  function toggleReviews() {
+    setReviewsOpen(!reviewsOpen);
+    if (!reviewsOpen && !reviewsFetched) void loadReviews();
+  }
 
   const borderClass = isMyVote
     ? "border-accent"
@@ -341,7 +383,10 @@ function SideCard({
         reviews={reviews}
         loaded={reviewsLoaded}
         open={reviewsOpen}
-        onToggle={() => setReviewsOpen((v) => !v)}
+        onToggle={toggleReviews}
+        loading={reviewListLoading}
+        error={reviewListError}
+        onRetry={loadReviews}
       />
 
       {/* Always the same slot/height on both sides — the label and style
@@ -509,4 +554,3 @@ export function MatchCard({
     </div>
   );
 }
-
