@@ -8,6 +8,8 @@ import { isProductReviewsReady, REVIEW_BODY_MIN, REVIEW_BODY_MAX } from "@/lib/r
 import { scheduleFounderNotificationDelivery } from "@/lib/founder-notifications";
 import { getReviewAuthors } from "@/lib/review-authors";
 import { resolveReviewAuthor } from "@/lib/reviewer-profile";
+import { REVIEW_UUID } from "@/lib/founder-reply";
+import type { User } from "@supabase/supabase-js";
 
 const MAX_BATCH_IDS = 100;
 const REVIEW_LIST_LIMIT = 50;
@@ -28,6 +30,8 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const productIdsParam = url.searchParams.get("productIds");
   const productId = url.searchParams.get("productId");
+  const reviewId = url.searchParams.get("reviewId");
+  if (reviewId && !REVIEW_UUID.test(reviewId)) return NextResponse.json({ error: "Invalid review." }, { status: 400 });
 
   const admin = createAdminSupabaseClient();
   const ready = await isProductReviewsReady(admin);
@@ -49,25 +53,46 @@ export async function GET(req: NextRequest) {
   if (productId) {
     if (!ready) return NextResponse.json({ count: 0, reviews: [] });
 
-    const { data, count } = await admin
+    let query = admin
       .from("product_reviews")
       .select("id, body, created_at, user_id", { count: "exact" })
       .eq("product_id", productId)
       .order("created_at", { ascending: false })
       .limit(REVIEW_LIST_LIMIT);
+    if (reviewId) query = query.eq("id", reviewId);
+    const { data, count } = await query;
 
     const rows = data ?? [];
-    const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+    const replyResult = rows.length ? await admin.from("product_review_replies")
+      .select("id,review_id,author_id,body,created_at,updated_at").in("review_id", rows.map((row) => row.id)) : { data: [], error: null };
+    // Unapplied migration or a transient failure must never break existing reviews.
+    const replies = replyResult.data ?? [];
+    let user: User | null = null;
+    try {
+      const auth = await createRouteHandlerSupabaseClient();
+      user = (await auth.auth.getUser()).data.user;
+    } catch {
+      // Public reviews/replies remain readable if session verification is unavailable.
+    }
+    const { data: product } = user ? await admin.from("products").select("owner_id").eq("id", productId).maybeSingle() : { data: null };
+    const canReply = !replyResult.error && Boolean(user && !user.deleted_at && product?.owner_id === user.id);
+    const replyByReview = new Map(replies.map((reply) => [reply.review_id, reply]));
+    const userIds = Array.from(new Set([...rows.map((r) => r.user_id), ...replies.map((r) => r.author_id)]));
     const authorById = await getReviewAuthors(admin, userIds);
 
-    const reviews = rows.map((r) => ({
-      id: r.id,
-      body: r.body,
-      ...(authorById.get(r.user_id) ?? resolveReviewAuthor(null)),
-      createdAt: r.created_at,
-    }));
+    const reviews = rows.map((r) => {
+      const reply = replyByReview.get(r.id);
+      return {
+        id: r.id,
+        body: r.body,
+        ...(authorById.get(r.user_id) ?? resolveReviewAuthor(null)),
+        createdAt: r.created_at,
+        reply: reply ? { id: reply.id, body: reply.body, createdAt: reply.created_at, updatedAt: reply.updated_at,
+          ...(authorById.get(reply.author_id) ?? resolveReviewAuthor(null)), canManage: canReply && reply.author_id === user?.id } : null,
+      };
+    });
 
-    return NextResponse.json({ count: count ?? reviews.length, reviews });
+    return NextResponse.json({ count: count ?? reviews.length, reviews, canReply, viewerId: user?.id ?? null }, { headers: { "Cache-Control": "private, no-store" } });
   }
 
   return NextResponse.json({ error: "productId or productIds is required." }, { status: 400 });

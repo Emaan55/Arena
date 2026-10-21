@@ -20,6 +20,8 @@ const dependencies = {
   "./XHandleLink": { XHandleLink: () => null },
   "./EditProductButton": { EditProductButton: () => null },
   "./reviews/ReviewCard": { ReviewAvatar: () => null },
+  "./FounderReviewReply": { FounderReviewReply: () => null },
+  "@/lib/founder-reply": require("../src/lib/founder-reply.ts"),
 };
 const compiledModule = { exports: {} };
 new Function("require", "module", "exports", outputText)(

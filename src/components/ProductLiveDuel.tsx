@@ -119,6 +119,7 @@ export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts
   return (
     <div className="flex flex-col gap-2">
       <MatchCard
+        viewerId={user?.id}
         match={match}
         analytics={analytics}
         votedSide={votedSide}
@@ -139,4 +140,3 @@ export function ProductLiveDuel({ match, analytics }: { match: MatchWithProducts
     </div>
   );
 }
-

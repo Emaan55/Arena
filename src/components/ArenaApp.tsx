@@ -313,6 +313,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
                   {filtered.matches.map((m) => (
                     <MatchCard
                       key={m.id}
+                      viewerId={user?.id}
                       match={m}
                       analytics={state.productAnalytics}
                       votedSide={votedMap[m.id]}

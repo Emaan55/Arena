@@ -112,6 +112,10 @@ export type ProductReview = {
   created_at: string;
 };
 
+export type ProductReviewReply = {
+  id: string; review_id: string; product_id: string; author_id: string; body: string; created_at: string; updated_at: string;
+};
+
 // One row per free product submission a user has consumed — see migration
 // 0022 and claim_free_submission(). product_id is null until the claimed
 // submission actually succeeds.
@@ -439,6 +443,12 @@ export interface Database {
         Row: ProductReview;
         Insert: Partial<ProductReview>;
         Update: Partial<ProductReview>;
+        Relationships: Relationships;
+      };
+      product_review_replies: {
+        Row: ProductReviewReply;
+        Insert: Partial<ProductReviewReply>;
+        Update: Partial<ProductReviewReply>;
         Relationships: Relationships;
       };
       free_submission_claims: {

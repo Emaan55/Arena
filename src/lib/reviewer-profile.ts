@@ -2,7 +2,8 @@ import type { User } from "@supabase/supabase-js";
 import { safeAvatarUrl } from "./arena-review-validation";
 
 export type PublicReviewAuthor = { authorName: string; authorAvatarUrl: string | null };
-export type PublicProductReview = PublicReviewAuthor & { id: string; body: string; createdAt: string };
+export type PublicFounderReply = PublicReviewAuthor & { id: string; body: string; createdAt: string; updatedAt: string; canManage: boolean };
+export type PublicProductReview = PublicReviewAuthor & { id: string; body: string; createdAt: string; reply?: PublicFounderReply | null };
 export type StoredReviewerProfile = { author_name: string; profile_image_url: string | null; avatar_url: string | null };
 
 function publicName(value: unknown): string | null {

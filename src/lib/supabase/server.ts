@@ -13,9 +13,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
  * server-verified identity check (it re-validates the token against
  * Supabase's Auth server rather than just decoding a client-supplied
  * cookie) instead of anything the client could forge. Only ever used to
- * *read who the caller is* — every actual database write still goes
- * through the service-role admin client (see lib/supabase/admin.ts),
- * exactly as before.
+ * read who the caller is. Founder-reply writes also use this client so
+ * their owner-only RLS policies apply. Other existing writes continue
+ * through the service-role admin client (see lib/supabase/admin.ts).
  */
 export async function createRouteHandlerSupabaseClient() {
   const cookieStore = await cookies();

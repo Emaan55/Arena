@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Activity, Check, ExternalLink, MessageSquare, Swords } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { ProductAnalyticsDaily, VoteSide } from "@/types/database";
@@ -12,6 +12,9 @@ import { XHandleLink } from "./XHandleLink";
 import { EditProductButton } from "./EditProductButton";
 import { ReviewAvatar } from "./reviews/ReviewCard";
 import type { PublicProductReview } from "@/lib/reviewer-profile";
+import { FounderReviewReply } from "./FounderReviewReply";
+import type { PublicFounderReply } from "@/lib/reviewer-profile";
+import { REVIEW_UUID } from "@/lib/founder-reply";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
@@ -139,6 +142,8 @@ function ReviewsPanel({
   loading,
   error,
   onRetry,
+  canReply,
+  onReplyChanged,
 }: {
   count: number;
   reviews: PublicProductReview[];
@@ -148,6 +153,8 @@ function ReviewsPanel({
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  canReply: boolean;
+  onReplyChanged: (reviewId: string, reply: PublicFounderReply | null) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -167,7 +174,7 @@ function ReviewsPanel({
           {!loading && !error && reviews.length === 0 && <p className="text-xs text-muted">No reviews available.</p>}
           <ul className="flex flex-col gap-3">
             {reviews.map((r) => (
-              <li key={r.id} className="flex min-w-0 flex-col gap-2 border-b border-border pb-3 text-xs last:border-0 last:pb-0">
+              <li key={r.id} id={`review-${r.id}`} className="flex min-w-0 scroll-mt-24 flex-col gap-2 border-b border-border pb-3 text-xs last:border-0 last:pb-0">
                 <div className="flex min-w-0 items-center gap-2">
                   <ReviewAvatar name={r.authorName} url={r.authorAvatarUrl ?? null} small />
                   <div className="min-w-0">
@@ -178,6 +185,7 @@ function ReviewsPanel({
                   </div>
                 </div>
                 <span className="break-words leading-snug text-muted">{r.body}</span>
+                {(r.reply || canReply) && <FounderReviewReply reviewId={r.id} reply={r.reply ?? null} canReply={canReply} onChange={(reply) => onReplyChanged(r.id, reply)} />}
               </li>
             ))}
           </ul>
@@ -210,6 +218,7 @@ function SideCard({
   onVote,
   onPaid,
   outboundClicks,
+  viewerId,
 }: {
   productId: string;
   matchId: string;
@@ -233,6 +242,7 @@ function SideCard({
   onVote: (side: VoteSide) => void;
   onPaid?: () => void;
   outboundClicks: number;
+  viewerId?: string;
 }) {
   const isMyVote = votedSide === side;
   const pct = Math.min(100, (votes / VOTES_TO_WIN) * 100);
@@ -244,6 +254,34 @@ function SideCard({
   const [reviewsFetched, setReviewsFetched] = useState(false);
   const [reviewListLoading, setReviewListLoading] = useState(false);
   const [reviewListError, setReviewListError] = useState<string | null>(null);
+  const [replyAccess, setReplyAccess] = useState(false);
+  const reviewFetchInFlight = useRef(false);
+
+  const loadReviews = useCallback(async () => {
+    if (reviewFetchInFlight.current) return;
+    reviewFetchInFlight.current = true;
+    setReviewListLoading(true);
+    setReviewListError(null);
+    try {
+      const response = await fetch(`/api/reviews?productId=${productId}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Could not load reviews.");
+      const data = await response.json();
+      setReplyAccess(Boolean(viewerId && data.viewerId === viewerId && data.canReply));
+      // Preserve a review published while this request was in flight.
+      setReviews((previous) => {
+        const fetched: PublicProductReview[] = data.reviews ?? [];
+        const ids = new Set(fetched.map((review) => review.id));
+        return [...previous.filter((review) => !ids.has(review.id)), ...fetched];
+      });
+      setReviewCount((count) => Math.max(count, data.count ?? 0));
+      setReviewsFetched(true);
+    } catch {
+      setReviewListError("Could not load reviews.");
+    } finally {
+      reviewFetchInFlight.current = false;
+      setReviewListLoading(false);
+    }
+  }, [productId, viewerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,7 +289,7 @@ function SideCard({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        setReviewCount(data.counts?.[productId] ?? 0);
+        setReviewCount((count) => Math.max(count, data.counts?.[productId] ?? 0));
         setReviewsLoaded(true);
       })
       .catch(() => {});
@@ -259,6 +297,28 @@ function SideCard({
       cancelled = true;
     };
   }, [productId]);
+
+  useEffect(() => {
+    const target = new URLSearchParams(window.location.search).get("review");
+    if (!target || !REVIEW_UUID.test(target)) return;
+    let cancelled = false;
+    fetch(`/api/reviews?productId=${productId}&reviewId=${target}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (cancelled || !data?.reviews?.length) return;
+        setReviews(data.reviews); setReviewsOpen(true); setReviewsLoaded(true);
+        setReplyAccess(Boolean(viewerId && data.viewerId === viewerId && data.canReply));
+        setReviewCount((count) => Math.max(count, data.count ?? 0));
+      }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [productId, viewerId]);
+
+  useEffect(() => {
+    const target = new URLSearchParams(window.location.search).get("review");
+    if (!reviewsOpen || !target || !REVIEW_UUID.test(target)) return;
+    const frame = requestAnimationFrame(() => document.getElementById(`review-${target}`)?.scrollIntoView({ block: "center" }));
+    return () => cancelAnimationFrame(frame);
+  }, [reviewsOpen, reviews]);
 
   useEffect(() => {
     const onReviewCreated = (event: Event) => {
@@ -274,33 +334,11 @@ function SideCard({
       setReviewCount((count) => count + 1);
       setReviewsLoaded(true);
       setReviewsOpen(true);
+      void loadReviews();
     };
     window.addEventListener("arena:review-created", onReviewCreated);
     return () => window.removeEventListener("arena:review-created", onReviewCreated);
-  }, [productId]);
-
-  async function loadReviews() {
-    if (reviewListLoading) return;
-    setReviewListLoading(true);
-    setReviewListError(null);
-    try {
-      const response = await fetch(`/api/reviews?productId=${productId}`);
-      if (!response.ok) throw new Error("Could not load reviews.");
-      const data = await response.json();
-      // Preserve a review published while this request was in flight.
-      setReviews((previous) => {
-        const fetched: PublicProductReview[] = data.reviews ?? [];
-        const ids = new Set(fetched.map((review) => review.id));
-        return [...previous.filter((review) => !ids.has(review.id)), ...fetched];
-      });
-      setReviewCount((count) => Math.max(count, data.count ?? 0));
-      setReviewsFetched(true);
-    } catch {
-      setReviewListError("Could not load reviews.");
-    } finally {
-      setReviewListLoading(false);
-    }
-  }
+  }, [productId, loadReviews]);
 
   function toggleReviews() {
     setReviewsOpen(!reviewsOpen);
@@ -394,6 +432,8 @@ function SideCard({
         loading={reviewListLoading}
         error={reviewListError}
         onRetry={loadReviews}
+        canReply={replyAccess}
+        onReplyChanged={(reviewId, reply) => setReviews((previous) => previous.map((review) => review.id === reviewId ? { ...review, reply } : review))}
       />
 
       {/* Always the same slot/height on both sides — the label and style
@@ -460,6 +500,7 @@ export function MatchCard({
   onVote,
   onPaid,
   analytics = {},
+  viewerId,
 }: {
   match: MatchWithProducts;
   votedSide?: VoteSide;
@@ -469,6 +510,7 @@ export function MatchCard({
   // True only in the same session, right after this exact duel's vote was
   // cast — never persisted, never re-shown on a later visit or reload.
   analytics?: Record<string, ProductAnalyticsDaily>;
+  viewerId?: string;
 }) {
   const disabled = votedSide !== undefined;
   const aNearLoss = match.votes_b === NEAR_LOSS_THRESHOLD && match.votes_a < VOTES_TO_WIN;
@@ -506,6 +548,8 @@ export function MatchCard({
           own self-stretch below. */}
       <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
         <SideCard
+          key={`${match.product_a.id}:${viewerId ?? "guest"}`}
+          viewerId={viewerId}
           outboundClicks={analytics[match.product_a.id]?.outbound_clicks ?? 0}
           productId={match.product_a.id}
           matchId={match.id}
@@ -531,6 +575,8 @@ export function MatchCard({
         />
         <VsDivider />
         <SideCard
+          key={`${match.product_b.id}:${viewerId ?? "guest"}`}
+          viewerId={viewerId}
           outboundClicks={analytics[match.product_b.id]?.outbound_clicks ?? 0}
           productId={match.product_b.id}
           matchId={match.id}
