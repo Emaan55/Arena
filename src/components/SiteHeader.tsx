@@ -163,7 +163,7 @@ export function SiteHeader() {
           <button type="button" aria-label="Dismiss navigation backdrop" tabIndex={-1} onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <aside id="mobile-site-navigation" className="relative flex h-full max-h-dvh w-[min(88vw,320px)] flex-col border-r border-border bg-bg pl-[env(safe-area-inset-left)] shadow-2xl motion-safe:animate-[slide-up-pop_150ms_ease-out]">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
-              <span className="flex items-center gap-2 font-display font-bold text-ink"><BrandLogo variant="icon" className="h-8 w-8" />Navigation</span>
+              <span className="flex items-center gap-2 font-display font-bold text-ink"><BrandLogo variant="icon" className="h-8 w-8" />The Arena</span>
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"><X className="h-5 w-5" /></button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
