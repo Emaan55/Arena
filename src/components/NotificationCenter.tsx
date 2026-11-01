@@ -81,7 +81,7 @@ export function NotificationCenter() {
   }
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
+    <div ref={containerRef} className="relative shrink-0 max-xl:static">
       <button
         type="button"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
@@ -89,25 +89,25 @@ export function NotificationCenter() {
         aria-haspopup="dialog"
         aria-controls="notification-center-panel"
         onClick={() => { setOpen((value) => !value); if (!open) void loadPage(0); }}
-        className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+        className="relative flex h-10 w-10 max-xl:h-11 max-xl:w-11 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
       >
         <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && <span className="absolute right-1 top-0.5 min-w-4 rounded-full bg-accent px-1 text-[10px] font-bold leading-4 text-accent-ink">{unread > 99 ? "99+" : unread}</span>}
       </button>
 
       {open && (
-        <div id="notification-center-panel" role="dialog" aria-label="Notifications" className="absolute right-0 top-12 z-[80] w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-border bg-bg shadow-lg">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
+        <div id="notification-center-panel" role="dialog" aria-label="Notifications" className="absolute right-0 top-12 z-[80] w-[min(92vw,390px)] overflow-hidden max-xl:right-3 max-xl:top-[calc(100%+0.5rem)] max-xl:flex max-xl:max-h-[calc(100dvh-5rem-env(safe-area-inset-bottom))] max-xl:w-[min(calc(100%-1.5rem),390px)] max-xl:flex-col rounded-2xl border border-border bg-bg shadow-lg">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3.5 max-xl:shrink-0 max-xl:flex-wrap max-xl:gap-x-3">
             <h2 className="font-display text-sm font-bold text-ink">Notifications</h2>
             <div className="flex items-center gap-3">
-              <Link href="/dashboard/settings" onClick={() => setOpen(false)} className="text-xs text-muted hover:text-accent">Settings</Link>
-              {unread > 0 && <button type="button" onClick={() => void markAll()} className="flex items-center gap-1 text-xs font-semibold text-accent"><CheckCheck size={13} />Mark all read</button>}
+              <Link href="/dashboard/settings" onClick={() => setOpen(false)} className="max-xl:inline-flex max-xl:min-h-11 max-xl:items-center text-xs text-muted hover:text-accent">Settings</Link>
+              {unread > 0 && <button type="button" onClick={() => void markAll()} className="flex max-xl:min-h-11 items-center gap-1 text-xs font-semibold text-accent"><CheckCheck size={13} />Mark all read</button>}
             </div>
           </div>
-          <div className="max-h-[65vh] overflow-y-auto">
+          <div className="max-h-[65vh] overflow-y-auto max-xl:min-h-0 max-xl:overscroll-contain">
             {items.length === 0 && !loading ? <p className="p-6 text-center text-sm text-muted">You&apos;re all caught up.</p> : items.map((item) => (
               <article key={item.id} className={`flex items-start gap-2 border-b border-border px-4 py-3.5 transition-colors hover:bg-surface-2 ${item.read_at ? "" : "bg-accent/5"}`}>
-              <Link href={item.href} onClick={() => { if (!item.read_at) void markRead(item.id); setOpen(false); }} className="min-w-0 flex-1">
+              <Link href={item.href} onClick={() => { if (!item.read_at) void markRead(item.id); setOpen(false); }} className="min-w-0 flex-1 max-xl:min-h-11 max-xl:break-words">
                 <div className="flex items-start gap-3">
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.read_at ? "bg-border-strong" : "bg-accent"}`} />
                   <span className="min-w-0">
@@ -117,13 +117,13 @@ export function NotificationCenter() {
                   </span>
                 </div>
               </Link>
-              <button type="button" onClick={() => void removeNotification(item)} aria-label={`Delete ${item.title}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-3.5 w-3.5" /></button>
+              <button type="button" onClick={() => void removeNotification(item)} aria-label={`Delete ${item.title}`} className="flex h-8 w-8 max-xl:h-11 max-xl:w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-3.5 w-3.5" /></button>
               </article>
             ))}
           </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="text-xs font-bold text-accent">View all notifications</Link>
-            {hasMore && <button type="button" disabled={loading} onClick={() => void loadPage(page + 1, true)} className="text-xs text-muted disabled:opacity-50">{loading ? "Loading…" : "Load more"}</button>}
+          <div className="flex items-center justify-between px-4 py-3 max-xl:shrink-0">
+            <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="max-xl:inline-flex max-xl:min-h-11 max-xl:items-center text-xs font-bold text-accent">View all notifications</Link>
+            {hasMore && <button type="button" disabled={loading} onClick={() => void loadPage(page + 1, true)} className="max-xl:min-h-11 text-xs text-muted disabled:opacity-50">{loading ? "Loading…" : "Load more"}</button>}
           </div>
         </div>
       )}

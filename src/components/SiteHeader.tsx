@@ -21,6 +21,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { BrandLogo } from "./BrandLogo";
 import { ProductSearchBar, ProductSearchToggle } from "./ProductSearch";
 import { UserProfileMenu } from "./UserProfileMenu";
+import { MobileOverlay } from "./MobileOverlay";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -128,12 +129,12 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-[60] h-16 border-b border-border bg-bg/90 backdrop-blur-xl">
-      <div className="mx-auto grid h-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-3 sm:px-5 xl:grid-cols-[auto_auto_auto] xl:justify-between xl:gap-8">
-        <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-site-navigation" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink xl:hidden">
+      <div className="mx-auto grid h-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)] items-center gap-2 px-2 sm:gap-4 sm:px-5 xl:grid-cols-[auto_auto_auto] xl:justify-between xl:gap-8">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+          <button type="button" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-site-navigation" aria-haspopup="dialog" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink xl:hidden">
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
-          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 font-display text-lg font-black text-ink" aria-label="The Arena home">
+          <Link href="/" className="flex min-w-0 shrink-0 max-xl:min-h-11 items-center gap-2 font-display text-lg font-black text-ink" aria-label="The Arena home">
             <BrandLogo variant="icon" className="h-8 w-8 shrink-0" />
             <span className="hidden sm:inline">Arena</span>
           </Link>
@@ -147,35 +148,41 @@ export function SiteHeader() {
           <MoreMenu pathname={pathname} hash={hash} />
         </nav>
 
-        <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 xl:ml-0 xl:min-w-max">
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-0.5 sm:gap-2 xl:ml-0 xl:min-w-max">
           <ProductSearchBar className="hidden md:block" />
           <div className="md:hidden"><ProductSearchToggle /></div>
-          <ThemeToggle showLabel />
+          <ThemeToggle showLabel mobileTouchTarget />
           <Link href="/get-listed" className="hidden h-10 items-center whitespace-nowrap rounded-xl border border-border bg-surface px-4 text-sm font-bold text-ink shadow-sm transition-all hover:border-accent hover:shadow-md min-[1500px]:inline-flex">Get Listed</Link>
-          <Link href="/#submit" className="hidden h-10 items-center whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-bold text-accent-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md lg:inline-flex">Submit Product</Link>
-          {user ? <><NotificationCenter /><UserProfileMenu user={user} onSignOut={handleSignOut} /></> : <Link href={signInHref} className="hidden h-10 items-center whitespace-nowrap rounded-xl px-3 text-sm font-bold text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:inline-flex">Sign In</Link>}
+          <Link href="/#submit" className="hidden h-10 max-xl:h-11 items-center whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-bold text-accent-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md lg:inline-flex">Submit Product</Link>
+          {user ? <><NotificationCenter /><UserProfileMenu user={user} onSignOut={handleSignOut} /></> : <Link href={signInHref} className="hidden h-10 max-xl:h-11 items-center whitespace-nowrap rounded-xl px-3 text-sm font-bold text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:inline-flex">Sign In</Link>}
         </div>
       </div>
 
       {mobileOpen && (
-        <>
-          <button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-x-0 bottom-0 top-16 z-40 bg-black/40 backdrop-blur-sm xl:hidden" />
-          <aside id="mobile-site-navigation" className="fixed bottom-0 left-0 top-16 z-50 w-[min(88vw,320px)] overflow-y-auto border-r border-border bg-bg p-4 shadow-2xl xl:hidden">
-            <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
-              {MOBILE_LINKS.map(({ href, label, icon: Icon, ...route }) => {
-                const active = linkIsActive(pathname, hash, { href, ...route });
-                return <Link key={`${href}-${label}`} href={href} onClick={() => setMobileOpen(false)} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${active ? "bg-accent/10 text-accent" : "text-muted hover:bg-surface-2 hover:text-ink"}`}><Icon className="h-4 w-4" />{label}</Link>;
-              })}
-            </nav>
+        <MobileOverlay label="Site navigation" onClose={() => setMobileOpen(false)}>
+          <button type="button" aria-label="Dismiss navigation backdrop" tabIndex={-1} onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <aside id="mobile-site-navigation" className="relative flex h-full max-h-dvh w-[min(88vw,320px)] flex-col border-r border-border bg-bg pl-[env(safe-area-inset-left)] shadow-2xl motion-safe:animate-[slide-up-pop_150ms_ease-out]">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+              <span className="flex items-center gap-2 font-display font-bold text-ink"><BrandLogo variant="icon" className="h-8 w-8" />Navigation</span>
+              <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
+                {MOBILE_LINKS.map(({ href, label, icon: Icon, ...route }) => {
+                  const active = linkIsActive(pathname, hash, { href, ...route });
+                  return <Link key={`${href}-${label}`} href={href} onClick={() => setMobileOpen(false)} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${active ? "bg-accent/10 text-accent" : "text-muted hover:bg-surface-2 hover:text-ink"}`}><Icon className="h-4 w-4" />{label}</Link>;
+                })}
+              </nav>
 
-            <div className="mt-5 space-y-2 border-t border-border pt-5">
-              <Link href="/get-listed" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl border border-border bg-surface text-sm font-bold text-ink">Get Listed</Link>
-              <Link href="/#submit" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-sm font-bold text-accent-ink"><Plus className="h-4 w-4" />Submit Product</Link>
-              {!user && <Link href={signInHref} onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Sign In</Link>}
-              {user && <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Open My Arena</Link>}
+              <div className="mt-5 space-y-2 border-t border-border pt-5">
+                <Link href="/get-listed" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl border border-border bg-surface text-sm font-bold text-ink">Get Listed</Link>
+                <Link href="/#submit" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-sm font-bold text-accent-ink"><Plus className="h-4 w-4" />Submit Product</Link>
+                {!user && <Link href={signInHref} onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Sign In</Link>}
+                {user && <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Open My Arena</Link>}
+              </div>
             </div>
           </aside>
-        </>
+        </MobileOverlay>
       )}
     </header>
   );

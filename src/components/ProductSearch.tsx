@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import type { ProductSearchResult } from "@/types/database";
 import { ProductAvatar } from "./ProductAvatar";
 import { XHandleLink } from "./XHandleLink";
+import { MobileOverlay } from "./MobileOverlay";
 import { STATUS_LABEL, STATUS_CLASS } from "@/lib/product-status";
 
 const DEBOUNCE_MS = 300;
@@ -237,10 +237,6 @@ export function ProductSearchToggle() {
   const inputRef = useRef<HTMLInputElement>(null);
   const search = useProductSearch(query);
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-
   function close() {
     setOpen(false);
     setQuery("");
@@ -268,12 +264,12 @@ export function ProductSearchToggle() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label="Search products" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+      <button type="button" onClick={() => setOpen(true)} aria-label="Search products" aria-haspopup="dialog" aria-expanded={open} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink">
         <Search className="h-4 w-4" />
       </button>
-      {open && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] flex flex-col bg-bg">
-          <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+      {open && <MobileOverlay label="Product search" onClose={close} desktopQuery="(min-width: 768px)">
+        <div className="flex h-full flex-col bg-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+          <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
             <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
             <input
               ref={inputRef}
@@ -289,18 +285,17 @@ export function ProductSearchToggle() {
               aria-activedescendant={selectedIndex >= 0 ? `mobile-product-search-option-${selectedIndex}` : undefined}
               className="w-full bg-transparent text-base text-ink placeholder:text-muted focus:outline-none"
             />
-            <button type="button" onClick={close} aria-label="Close search" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"><X className="h-4 w-4" /></button>
+            <button type="button" onClick={close} aria-label="Close search" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {query.trim().length < MIN_QUERY_LEN ? <p className="px-4 py-8 text-center text-sm text-muted">Type at least 2 characters to search.</p> : search.loading ? <p className="px-4 py-8 text-center text-sm text-muted">Searching…</p> : search.errored ? <p className="px-4 py-8 text-center text-sm text-muted">Search is unavailable right now.</p> : search.results.length === 0 && search.searched ? <p className="px-4 py-8 text-center text-sm text-muted">No products match &ldquo;{query.trim()}&rdquo;.</p> : (
               <ul id="mobile-product-search-results" role="listbox" className="flex flex-col divide-y divide-border">
                 {search.results.map((result, index) => <ResultRow key={result.id} result={result} active={selectedIndex === index} optionId={`mobile-product-search-option-${index}`} onHover={() => setSelectedIndex(index)} onNavigate={close} />)}
               </ul>
             )}
           </div>
-        </div>,
-        document.body,
-      )}
+        </div>
+      </MobileOverlay>}
     </>
   );
 }

@@ -106,13 +106,13 @@ export function UserProfileMenu({ user, onSignOut }: { user: User; onSignOut: ()
 
   return (
     <div ref={containerRef} className="relative shrink-0">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-label="Open profile menu" aria-haspopup="menu" aria-expanded={open} className="flex h-10 items-center gap-1 rounded-full pl-0.5 pr-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-label="Open profile menu" aria-haspopup="menu" aria-expanded={open} className="flex h-10 max-xl:h-11 max-xl:min-w-11 items-center gap-1 rounded-full pl-0.5 pr-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink">
         <ProfileAvatar key={avatarUrl ?? "fallback"} name={profile.name} initials={profile.initials} avatarUrl={avatarUrl} size="sm" />
         <ChevronDown className={`hidden h-3.5 w-3.5 transition-transform sm:block ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 top-12 z-[80] w-[min(88vw,270px)] overflow-hidden rounded-2xl border border-border bg-bg shadow-lg">
+        <div role="menu" className="absolute right-0 top-12 z-[80] w-[min(88vw,270px)] overflow-hidden max-xl:max-h-[calc(100dvh-5rem-env(safe-area-inset-bottom))] max-xl:overflow-y-auto max-xl:overscroll-contain rounded-2xl border border-border bg-bg shadow-lg">
           <div className="flex items-center gap-3 border-b border-border p-4">
             <ProfileAvatar key={`large-${avatarUrl ?? "fallback"}`} name={profile.name} initials={profile.initials} avatarUrl={avatarUrl} />
             <div className="min-w-0">
@@ -122,13 +122,13 @@ export function UserProfileMenu({ user, onSignOut }: { user: User; onSignOut: ()
           </div>
           <div className="p-2">
             {links.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+              <Link key={href} href={href} role="menuitem" onClick={() => setOpen(false)} className="flex max-xl:min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink">
                 <Icon className="h-4 w-4" />{label}
               </Link>
             ))}
           </div>
           <div className="border-t border-border p-2">
-            <button type="button" role="menuitem" disabled={signingOut} onClick={() => void signOut()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50">
+            <button type="button" role="menuitem" disabled={signingOut} onClick={() => void signOut()} className="flex max-xl:min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50">
               <LogOut className="h-4 w-4" />{signingOut ? "Signing out…" : "Sign Out"}
             </button>
           </div>

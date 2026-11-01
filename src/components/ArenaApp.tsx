@@ -252,7 +252,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
       <SponsoredSection sponsorship={state.sponsorship} onPaid={refreshState} />
 
       {/* Duels */}
-      <section id="duels" className="border-t border-border px-6 py-16 md:px-10">
+      <section id="duels" className="border-t border-border px-3 py-16 sm:px-6 md:px-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 lg:flex-row lg:items-start">
           <div className="flex flex-1 flex-col gap-8">
             {challenge && (
@@ -308,7 +308,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
                   product to start one.
                 </p>
               ) : (
-                <div className="relative grid gap-5 p-3 sm:p-5">
+                <div className="relative grid gap-5 p-0 sm:p-5">
                   <DuelBackdrop />
                   {filtered.matches.map((m) => (
                     <MatchCard

@@ -21,6 +21,7 @@ const dependencies = {
   "./EditProductButton": { EditProductButton: () => null },
   "./reviews/ReviewCard": { ReviewAvatar: () => null },
   "./FounderReviewReply": { FounderReviewReply: () => null },
+  "./MobileOverlay": { MobileOverlay: ({ children }) => React.createElement(React.Fragment, null, children) },
   "@/lib/founder-reply": require("../src/lib/founder-reply.ts"),
 };
 const compiledModule = { exports: {} };

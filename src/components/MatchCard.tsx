@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Activity, Check, ExternalLink, MessageSquare, Swords } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Activity, Check, ExternalLink, MessageSquare, Swords, X } from "lucide-react";
 import type { MatchWithProducts } from "@/lib/arena-state";
 import type { ProductAnalyticsDaily, VoteSide } from "@/types/database";
 import { PayButton } from "./PayButton";
@@ -15,6 +15,7 @@ import type { PublicProductReview } from "@/lib/reviewer-profile";
 import { FounderReviewReply } from "./FounderReviewReply";
 import type { PublicFounderReply } from "@/lib/reviewer-profile";
 import { REVIEW_UUID } from "@/lib/founder-reply";
+import { MobileOverlay } from "./MobileOverlay";
 
 const VOTES_TO_WIN = 100;
 const NEAR_LOSS_THRESHOLD = VOTES_TO_WIN - 1;
@@ -29,6 +30,15 @@ const BOOST_PRICE_LABEL = "$5";
 // A vertically-elongated hexagon, matching the "VS" battle-marker shape
 // between the two duel cards.
 const HEX_CLIP = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+
+const MOBILE_DUEL_QUERY = "(max-width: 639px)";
+function subscribeMobileDuel(callback: () => void) {
+  const media = window.matchMedia(MOBILE_DUEL_QUERY);
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+}
+const isMobileDuel = () => window.matchMedia(MOBILE_DUEL_QUERY).matches;
+const desktopDuelSnapshot = () => false;
 
 /**
  * The Boost CTA, framed as a move in the current battle rather than a
@@ -134,6 +144,7 @@ function BoostMove({
  * Reviews remain independent of the arena-state polling loop.
  */
 function ReviewsPanel({
+  productName,
   count,
   reviews,
   loaded,
@@ -145,6 +156,7 @@ function ReviewsPanel({
   canReply,
   onReplyChanged,
 }: {
+  productName: string;
   count: number;
   reviews: PublicProductReview[];
   loaded: boolean;
@@ -156,19 +168,9 @@ function ReviewsPanel({
   canReply: boolean;
   onReplyChanged: (reviewId: string, reply: PublicFounderReply | null) => void;
 }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        aria-expanded={open}
-        onClick={onToggle}
-        disabled={!loaded || count === 0}
-        className="flex items-center gap-1.5 self-start text-xs font-medium text-muted transition-colors duration-150 ease-out hover:text-accent disabled:cursor-default disabled:hover:text-muted"
-      >
-        <MessageSquare className="h-3.5 w-3.5" />
-        {count} review{count === 1 ? "" : "s"}
-      </button>
-      {open && (
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-surface-2 p-3">
+  const mobile = useSyncExternalStore(subscribeMobileDuel, isMobileDuel, desktopDuelSnapshot);
+  const reviewList = (
+        <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-surface-2 p-3 max-sm:min-h-0 max-sm:max-h-none max-sm:flex-1 max-sm:overscroll-contain">
           {loading && <p role="status" className="text-xs text-muted">Loading reviews…</p>}
           {error && <p role="alert" className="text-xs text-muted">{error} <button onClick={onRetry} className="font-semibold text-accent hover:underline">Try again</button></p>}
           {!loading && !error && reviews.length === 0 && <p className="text-xs text-muted">No reviews available.</p>}
@@ -190,7 +192,27 @@ function ReviewsPanel({
             ))}
           </ul>
         </div>
-      )}
+  );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        aria-expanded={open}
+        onClick={onToggle}
+        disabled={!loaded || count === 0}
+        className="flex items-center gap-1.5 self-start text-xs font-medium text-muted transition-colors duration-150 ease-out hover:text-accent disabled:cursor-default disabled:hover:text-muted max-sm:min-h-11"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        {count} review{count === 1 ? "" : "s"}
+      </button>
+      {open && (mobile ? <MobileOverlay label={`${productName} reviews`} onClose={onToggle} desktopQuery="(min-width: 640px)">
+        <div className="flex h-full flex-col gap-3 bg-bg px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex shrink-0 items-center justify-between gap-3">
+            <h2 className="min-w-0 break-words font-display text-lg font-bold text-ink">{productName} reviews</h2>
+            <button type="button" onClick={onToggle} aria-label="Close reviews" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-2"><X className="h-5 w-5" /></button>
+          </div>
+          {reviewList}
+        </div>
+      </MobileOverlay> : reviewList)}
     </div>
   );
 }
@@ -353,30 +375,31 @@ function SideCard({
 
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-md transition-all duration-150 ease-out sm:p-5 ${borderClass}`}
+      className={`flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-md transition-all duration-150 ease-out sm:p-5 max-sm:gap-2 max-sm:rounded-xl max-sm:p-2 ${borderClass}`}
       style={isMyVote ? { boxShadow: "var(--glow-accent)" } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <a
             href={`/product/${productId}`}
-            className="group flex min-w-0 items-center gap-3"
+            title={name}
+            className="group flex min-w-0 items-center gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1.5 max-sm:[&>div:first-child]:h-8 max-sm:[&>div:first-child]:w-8"
           >
             <ProductAvatar name={name} logoUrl={logoUrl} accent={isMyVote} />
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate font-display text-base font-bold text-ink group-hover:text-accent group-hover:underline sm:text-lg">
+              <span className="truncate font-display text-base font-bold text-ink group-hover:text-accent group-hover:underline sm:text-lg max-sm:line-clamp-2 max-sm:min-h-10 max-sm:whitespace-normal max-sm:text-[13px] max-sm:leading-5 max-sm:[overflow-wrap:anywhere]">
                 {name}
               </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted max-sm:line-clamp-1 max-sm:text-[9px] max-sm:tracking-normal">
                 {category}
               </span>
             </div>
           </a>
-          <XHandleLink handle={xHandle} />
+          <XHandleLink handle={xHandle} className="inline-flex w-fit items-center gap-1 text-xs text-muted transition-colors duration-150 ease-out hover:text-accent max-sm:min-h-8 max-sm:max-w-full max-sm:break-all max-sm:text-[10px]" />
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 max-sm:contents">
           {isMyVote && (
-            <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
+            <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink max-sm:hidden">
               <Check className="h-3 w-3" />
               Your vote
             </span>
@@ -393,14 +416,20 @@ function SideCard({
         </span>
       )}
 
-      <BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} />
+      {(battlePitch || whyUs || differentiators.length > 0) && <>
+        <details className="min-w-0 sm:hidden">
+          <summary className="flex min-h-11 cursor-pointer items-center rounded-lg border border-border px-2 text-[11px] font-semibold text-muted">Battle pitch +</summary>
+          <BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} />
+        </details>
+        <div className="hidden sm:block"><BattlePitch battlePitch={battlePitch} whyUs={whyUs} differentiators={differentiators} /></div>
+      </>}
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between">
           <span key={votes} className="font-mono text-2xl font-bold text-ink [animation:slide-up-pop_150ms_ease-out]">
             {votes}
           </span>
-          <span className="font-mono text-xs text-muted">of {VOTES_TO_WIN} votes</span>
+          <span className="font-mono text-xs text-muted max-sm:text-[10px]"><span className="max-sm:hidden">of </span><span className="sm:hidden">/ </span>{VOTES_TO_WIN} votes</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div
@@ -410,20 +439,21 @@ function SideCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0">
         <span>{outboundClicks.toLocaleString()} website clicks</span>
         <a
           href={`/api/products/${productId}/outbound`}
           target="_blank"
           rel="noopener noreferrer nofollow"
           aria-label={`Visit ${name} website (opens in a new tab)`}
-          className="inline-flex items-center gap-1 py-1 font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex items-center gap-1 py-1 font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11"
         >
           Visit Website <ExternalLink className="h-3 w-3" aria-hidden="true" />
         </a>
       </div>
 
       <ReviewsPanel
+        productName={name}
         count={reviewCount}
         reviews={reviews}
         loaded={reviewsLoaded}
@@ -442,7 +472,7 @@ function SideCard({
       <button
         onClick={() => onVote(side)}
         disabled={disabled || voting}
-        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 ${
+        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-150 ease-out active:scale-95 disabled:active:scale-100 max-sm:min-h-11 max-sm:px-1 max-sm:text-xs ${
           isMyVote
             ? "bg-accent text-accent-ink shadow-none disabled:opacity-100"
             : disabled
@@ -453,7 +483,11 @@ function SideCard({
         {voting ? "Voting…" : isMyVote ? "✓ Voted" : disabled ? "Not selected" : "Vote for this side"}
       </button>
 
-      <BoostMove
+      <details className="min-w-0 sm:hidden">
+        <summary className="flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-lg border border-accent/25 px-1 text-[11px] font-semibold text-accent"><Swords className="h-3 w-3 shrink-0" />Boost +2 · {BOOST_PRICE_LABEL}</summary>
+        <BoostMove productId={productId} matchId={matchId} name={name} votes={votes} opponentVotes={opponentVotes} nearLoss={nearLoss} onPaid={onPaid} />
+      </details>
+      <div className="hidden sm:block"><BoostMove
         productId={productId}
         matchId={matchId}
         name={name}
@@ -461,31 +495,30 @@ function SideCard({
         opponentVotes={opponentVotes}
         nearLoss={nearLoss}
         onPaid={onPaid}
-      />
+      /></div>
     </div>
   );
 }
 
 /**
  * Hexagonal "VS" marker between the two duel cards, with thin gradient
- * lines running to the top/bottom edges of the row — stacks flush between
- * the cards on mobile (`min-h`) and, on desktop, opts itself back into
- * `self-stretch` to span the full row height even though the two product
+ * lines running to the top/bottom edges of the row. Both mobile and desktop
+ * place opponents side by side. The divider spans the full row height even though the product
  * cards next to it deliberately don't (see the grid's `items-start`
  * comment below) — the connector should always reach edge to edge
  * regardless of which side has more content.
  */
 function VsDivider() {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:self-stretch sm:py-0">
+    <div className="flex flex-col items-center justify-center gap-1 px-2 py-1 sm:h-full sm:self-stretch sm:py-0 max-sm:h-full max-sm:self-stretch max-sm:px-0 max-sm:py-0">
       <span className="min-h-6 w-px flex-1 bg-gradient-to-b from-transparent to-accent/60 sm:min-h-10" />
-      <div className="relative h-12 w-11 shrink-0">
+      <div className="relative h-12 w-11 shrink-0 max-sm:h-7 max-sm:w-6">
         <div className="absolute inset-0" style={{ clipPath: HEX_CLIP, background: "var(--accent)" }} />
         <div
           className="absolute inset-[2px] flex items-center justify-center bg-surface"
           style={{ clipPath: HEX_CLIP }}
         >
-          <span className="font-display text-xs font-bold text-accent">VS</span>
+          <span className="font-display text-xs font-bold text-accent max-sm:text-[10px]">VS</span>
         </div>
       </div>
       <span className="min-h-6 w-px flex-1 bg-gradient-to-t from-transparent to-accent/60 sm:min-h-10" />
@@ -546,7 +579,7 @@ export function MatchCard({
           somewhere in the shorter card. Each card sizes to its own
           content instead; the VS divider still spans the full row via its
           own self-stretch below. */}
-      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3">
         <SideCard
           key={`${match.product_a.id}:${viewerId ?? "guest"}`}
           viewerId={viewerId}
