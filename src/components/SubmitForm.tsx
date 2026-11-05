@@ -8,6 +8,7 @@ import type { ArenaState } from "@/lib/arena-state";
 import { editTokenStorageKey } from "@/lib/edit-token-storage";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { PayButton } from "./PayButton";
+import { submissionPath } from "@/lib/submission-path";
 
 const BATTLE_PITCH_MAX = 120;
 const WHY_US_MAX = 160;
@@ -24,15 +25,17 @@ interface FreeProgress {
 
 export function SubmitForm({
   onSubmitted,
+  initialCategory = "General",
 }: {
   onSubmitted: (product: Product, state: ArenaState) => void;
+  initialCategory?: Category;
 }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthUser();
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [category, setCategory] = useState<Category>("General");
+  const [category, setCategory] = useState<Category>(initialCategory);
   const [pitch, setPitch] = useState("");
   const [battlePitch, setBattlePitch] = useState("");
   const [whyUs, setWhyUs] = useState("");
@@ -94,7 +97,7 @@ export function SubmitForm({
   }
 
   function goSignIn() {
-    router.push(`/auth/sign-in?next=${encodeURIComponent("/#submit")}`);
+    router.push(`/auth/sign-in?next=${encodeURIComponent(submissionPath(initialCategory))}`);
   }
 
   async function submitFree() {
@@ -141,7 +144,7 @@ export function SubmitForm({
       }
       onSubmitted(product, data.state as ArenaState);
       resetFields();
-      setSuccess("You're in the arena. Watch for your first duel below.");
+      setSuccess("You're in the arena. View your product and duel status below.");
       refreshProgress();
     } catch {
       setError("Network error, please try again.");
@@ -158,6 +161,11 @@ export function SubmitForm({
   }
 
   const formValid = name.trim().length > 0 && url.trim().length > 0 && pitch.trim().length > 0;
+
+  if (!authLoading && !user) return <div className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-2xl border border-border bg-surface p-6">
+    <p role="status" className="text-sm text-muted">Sign in again to continue submitting your product.</p>
+    <button type="button" onClick={goSignIn} className="min-h-11 rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink">Sign in to continue</button>
+  </div>;
 
   return (
     <div

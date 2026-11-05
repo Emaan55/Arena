@@ -253,13 +253,13 @@ export default function DashboardPage() {
           </section>
 
           <section id="products" className="rounded-2xl border border-border bg-surface shadow-sm">
-            <SectionHeading title="My products" href="/#submit" linkLabel="Add product" />
+            <SectionHeading title="My products" href="/submit" linkLabel="Add product" />
             {data.products.length ? (
               <div className="divide-y divide-border">
                 {data.products.map((product) => <ProductRow key={product.id} product={product} />)}
               </div>
             ) : (
-              <EmptyState icon={Box} title="No products yet" body="Submit your first product to start tracking duels and audience activity." href="/#submit" action="Submit a product" />
+              <EmptyState icon={Box} title="No products yet" body="Submit your first product to start tracking duels and audience activity." href="/submit" action="Submit a product" />
             )}
           </section>
 
@@ -536,7 +536,7 @@ function ShareCard({ product }: { product: Product | null }) {
       <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Trophy className="h-5 w-5" /></span>
       <h2 className="mt-4 font-display text-lg font-black">Share your duel</h2>
       <p className="mt-1 text-xs leading-relaxed text-blue-50">Bring your audience into the Arena and build momentum for your product.</p>
-      <Link href={product?.currentMatch ? `/duel/${product.currentMatch.id}` : "/#submit"} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-black text-blue-700 shadow-sm">
+      <Link href={product?.currentMatch ? `/duel/${product.currentMatch.id}` : "/submit"} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-black text-blue-700 shadow-sm">
         {product ? "Open live duel" : "Submit a product"}<ArrowRight className="h-3.5 w-3.5" />
       </Link>
     </section>

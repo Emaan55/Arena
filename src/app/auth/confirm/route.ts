@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { sanitizeNextPath } from "@/lib/auth/config";
 
 /**
  * The callback for Supabase Auth email flows that need a server-side hop:
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const rawNext = searchParams.get("next") ?? "/";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const next = sanitizeNextPath(searchParams.get("next"));
+  const errorDestination = `/auth/sign-in?authError=1&next=${encodeURIComponent(next)}`;
 
   const supabase = await createRouteHandlerSupabaseClient();
 
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(new URL(`/auth/sign-in?verified=1&next=${encodeURIComponent(next)}`, origin));
     }
-    return NextResponse.redirect(new URL("/auth/sign-in?authError=1", origin));
+    return NextResponse.redirect(new URL(errorDestination, origin));
   }
 
   if (tokenHash && type) {
@@ -63,5 +64,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/auth/sign-in?authError=1", origin));
+  return NextResponse.redirect(new URL(errorDestination, origin));
 }

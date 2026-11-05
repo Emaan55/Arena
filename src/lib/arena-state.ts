@@ -4,6 +4,7 @@ import type { Champion, Database, Match, Product } from "@/types/database";
 import { getSponsorshipState, type SponsorshipState } from "./sponsorship";
 import { getProductAnalyticsSummary } from "./founder-notifications";
 import type { ProductAnalyticsDaily } from "@/types/database";
+import { getWaitingProducts } from "./waiting-products";
 
 export type MatchWithProducts = Match & { product_a: Product; product_b: Product };
 
@@ -112,7 +113,7 @@ export async function getArenaState(
     matchedIds.add(m.product_a_id);
     matchedIds.add(m.product_b_id);
   }
-  const waiting = (activeProductsRes.data ?? []).filter((p) => !matchedIds.has(p.id));
+  const waiting = getWaitingProducts(activeProductsRes.data ?? [], matches);
   // Defensive: a 'unique' product is only ever matched for the instant
   // between pairUnmatchedProducts inserting the match and flipping its
   // status back to 'active', but never show it as both live and uncontested.

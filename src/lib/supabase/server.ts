@@ -17,7 +17,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
  * their owner-only RLS policies apply. Other existing writes continue
  * through the service-role admin client (see lib/supabase/admin.ts).
  */
-export async function createRouteHandlerSupabaseClient() {
+async function createSessionSupabaseClient(readOnly: boolean) {
   const cookieStore = await cookies();
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -25,10 +25,21 @@ export async function createRouteHandlerSupabaseClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
+        // Server Components can verify/refresh a session but cannot set response cookies.
+        // /submit's scoped proxy and existing auth/API Route Handlers persist refreshes.
+        if (readOnly) return;
         for (const { name, value, options } of cookiesToSet) {
           cookieStore.set(name, value, options);
         }
       },
     },
   });
+}
+
+export function createRouteHandlerSupabaseClient() {
+  return createSessionSupabaseClient(false);
+}
+
+export function createServerComponentSupabaseClient() {
+  return createSessionSupabaseClient(true);
 }

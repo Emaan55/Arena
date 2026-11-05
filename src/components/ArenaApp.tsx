@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { ArenaState } from "@/lib/arena-state";
-import { CATEGORIES, type Category, type Product, type VoteSide } from "@/types/database";
-import { SubmitForm } from "./SubmitForm";
+import { CATEGORIES, type Category, type VoteSide } from "@/types/database";
+import { WaitingProducts } from "./WaitingProducts";
+import { getWaitingProducts } from "@/lib/waiting-products";
+import { submissionPath } from "@/lib/submission-path";
 import { CategoryTabs, type TabValue } from "./CategoryTabs";
 import { MatchCard } from "./MatchCard";
 import { HallOfFame } from "./HallOfFame";
@@ -92,6 +94,14 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
     return () => clearInterval(id);
   }, []);
 
+  // Keep existing bookmarks and external /#submit links working after the form moves.
+  useEffect(() => {
+    const followLegacyLink = () => { if (window.location.hash === "#submit") router.replace("/submit"); };
+    followLegacyLink();
+    window.addEventListener("hashchange", followLegacyLink);
+    return () => window.removeEventListener("hashchange", followLegacyLink);
+  }, [router]);
+
   useEffect(() => {
     // Returning from /auth/sign-in (or, for a new account, from clicking
     // the verification email, which signs itself in): `next` carried
@@ -176,23 +186,19 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
     }
   }
 
-  function handleSubmitted(product: Product, freshState: ArenaState) {
-    setState(freshState);
-    setTab(product.category);
-  }
-
   const filtered = useMemo(() => {
     const inCategory = <T extends { category: string }>(items: T[]) =>
       tab === "All" ? items : items.filter((i) => i.category === tab);
     return {
       matches: inCategory(state.matches),
-      waiting: inCategory(state.waiting),
       unique: inCategory(state.unique),
       eliminated: inCategory(state.eliminated),
       champions: inCategory(state.champions),
       topProducts: inCategory(state.topProducts),
     };
   }, [state, tab]);
+
+  const waiting = useMemo(() => getWaitingProducts(state.waiting, state.matches), [state.waiting, state.matches]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { All: state.matches.length };
@@ -219,7 +225,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
           </header>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
-              href="#submit"
+              href="/submit"
               className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-accent-ink shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
             >
               Submit Your Product
@@ -243,10 +249,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
         </div>
       </section>
 
-      {/* Submission form */}
-      <section className="px-6 pb-8">
-        <SubmitForm onSubmitted={handleSubmitted} />
-      </section>
+      <WaitingProducts products={waiting} />
 
       {/* Sponsored */}
       <SponsoredSection sponsorship={state.sponsorship} onPaid={refreshState} />
@@ -259,8 +262,7 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
               <div className="flex items-center justify-between gap-3 rounded-xl border border-accent bg-accent-soft/10 px-5 py-3 shadow-sm">
                 <p className="text-sm text-ink">
                   <strong>{challenge.from}</strong> is waiting for a challenger in{" "}
-                  <strong>{challenge.category}</strong>. Submit your product above to start the
-                  duel!
+                  <strong>{challenge.category}</strong>. <a href={submissionPath(challenge.category)} className="font-semibold text-accent underline">Submit your product</a> to enter the category&apos;s matching queue.
                 </p>
                 <button
                   onClick={() => setChallenge(null)}
@@ -276,14 +278,6 @@ export function ArenaApp({ initialState, publicMetrics }: { initialState: ArenaS
               <CategoryTabs selected={tab} onSelect={setTab} counts={counts} />
               {voteError && <p className="text-sm text-danger">{voteError}</p>}
             </div>
-
-            {filtered.waiting.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {filtered.waiting.map((p) => (
-                  <WaitingCard key={p.id} product={p} />
-                ))}
-              </div>
-            )}
 
             {filtered.unique.length > 0 && (
               <div className="flex flex-col gap-4">

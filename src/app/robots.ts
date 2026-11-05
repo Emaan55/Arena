@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/dashboard/",
         "/auth/",
         "/api/",
+        "/submit",
         "/get-listed/campaigns",
         "/reset-password",
         "/unsubscribe",
@@ -25,4 +26,3 @@ export default function robots(): MetadataRoute.Robots {
     host: CANONICAL_ORIGIN,
   };
 }
-

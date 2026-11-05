@@ -19,7 +19,7 @@ const PRODUCT_LINKS = [
   { href: "/#hall-of-fame", label: "Hall of Fame" },
   { href: "/get-listed", label: "Get Listed" },
   { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#submit", label: "Submit Product" },
+  { href: "/submit", label: "Submit Product" },
 ] as const;
 
 const LEGAL_LINKS = [

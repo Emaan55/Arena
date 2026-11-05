@@ -153,7 +153,7 @@ export function SiteHeader() {
           <div className="md:hidden"><ProductSearchToggle /></div>
           <ThemeToggle showLabel mobileTouchTarget />
           <Link href="/get-listed" className="hidden h-10 items-center whitespace-nowrap rounded-xl border border-border bg-surface px-4 text-sm font-bold text-ink shadow-sm transition-all hover:border-accent hover:shadow-md min-[1500px]:inline-flex">Get Listed</Link>
-          <Link href="/#submit" className="hidden h-10 max-xl:h-11 items-center whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-bold text-accent-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md lg:inline-flex">Submit Product</Link>
+          <Link href="/submit" className="hidden h-10 max-xl:h-11 items-center whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-bold text-accent-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md lg:inline-flex">Submit Product</Link>
           {user ? <><NotificationCenter /><UserProfileMenu user={user} onSignOut={handleSignOut} /></> : <Link href={signInHref} className="hidden h-10 max-xl:h-11 items-center whitespace-nowrap rounded-xl px-3 text-sm font-bold text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:inline-flex">Sign In</Link>}
         </div>
       </div>
@@ -176,7 +176,7 @@ export function SiteHeader() {
 
               <div className="mt-5 space-y-2 border-t border-border pt-5">
                 <Link href="/get-listed" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl border border-border bg-surface text-sm font-bold text-ink">Get Listed</Link>
-                <Link href="/#submit" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-sm font-bold text-accent-ink"><Plus className="h-4 w-4" />Submit Product</Link>
+                <Link href="/submit" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-sm font-bold text-accent-ink"><Plus className="h-4 w-4" />Submit Product</Link>
                 {!user && <Link href={signInHref} onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Sign In</Link>}
                 {user && <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex h-11 items-center justify-center rounded-xl text-sm font-bold text-muted hover:bg-surface-2 hover:text-ink">Open My Arena</Link>}
               </div>

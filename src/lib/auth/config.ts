@@ -29,6 +29,15 @@ export function isPasswordValid(password: string): boolean {
 
 /** Restricts a post-auth redirect target to a same-site relative path — never an open redirect. */
 export function sanitizeNextPath(raw: string | null | undefined): string {
-  if (!raw) return "/";
-  return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")
+    || Array.from(raw).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) return "/";
+  try {
+    const path = decodeURIComponent(raw.split(/[?#]/, 1)[0]);
+    if (path.startsWith("//") || path.includes("\\")) return "/";
+    const destination = new URL(raw, "https://arena.invalid");
+    if (destination.origin !== "https://arena.invalid") return "/";
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return "/";
+  }
 }

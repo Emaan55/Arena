@@ -91,7 +91,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <div className="mt-auto flex flex-col gap-3 pt-8">
         <Link
-          href="/#submit"
+          href="/submit"
           className="flex items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-bg shadow-sm transition-transform hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />

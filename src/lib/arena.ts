@@ -3,12 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Category, Database, Match, Product } from "@/types/database";
 import { resolveAndStoreProductFavicon } from "./favicon-service";
 import { scheduleFounderNotificationDelivery } from "./founder-notifications";
+import { WAITING_WINDOW_MS as UNIQUE_PRODUCT_MS } from "./waiting-products";
 
 type AdminClient = SupabaseClient<Database>;
 
 const WINS_TO_CHAMPION = 3;
 const VOTES_TO_WIN = 100;
-const UNIQUE_PRODUCT_MS = 7 * 24 * 60 * 60 * 1000;
 const FAVICON_BACKFILL_BATCH = 4;
 
 export async function logActivity(admin: AdminClient, text: string) {

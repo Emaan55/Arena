@@ -104,5 +104,5 @@ export async function POST(req: NextRequest) {
 
   logSecurityEvent("auth_sign_up_success", { ip, userId: data.user.id });
 
-  return NextResponse.json({ email });
+  return NextResponse.json({ email, authenticated: Boolean(data.session) });
 }

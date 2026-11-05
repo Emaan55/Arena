@@ -53,7 +53,7 @@ export default function SignUpPage() {
         setError(data.error ?? "Could not create your account.");
         return;
       }
-      router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}&next=${encodeURIComponent(next)}`);
+      router.push(data.authenticated ? next : `/auth/verify-email?email=${encodeURIComponent(data.email)}&next=${encodeURIComponent(next)}`);
     } catch {
       setError("Network error, please try again.");
     } finally {
