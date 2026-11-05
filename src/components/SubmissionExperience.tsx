@@ -9,8 +9,8 @@ import { SubmitForm } from "./SubmitForm";
 export function SubmissionExperience({ initialCategory }: { initialCategory: Category }) {
   const [submitted, setSubmitted] = useState<Product | null>(null);
   return <div className="flex flex-col gap-4">
-    <SubmitForm initialCategory={initialCategory} onSubmitted={(product) => setSubmitted(product)} />
-    {submitted && <section role="status" className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-2xl border border-accent/30 bg-accent/5 p-5">
+    {!submitted && <SubmitForm initialCategory={initialCategory} onSubmitted={(product) => setSubmitted(product)} />}
+    {submitted && <section role="status" className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-2xl border border-accent/30 bg-accent/5 p-5">
       <h2 className="flex items-center gap-2 font-display font-bold text-ink"><CheckCircle2 className="h-5 w-5 shrink-0 text-accent" />{submitted.name} has entered the Arena</h2>
       <p className="text-sm text-muted">View your product to follow its duel or waiting status.</p>
       <div className="flex flex-wrap gap-2">
