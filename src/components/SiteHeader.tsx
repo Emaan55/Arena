@@ -24,6 +24,7 @@ import { UserProfileMenu } from "./UserProfileMenu";
 import { MobileOverlay } from "./MobileOverlay";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { signInDestination } from "@/lib/auth/config";
 
 const PRIMARY_LINKS = [
   { href: "/#duels", label: "Explore", hash: "#duels" },
@@ -108,8 +109,9 @@ export function SiteHeader() {
   const { user } = useAuthUser();
   const pathname = usePathname();
   const hash = useCurrentHash();
+  const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
   const router = useRouter();
-  const signInHref = `/auth/sign-in?next=${encodeURIComponent(pathname || "/")}`;
+  const signInHref = `/auth/sign-in?next=${encodeURIComponent(signInDestination(pathname, search))}`;
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {

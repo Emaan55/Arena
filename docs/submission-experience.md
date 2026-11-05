@@ -9,6 +9,7 @@
 - The submission page verifies the user with Supabase Auth on the server. A proxy restricted to `/submit` persists refreshed session cookies and prevents public response caching. The form also handles a session ending while it is open.
 - New paid submissions require authentication before checkout. Their owner comes from the verified session. The existing fixed $1 variant, earned-free eligibility, submission validator, duplicate protection, and payment-confirmed webhook creation remain in place.
 - Navbar, footer, dashboard and hero submission links use `/submit`. Old homepage `#submit` bookmarks redirect there.
+- The navbar Sign In link also retains validated submission intent on signup and verification pages, including category selection.
 - The route is excluded from indexing and robots crawling. No database migration, dependency, environment variable, payment-provider or Supabase configuration change is required.
 
 ## Changed files

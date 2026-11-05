@@ -70,6 +70,12 @@ test("submission category intent is allowlisted, encoded, and never reserves a r
 test("auth redirect sanitizer preserves submission intent and rejects external/backslash/control redirects", () => {
   const valid = paths.submissionPath("Dev Tools");
   assert.equal(authConfig.sanitizeNextPath(valid), valid);
+  for (const authPage of ["/auth/sign-up", "/auth/verify-email", "/auth/sign-in"]) {
+    assert.equal(authConfig.signInDestination(authPage, `?next=${encodeURIComponent(valid)}`), valid);
+    assert.equal(authConfig.signInDestination(authPage, "?next=%2F%2Fevil.example"), "/");
+  }
+  assert.equal(authConfig.signInDestination("/submit", "?category=Dev+Tools"), valid);
+  assert.equal(authConfig.signInDestination("/reviews", "?page=2"), "/reviews");
   assert.equal(authConfig.sanitizeNextPath("/product/test?review=id#review-id"), "/product/test?review=id#review-id");
   for (const invalid of ["https://evil.example", "//evil.example", "/\\evil.example", "/%5cevil.example", "/%2fevil.example", "/\n/evil.example", "javascript:alert(1)", "/%invalid"])
     assert.equal(authConfig.sanitizeNextPath(invalid), "/", JSON.stringify(invalid));

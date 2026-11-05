@@ -41,3 +41,9 @@ export function sanitizeNextPath(raw: string | null | undefined): string {
     return "/";
   }
 }
+
+/** Keep the submission intent when switching from signup/verification to sign-in. */
+export function signInDestination(pathname: string, search: string): string {
+  if (pathname.startsWith("/auth/")) return sanitizeNextPath(new URLSearchParams(search).get("next"));
+  return sanitizeNextPath(`${pathname || "/"}${pathname === "/submit" ? search : ""}`);
+}
